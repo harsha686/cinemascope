@@ -1,0 +1,37 @@
+[
+  {
+    "id": "user-1",
+    "email": "harsha@cinema.com",
+    "displayName": "Harsha V.",
+    "role": "USER",
+    "createdAt": "2024-01-15T10:00:00Z"
+  },
+  {
+    "id": "user-2",
+    "email": "suresh@cinema.com",
+    "displayName": "Suresh K.",
+    "role": "USER",
+    "createdAt": "2024-02-20T11:30:00Z"
+  },
+  {
+    "id": "user-3",
+    "email": "priya@cinema.com",
+    "displayName": "Priya R.",
+    "role": "USER",
+    "createdAt": "2024-03-10T14:15:00Z"
+  },
+  {
+    "id": "user-4",
+    "email": "vikram@cinema.com",
+    "displayName": "Vikram M.",
+    "role": "USER",
+    "createdAt": "2024-03-01T09:00:00Z"
+  },
+  {
+    "id": "admin-1",
+    "email": "admin@cinema.com",
+    "displayName": "Cinema Admin",
+    "role": "ADMIN",
+    "createdAt": "2024-01-01T00:00:00Z"
+  }
+]

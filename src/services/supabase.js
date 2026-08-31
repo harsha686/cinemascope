@@ -1,0 +1,149 @@
+import { createClient } from '@supabase/supabase-js';
+
+// Read from env vars or localStorage custom config
+const getSupabaseConfig = () => {
+  const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
+  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+  const customUrl = localStorage.getItem('cinemascope_supabase_url') || '';
+  const customKey = localStorage.getItem('cinemascope_supabase_key') || '';
+
+  return {
+    url: customUrl.trim() || envUrl.trim(),
+    key: customKey.trim() || envKey.trim(),
+  };
+};
+
+let supabaseClient = null;
+
+export const getSupabaseClient = () => {
+  const { url, key } = getSupabaseConfig();
+  if (!url || !key) return null;
+
+  if (!supabaseClient) {
+    supabaseClient = createClient(url, key);
+  }
+  return supabaseClient;
+};
+
+export const isSupabaseConfigured = () => {
+  const { url, key } = getSupabaseConfig();
+  return Boolean(url && key && url.startsWith('http'));
+};
+
+export const setCustomSupabaseCredentials = (url, key) => {
+  if (url) localStorage.setItem('cinemascope_supabase_url', url.trim());
+  else localStorage.removeItem('cinemascope_supabase_url');
+
+  if (key) localStorage.setItem('cinemascope_supabase_key', key.trim());
+  else localStorage.removeItem('cinemascope_supabase_key');
+
+  supabaseClient = null; // reset client
+};
+
+// ============================================================
+// DATA SYNC SERVICES
+// ============================================================
+
+export const supabaseService = {
+  // Movies
+  async getMovies() {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    const { data, error } = await supabase.from('movies').select('*').order('created_at', { ascending: false });
+    if (error) {
+      console.warn('Supabase fetch movies error:', error);
+      return null;
+    }
+    return data;
+  },
+
+  async saveMovie(movie) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return false;
+    const { error } = await supabase.from('movies').upsert({
+      id: movie.id,
+      title: movie.title,
+      original_title: movie.originalTitle || movie.title,
+      poster_url: movie.posterUrl,
+      poster_source: movie.posterSource,
+      poster_source_type: movie.posterSourceType || 'OFFICIAL',
+      backdrop_url: movie.backdropUrl,
+      language: movie.language,
+      runtime: movie.runtime,
+      release_date: movie.releaseDate,
+      genres: movie.genres,
+      overview: movie.overview,
+      cast_list: movie.cast,
+      director: movie.director,
+      certificate: movie.certificate,
+      trailer_url: movie.trailerUrl,
+      aspect_ratio: movie.aspectRatio,
+      status: movie.status,
+      cities: movie.cities,
+      theaters: movie.theaters || [],
+      updated_at: new Date().toISOString(),
+    });
+    if (error) console.error('Supabase saveMovie error:', error);
+    return !error;
+  },
+
+  async deleteMovie(id) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return false;
+    const { error } = await supabase.from('movies').delete().eq('id', id);
+    return !error;
+  },
+
+  // Reviews
+  async getReviews() {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    const { data, error } = await supabase.from('reviews').select('*').order('created_at', { ascending: false });
+    if (error) {
+      console.warn('Supabase fetch reviews error:', error);
+      return null;
+    }
+    return data.map(r => ({
+      id: r.id,
+      movieId: r.movie_id,
+      userId: r.user_id,
+      userDisplayName: r.user_display_name,
+      rating: r.rating,
+      parameterRatings: r.parameter_ratings || {},
+      reviewText: r.review_text,
+      status: r.status,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+      likesCount: r.likes_count || 0,
+      reportCount: r.report_count || 0,
+    }));
+  },
+
+  async saveReview(review) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return false;
+    const { error } = await supabase.from('reviews').upsert({
+      id: review.id,
+      movie_id: review.movieId,
+      user_id: review.userId,
+      user_display_name: review.userDisplayName,
+      rating: review.rating,
+      parameter_ratings: review.parameterRatings || {},
+      review_text: review.reviewText,
+      status: review.status || 'PUBLISHED',
+      likes_count: review.likesCount || 0,
+      report_count: review.reportCount || 0,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) console.error('Supabase saveReview error:', error);
+    return !error;
+  },
+
+  async deleteReview(id) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return false;
+    const { error } = await supabase.from('reviews').delete().eq('id', id);
+    return !error;
+  },
+};
