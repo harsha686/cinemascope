@@ -26,6 +26,13 @@ const saveStorage = (key, data) => {
   }
 };
 
+const loadedCities = loadStorage('cinemascope_cities', theaterDB.cities);
+const sanitizedCities = (Array.isArray(loadedCities) ? loadedCities : theaterDB.cities).filter(
+  c => c.id !== 'bangalore' && c.name?.toLowerCase() !== 'bangalore'
+);
+// Ensure cleaned list is updated in storage
+saveStorage('cinemascope_cities', sanitizedCities);
+
 const initialState = {
   selectedCity: null,
   selectedTheater: null,
@@ -45,7 +52,7 @@ const initialState = {
   users: loadStorage('cinemascope_users', initialUsers),
   reports: loadStorage('cinemascope_reports', []),
   helpfulVotes: loadStorage('cinemascope_helpful_votes', []),
-  citiesList: loadStorage('cinemascope_cities', theaterDB.cities),
+  citiesList: sanitizedCities,
   currentUser: loadStorage('cinemascope_currentUser', null), // null or User object
 };
 
@@ -189,12 +196,24 @@ function reducer(state, action) {
       return newState;
     }
 
-    // --- CITY ACTIONS (ADMIN) ---
     case 'ADD_CITY':
-      const newCities = [...state.citiesList, action.payload];
+      const newCities = [...state.citiesList.filter(c => c.id !== action.payload.id), action.payload];
       newState = { ...state, citiesList: newCities };
       saveStorage('cinemascope_cities', newCities);
       return newState;
+
+    case 'DELETE_CITY': {
+      const cityId = action.payload;
+      const filteredCities = state.citiesList.filter(
+        c => c.id !== cityId && c.name?.toLowerCase() !== cityId.toLowerCase()
+      );
+      newState = { ...state, citiesList: filteredCities };
+      if (state.selectedCity === cityId) {
+        newState.selectedCity = 'visakhapatnam';
+      }
+      saveStorage('cinemascope_cities', filteredCities);
+      return newState;
+    }
 
     default:
       return state;

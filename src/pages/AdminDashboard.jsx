@@ -628,11 +628,36 @@ export default function AdminDashboard() {
                     </button>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
                     {allCities.map(c => (
-                      <div key={c.id} style={{ padding: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
-                        <div style={{ fontFamily: 'var(--font-serif)', color: 'var(--gold)', fontWeight: 600 }}>{c.name}</div>
-                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>ID: {c.id}</div>
+                      <div key={c.id} style={{ padding: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)', borderRadius: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-sans)', color: 'var(--gold)', fontWeight: 600 }}>{c.name}</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>ID: {c.id}</div>
+                        </div>
+                        <button
+                          type="button"
+                          title={`Delete ${c.name}`}
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to remove "${c.name}"?`)) {
+                              dispatch({ type: 'DELETE_CITY', payload: c.id });
+                            }
+                          }}
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: 11,
+                            color: '#f87171',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4
+                          }}
+                        >
+                          <Trash2 size={12} /> Delete
+                        </button>
                       </div>
                     ))}
                   </div>

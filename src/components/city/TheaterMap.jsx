@@ -90,17 +90,18 @@ export default function TheaterMap({ theaters, selectedId, onSelect, cityLat, ci
 
       const popupContent = `
         <div style="font-family: var(--font-sans); min-width: 180px;">
-          <div style="font-family: 'Cinzel', serif; font-size: 12px; color: var(--gold); letter-spacing: 0.08em; margin-bottom: 4px;">
+          <div style="font-family: var(--font-sans); font-weight: 600; font-size: 13px; color: var(--gold); letter-spacing: 0.03em; margin-bottom: 4px;">
             ${t.name}
           </div>
-          <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 6px;">${t.area || ''}</div>
-          <div style="font-size: 10px; color: var(--text-muted)">${t.totalScreens} screen${t.totalScreens > 1 ? 's' : ''} · ${t.type}</div>
+          <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">${t.area || ''}</div>
+          <div style="font-size: 11px; color: var(--text-muted)">${t.totalScreens} screen${t.totalScreens > 1 ? 's' : ''} · ${t.type}</div>
           <a href="#/theater/${t.id}" style="
             display: inline-block;
             margin-top: 8px;
-            font-family: 'Cinzel', serif;
-            font-size: 9px;
-            letter-spacing: 0.12em;
+            font-family: var(--font-sans);
+            font-weight: 600;
+            font-size: 10px;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
             color: var(--gold);
             text-decoration: none;
