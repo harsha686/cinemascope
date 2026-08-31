@@ -1,6 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Read from env vars or localStorage custom config
+// Default connected Supabase Project
+const DEFAULT_SUPABASE_URL = 'https://ioudwvkvtxlzmcqnrqlq.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvdWR3dmt2dHhsem1jcW5ycWxxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxODA0MjYsImV4cCI6MjEwMzc1NjQyNn0.7EnHtyNOFbQ8iyBTk6OGLB4yEbNhRC-qmc_P1rNc5vs';
+
+// Read from env vars, localStorage custom config, or defaults
 const getSupabaseConfig = () => {
   const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -9,8 +13,8 @@ const getSupabaseConfig = () => {
   const customKey = localStorage.getItem('cinemascope_supabase_key') || '';
 
   return {
-    url: customUrl.trim() || envUrl.trim(),
-    key: customKey.trim() || envKey.trim(),
+    url: customUrl.trim() || envUrl.trim() || DEFAULT_SUPABASE_URL,
+    key: customKey.trim() || envKey.trim() || DEFAULT_SUPABASE_KEY,
   };
 };
 
