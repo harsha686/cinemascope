@@ -38,8 +38,8 @@ export default function LoginPage() {
   const handleQuickAdminLogin = () => {
     const adminUser = state.users.find(u => u.role === 'ADMIN') || {
       id: 'admin-1',
-      email: 'admin@cinema.com',
-      displayName: 'Cinema Admin',
+      email: 'harshavardhanmellof41@gmail.com',
+      displayName: 'Harshavardhan (Admin)',
       role: 'ADMIN',
       createdAt: new Date().toISOString(),
     };
@@ -116,19 +116,11 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Quick Demo Logins for Instant Evaluation */}
+        {/* Quick Demo Login */}
         <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontSize: 10, fontFamily: 'var(--font-serif)', textTransform: 'uppercase', color: 'var(--text-muted)', textAlign: 'center', letterSpacing: '0.1em' }}>
-            Quick Demo Shortcuts
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" onClick={handleQuickUserLogin} className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: 'center', fontSize: 11 }}>
-              Demo User (Harsha V.)
-            </button>
-            <button type="button" onClick={handleQuickAdminLogin} className="btn btn-outline btn-sm" style={{ flex: 1, justifyContent: 'center', fontSize: 11 }}>
-              <ShieldAlert size={12} /> Admin Login
-            </button>
-          </div>
+          <button type="button" onClick={handleQuickUserLogin} className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', fontSize: 11 }}>
+            Demo User Login
+          </button>
         </div>
 
         {/* Footer Link */}

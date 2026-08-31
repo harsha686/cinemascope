@@ -68,27 +68,18 @@ export default function AdminDashboard() {
           <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#f87171' }}>
             <ShieldAlert size={24} />
           </div>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--text-primary)', marginBottom: 8 }}>Admin Portal Restricted</h1>
+          <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 22, color: 'var(--text-primary)', marginBottom: 8 }}>Admin Access Restricted</h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 24 }}>
-            You must be logged in as an Administrator to access movie management and moderation controls.
+            Public access to the Admin Portal is restricted. You must log in with an authorized Administrator account to continue.
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <button
-              onClick={() => {
-                const adminUser = state.users.find(u => u.role === 'ADMIN') || {
-                  id: 'admin-1',
-                  email: 'admin@cinema.com',
-                  displayName: 'Cinema Admin',
-                  role: 'ADMIN',
-                  createdAt: new Date().toISOString(),
-                };
-                dispatch({ type: 'SET_CURRENT_USER', payload: adminUser });
-              }}
+              onClick={() => navigate('/login', { state: { from: '/admin' } })}
               className="btn btn-primary"
               style={{ width: '100%', justifyContent: 'center' }}
             >
-              Log in as Admin (Demo)
+              Log in to Admin Account
             </button>
             <button onClick={() => navigate('/')} className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center' }}>
               ← Return to Home

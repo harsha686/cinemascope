@@ -33,6 +33,36 @@ const sanitizedCities = (Array.isArray(loadedCities) ? loadedCities : theaterDB.
 // Ensure cleaned list is updated in storage
 saveStorage('cinemascope_cities', sanitizedCities);
 
+const rawUsers = loadStorage('cinemascope_users', initialUsers);
+const sanitizedUsers = (Array.isArray(rawUsers) ? rawUsers : initialUsers).map(u => {
+  if (u.role === 'ADMIN' || u.id === 'admin-1' || u.email === 'admin@cinema.com') {
+    return { ...u, email: 'harshavardhanmellof41@gmail.com', displayName: 'Harshavardhan (Admin)', role: 'ADMIN' };
+  }
+  return u;
+});
+if (!sanitizedUsers.some(u => u.email === 'harshavardhanmellof41@gmail.com')) {
+  sanitizedUsers.push({
+    id: 'admin-1',
+    email: 'harshavardhanmellof41@gmail.com',
+    displayName: 'Harshavardhan (Admin)',
+    role: 'ADMIN',
+    createdAt: new Date().toISOString(),
+  });
+}
+saveStorage('cinemascope_users', sanitizedUsers);
+
+const loadedCurrentUser = loadStorage('cinemascope_currentUser', null);
+let sanitizedCurrentUser = loadedCurrentUser;
+if (loadedCurrentUser && (loadedCurrentUser.role === 'ADMIN' || loadedCurrentUser.email === 'admin@cinema.com')) {
+  sanitizedCurrentUser = {
+    ...loadedCurrentUser,
+    email: 'harshavardhanmellof41@gmail.com',
+    displayName: 'Harshavardhan (Admin)',
+    role: 'ADMIN'
+  };
+  saveStorage('cinemascope_currentUser', sanitizedCurrentUser);
+}
+
 const initialState = {
   selectedCity: null,
   selectedTheater: null,
@@ -49,11 +79,11 @@ const initialState = {
   // Persistent data state
   movies: loadStorage('cinemascope_movies', initialMovies),
   reviews: loadStorage('cinemascope_reviews', initialReviews),
-  users: loadStorage('cinemascope_users', initialUsers),
+  users: sanitizedUsers,
   reports: loadStorage('cinemascope_reports', []),
   helpfulVotes: loadStorage('cinemascope_helpful_votes', []),
   citiesList: sanitizedCities,
-  currentUser: loadStorage('cinemascope_currentUser', null), // null or User object
+  currentUser: sanitizedCurrentUser, // null or User object
 };
 
 function reducer(state, action) {

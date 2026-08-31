@@ -2,8 +2,12 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Film, ExternalLink } from 'lucide-react';
 import YoutubeIcon from '../shared/YoutubeIcon';
+import { useApp } from '../../AppContext';
 
 export default function Footer() {
+  const { state } = useApp();
+  const currentUser = state?.currentUser;
+
   return (
     <footer style={{
       borderTop: '1px solid var(--border-subtle)',
@@ -46,7 +50,7 @@ export default function Footer() {
               { to: '/compare', label: 'Compare Screens' },
               { to: '/formats', label: 'Format Guide' },
               { to: '/about', label: 'About & Data' },
-              { to: '/admin', label: 'Admin Portal' },
+              ...(currentUser?.role === 'ADMIN' ? [{ to: '/admin', label: 'Admin Portal' }] : []),
             ].map(l => (
               <Link key={l.to} to={l.to} style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none' }}
                 onMouseEnter={e => e.target.style.color = 'var(--gold)'}
