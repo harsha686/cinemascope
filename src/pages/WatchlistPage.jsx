@@ -86,10 +86,10 @@ export default function WatchlistPage() {
               </p>
             </div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <select className="input" value={sort} onChange={e => setSort(e.target.value)} style={{ fontSize: 12 }}>
-                <option value="dateAdded">Date Added</option>
-                <option value="title">Title</option>
-                <option value="year">Release Year</option>
+              <select className="input" value={sort} onChange={e => setSort(e.target.value)} style={{ fontSize: 12, background: '#18140e', color: '#ffffff' }}>
+                <option value="dateAdded" style={{ background: '#18140e', color: '#ffffff' }}>Date Added</option>
+                <option value="title" style={{ background: '#18140e', color: '#ffffff' }}>Title</option>
+                <option value="year" style={{ background: '#18140e', color: '#ffffff' }}>Release Year</option>
               </select>
               <div style={{ display: 'flex', border: '1px solid var(--border-subtle)', borderRadius: 4, overflow: 'hidden' }}>
                 <button

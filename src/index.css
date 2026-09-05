@@ -7,6 +7,7 @@
 
 /* --- Design Tokens --- */
 :root {
+  color-scheme: dark;
   --bg-primary: #0a0806;
   --bg-secondary: #120f0c;
   --bg-card: #18140e;
@@ -209,6 +210,33 @@ h1, h2, h3, h4 { font-family: var(--font-sans); letter-spacing: 0.01em; line-hei
   border-color: var(--gold-dim);
   background: rgba(245, 158, 11, 0.06);
   box-shadow: 0 0 0 1px var(--gold-faint);
+}
+
+/* --- Select & Dropdowns --- */
+select,
+select.input {
+  color-scheme: dark !important;
+  background-color: #18140e !important;
+  color: #ffffff !important;
+  cursor: pointer;
+}
+
+select option {
+  background-color: #18140e !important;
+  color: #ffffff !important;
+  padding: 10px 14px;
+}
+
+select option:hover,
+select option:focus,
+select option:checked {
+  background-color: #272118 !important;
+  color: var(--gold) !important;
+}
+
+select optgroup {
+  background-color: #18140e !important;
+  color: var(--gold) !important;
 }
 
 /* --- Filter Chips --- */

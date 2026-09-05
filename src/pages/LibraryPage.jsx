@@ -202,11 +202,11 @@ export default function LibraryPage() {
               </div>
             )}
             {activeSection !== 'collections' && (
-              <select className="input" value={sort} onChange={e => setSort(e.target.value)} style={{ fontSize: 12, minWidth: 130 }}>
-                <option value="dateAdded">Date Added</option>
-                <option value="title">Title A–Z</option>
-                <option value="year">Release Year</option>
-                <option value="rating">My Rating</option>
+              <select className="input" value={sort} onChange={e => setSort(e.target.value)} style={{ fontSize: 12, minWidth: 130, background: '#18140e', color: '#ffffff' }}>
+                <option value="dateAdded" style={{ background: '#18140e', color: '#ffffff' }}>Date Added</option>
+                <option value="title" style={{ background: '#18140e', color: '#ffffff' }}>Title A–Z</option>
+                <option value="year" style={{ background: '#18140e', color: '#ffffff' }}>Release Year</option>
+                <option value="rating" style={{ background: '#18140e', color: '#ffffff' }}>My Rating</option>
               </select>
             )}
             <div style={{ display: 'flex', border: '1px solid var(--border-subtle)', borderRadius: 4, overflow: 'hidden' }}>

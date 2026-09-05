@@ -398,14 +398,14 @@ export default function MovieDetailPage() {
                   <Sliders size={13} color="var(--text-muted)" />
                   <select
                     className="input"
-                    style={{ width: 'auto', padding: '4px 12px', fontSize: 12 }}
+                    style={{ width: 'auto', padding: '4px 12px', fontSize: 12, background: '#18140e', color: '#ffffff' }}
                     value={sortOption}
                     onChange={e => setSortOption(e.target.value)}
                   >
-                    <option value="newest">Newest First</option>
-                    <option value="highest">Highest Rated</option>
-                    <option value="lowest">Lowest Rated</option>
-                    <option value="helpful">Most Helpful</option>
+                    <option value="newest" style={{ background: '#18140e', color: '#ffffff' }}>Newest First</option>
+                    <option value="highest" style={{ background: '#18140e', color: '#ffffff' }}>Highest Rated</option>
+                    <option value="lowest" style={{ background: '#18140e', color: '#ffffff' }}>Lowest Rated</option>
+                    <option value="helpful" style={{ background: '#18140e', color: '#ffffff' }}>Most Helpful</option>
                   </select>
                 </div>
               </div>

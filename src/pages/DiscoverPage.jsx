@@ -186,39 +186,39 @@ export default function DiscoverPage() {
           
           <select 
             className="input" 
-            style={{ width: 'auto', minWidth: '150px' }}
+            style={{ width: 'auto', minWidth: '150px', background: '#18140e', color: '#ffffff' }}
             value={activeSort}
             onChange={(e) => updateFilter('sort', e.target.value)}
           >
-            {sorts.map(s => <option key={s.val} value={s.val}>{s.label}</option>)}
+            {sorts.map(s => <option key={s.val} value={s.val} style={{ background: '#18140e', color: '#ffffff' }}>{s.label}</option>)}
           </select>
 
           <select 
             className="input" 
-            style={{ width: 'auto', minWidth: '150px' }}
+            style={{ width: 'auto', minWidth: '150px', background: '#18140e', color: '#ffffff' }}
             value={activeGenre}
             onChange={(e) => updateFilter('genre', e.target.value)}
           >
-            <option value="">All Genres</option>
-            {genres.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+            <option value="" style={{ background: '#18140e', color: '#ffffff' }}>All Genres</option>
+            {genres.map(g => <option key={g.id} value={g.id} style={{ background: '#18140e', color: '#ffffff' }}>{g.name}</option>)}
           </select>
 
           <select 
             className="input" 
-            style={{ width: 'auto', minWidth: '150px' }}
+            style={{ width: 'auto', minWidth: '150px', background: '#18140e', color: '#ffffff' }}
             value={activeLang}
             onChange={(e) => updateFilter('language', e.target.value)}
           >
-            {languages.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+            {languages.map(l => <option key={l.code} value={l.code} style={{ background: '#18140e', color: '#ffffff' }}>{l.label}</option>)}
           </select>
 
           <select 
             className="input" 
-            style={{ width: 'auto', minWidth: '150px' }}
+            style={{ width: 'auto', minWidth: '150px', background: '#18140e', color: '#ffffff' }}
             value={activeDecade}
             onChange={(e) => updateFilter('decade', e.target.value)}
           >
-            {decades.map(d => <option key={d.val} value={d.val}>{d.label}</option>)}
+            {decades.map(d => <option key={d.val} value={d.val} style={{ background: '#18140e', color: '#ffffff' }}>{d.label}</option>)}
           </select>
 
           {hasFilters && (

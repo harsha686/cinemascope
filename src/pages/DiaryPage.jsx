@@ -114,10 +114,10 @@ export default function DiaryPage() {
                 className="input"
                 value={selectedYear}
                 onChange={e => setSelectedYear(e.target.value)}
-                style={{ minWidth: 120, fontSize: 12 }}
+                style={{ minWidth: 120, fontSize: 12, background: '#18140e', color: '#ffffff' }}
               >
-                <option value="all">All Years</option>
-                {years.map(y => <option key={y} value={y}>{y}</option>)}
+                <option value="all" style={{ background: '#18140e', color: '#ffffff' }}>All Years</option>
+                {years.map(y => <option key={y} value={y} style={{ background: '#18140e', color: '#ffffff' }}>{y}</option>)}
               </select>
               <button className="btn btn-outline btn-sm" onClick={() => navigate('/discover')}>
                 <Film size={14} /> Discover Movies
