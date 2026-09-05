@@ -223,6 +223,7 @@ export async function fetchFullTmdbMovieDetails(tmdbId) {
   const langName = langMap[data.original_language] || data.original_language?.toUpperCase() || 'Telugu';
 
   return {
+    id: `tmdb-${data.id}`,
     tmdbId: data.id,
     title: data.title || data.original_title,
     originalTitle: data.original_title || data.title,

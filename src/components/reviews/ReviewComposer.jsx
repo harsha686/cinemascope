@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { useApp } from '../../AppContext';
+import { setPersonalRating } from '../../services/movieLibraryService';
 
 // Cinema review parameters with icons/labels
 const REVIEW_PARAMS = [
@@ -132,6 +133,9 @@ export default function ReviewComposer({ movie, existingReview = null, onClose, 
     setIsSubmitting(true);
 
     try {
+      const targetMovieId = movie.id || (movie.tmdbId ? `tmdb-${movie.tmdbId}` : null);
+      const rawTmdbId = movie.tmdbId || (targetMovieId ? String(targetMovieId).replace('tmdb-', '') : null);
+
       const payload = {
         rating: overallRating,
         parameterRatings: params,
@@ -139,13 +143,14 @@ export default function ReviewComposer({ movie, existingReview = null, onClose, 
       };
 
       if (existingReview) {
-        dispatch({ type: 'UPDATE_REVIEW', payload: { id: existingReview.id, ...payload } });
+        dispatch({ type: 'UPDATE_REVIEW', payload: { id: existingReview.id, movieId: targetMovieId, ...payload } });
       } else {
         dispatch({
           type: 'ADD_REVIEW',
           payload: {
             id: `rev-${Date.now()}`,
-            movieId: movie.id,
+            movieId: targetMovieId,
+            tmdbId: rawTmdbId,
             userId: currentUser.id,
             userDisplayName: currentUser.displayName || 'Cinema Enthusiast',
             ...payload,
@@ -156,6 +161,10 @@ export default function ReviewComposer({ movie, existingReview = null, onClose, 
             reportCount: 0,
           },
         });
+      }
+
+      if (rawTmdbId && overallRating > 0) {
+        setPersonalRating(rawTmdbId, currentUser.id, overallRating).catch(console.error);
       }
 
       setIsSubmitting(false);

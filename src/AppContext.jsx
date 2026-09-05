@@ -319,12 +319,21 @@ export function AppProvider({ children }) {
     return state.movies.find(m => m.id === movieId) || null;
   }, [state.movies]);
 
+  const isMovieMatch = useCallback((r, movieId) => {
+    if (!r || !movieId) return false;
+    if (r.movieId === movieId) return true;
+    const targetRaw = String(movieId).replace('tmdb-', '');
+    const rMovieRaw = r.movieId ? String(r.movieId).replace('tmdb-', '') : null;
+    const rTmdbRaw = r.tmdbId ? String(r.tmdbId) : null;
+    return (rMovieRaw && rMovieRaw === targetRaw) || (rTmdbRaw && rTmdbRaw === targetRaw);
+  }, []);
+
   const getMovieReviews = useCallback((movieId) => {
-    return state.reviews.filter(r => r.movieId === movieId && r.status === 'PUBLISHED');
-  }, [state.reviews]);
+    return state.reviews.filter(r => isMovieMatch(r, movieId) && r.status === 'PUBLISHED');
+  }, [state.reviews, isMovieMatch]);
 
   const getMovieRating = useCallback((movieId) => {
-    const published = state.reviews.filter(r => r.movieId === movieId && r.status === 'PUBLISHED');
+    const published = state.reviews.filter(r => isMovieMatch(r, movieId) && r.status === 'PUBLISHED');
     if (published.length === 0) return { average: 0, count: 0 };
     const sum = published.reduce((acc, r) => {
       // Support both new parameterRatings format and old flat rating
@@ -333,10 +342,10 @@ export function AppProvider({ children }) {
     }, 0);
     const avg = Math.round((sum / published.length) * 10) / 10;
     return { average: avg, count: published.length };
-  }, [state.reviews]);
+  }, [state.reviews, isMovieMatch]);
 
   const getRatingDistribution = useCallback((movieId) => {
-    const published = state.reviews.filter(r => r.movieId === movieId && r.status === 'PUBLISHED');
+    const published = state.reviews.filter(r => isMovieMatch(r, movieId) && r.status === 'PUBLISHED');
     const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
     const total = published.length;
     if (total === 0) return { counts, percentages: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }, total: 0 };
@@ -355,12 +364,12 @@ export function AppProvider({ children }) {
     };
 
     return { counts, percentages, total };
-  }, [state.reviews]);
+  }, [state.reviews, isMovieMatch]);
 
   const getUserReviewForMovie = useCallback((userId, movieId) => {
     if (!userId || !movieId) return null;
-    return state.reviews.find(r => r.userId === userId && r.movieId === movieId && r.status !== 'REMOVED') || null;
-  }, [state.reviews]);
+    return state.reviews.find(r => r.userId === userId && isMovieMatch(r, movieId) && r.status !== 'REMOVED') || null;
+  }, [state.reviews, isMovieMatch]);
 
   const getCityMovies = useCallback((cityId, statusFilter = 'CURRENTLY_SHOWING') => {
     return state.movies.filter(m => {
