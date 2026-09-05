@@ -213,25 +213,70 @@ export async function getLibraryStats() {
 
 // Diary
 export async function getDiary() {
-  const diary = JSON.parse(localStorage.getItem(DIARY_KEY) || '[]');
-  return diary.sort((a, b) => new Date(b.watched_on) - new Date(a.watched_on));
+  const raw = JSON.parse(localStorage.getItem(DIARY_KEY) || '[]');
+  const sanitized = raw.map(e => {
+    let tmdb_id = e.tmdb_id || e.tmdbId;
+    if (!tmdb_id && e['0'] !== undefined) {
+      // Auto-recover tmdb_id if saved from spread string
+      const keys = Object.keys(e).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b));
+      if (keys.length > 0) {
+        tmdb_id = keys.map(k => e[k]).join('');
+      }
+    }
+    return {
+      ...e,
+      tmdb_id: tmdb_id || '',
+      movie_title: e.movie_title || e.title || e.movieMeta?.title || '',
+      poster_url: e.poster_url || e.posterUrl || e.movieMeta?.posterUrl || '',
+      watched_on: e.watched_on || e.dateWatched || e.created_at || new Date().toISOString().split('T')[0],
+      personal_rating: e.personal_rating !== undefined ? e.personal_rating : (e.rating || null),
+      review_text: e.review_text || e.review || '',
+      is_rewatch: !!(e.is_rewatch || e.isRewatch),
+      tags: e.tags || []
+    };
+  });
+  return sanitized.sort((a, b) => new Date(b.watched_on || b.created_at) - new Date(a.watched_on || a.created_at));
 }
 
 export async function saveDiary(entries) {
   localStorage.setItem(DIARY_KEY, JSON.stringify(entries));
 }
 
-export async function addDiaryEntry(entry) {
+export async function addDiaryEntry(entryOrTmdbId, maybeData) {
   const diary = await getDiary();
   const id = `diary_${Date.now()}`;
-  const newEntry = { ...entry, id, created_at: new Date().toISOString() };
-  diary.push(newEntry);
+  
+  let entry = {};
+  if (typeof entryOrTmdbId === 'string' && maybeData) {
+    entry = {
+      tmdb_id: entryOrTmdbId,
+      ...maybeData
+    };
+  } else if (typeof entryOrTmdbId === 'object') {
+    entry = { ...entryOrTmdbId };
+  }
+
+  const normalizedEntry = {
+    id,
+    user_id: entry.user_id || entry.userId || '',
+    tmdb_id: entry.tmdb_id || entry.tmdbId || '',
+    movie_title: entry.movie_title || entry.title || entry.movieMeta?.title || '',
+    poster_url: entry.poster_url || entry.posterUrl || entry.movieMeta?.posterUrl || '',
+    watched_on: entry.watched_on || entry.dateWatched || new Date().toISOString().split('T')[0],
+    personal_rating: entry.personal_rating !== undefined ? entry.personal_rating : (entry.rating || null),
+    review_text: entry.review_text || entry.review || '',
+    is_rewatch: !!(entry.is_rewatch || entry.isRewatch),
+    tags: Array.isArray(entry.tags) ? entry.tags : (typeof entry.tags === 'string' ? entry.tags.split(',').map(t => t.trim()).filter(Boolean) : []),
+    created_at: new Date().toISOString()
+  };
+
+  diary.push(normalizedEntry);
   await saveDiary(diary);
 
-  if (isSupabaseConfigured() && newEntry.user_id) {
-    supabaseService.addDiaryEntry(newEntry).catch(console.error);
+  if (isSupabaseConfigured() && normalizedEntry.user_id) {
+    supabaseService.addDiaryEntry(normalizedEntry).catch(console.error);
   }
-  return newEntry;
+  return normalizedEntry;
 }
 
 export async function deleteDiaryEntry(entryId) {

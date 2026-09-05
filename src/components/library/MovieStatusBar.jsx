@@ -113,38 +113,7 @@ export default function MovieStatusBar({ tmdbId, movieMeta, compact, onStatusCha
         {!compact && <span style={{ marginLeft: '6px' }}>Watched</span>}
       </button>
 
-      <div style={{ position: 'relative' }}>
-        <button
-          type="button"
-          className={`btn ${compact ? 'btn-sm' : ''} btn-ghost`}
-          onClick={() => activeUser ? setShowRating(!showRating) : alert('Please log in to rate movies.')}
-          style={{
-            color: status.rating > 0 ? 'var(--gold)' : 'var(--text-secondary)',
-            background: status.rating > 0 ? 'var(--gold-faint)' : undefined
-          }}
-          title="Rate this movie"
-        >
-          <Star size={iconSize} fill={status.rating > 0 ? 'var(--gold)' : 'none'} />
-          {!compact && <span style={{ marginLeft: '6px' }}>{status.rating > 0 ? `${status.rating}★` : 'Rate'}</span>}
-        </button>
-        {showRating && (
-          <div style={{
-            position: 'absolute',
-            bottom: '100%',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            marginBottom: '8px',
-            zIndex: 100,
-            background: 'var(--bg-card)',
-            padding: '10px 14px',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-sm)',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.8)'
-          }}>
-            <PersonalRatingPicker value={status.rating} onChange={handleRatingChange} size="sm" />
-          </div>
-        )}
-      </div>
+
 
       <button
         type="button"

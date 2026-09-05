@@ -30,7 +30,7 @@ export default function DiaryPage() {
 
   useEffect(() => {
     if (entries.length === 0) return;
-    const idsToFetch = [...new Set(entries.map(e => e.tmdb_id).filter(id => id && !moviesData[id]))];
+    const idsToFetch = [...new Set(entries.map(e => e.tmdb_id || e.tmdbId).filter(id => id && !moviesData[id]))];
     if (idsToFetch.length === 0) return;
     Promise.all(idsToFetch.map(id => fetchFullTmdbMovieDetails(id).catch(() => null))).then(results => {
       const map = {};
@@ -78,8 +78,10 @@ export default function DiaryPage() {
   });
 
   const formatDate = (iso) => {
-    try { return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
-    catch { return iso; }
+    if (!iso) return 'Recently';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return 'Recently';
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   const renderStars = (rating) => {
@@ -170,13 +172,17 @@ export default function DiaryPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {monthEntries.map(entry => {
-                  const movie = moviesData[entry.tmdb_id];
+                  const movie = moviesData[entry.tmdb_id || entry.tmdbId];
+                  const displayTitle = entry.movie_title || movie?.title || (entry.tmdb_id ? `Movie #${entry.tmdb_id}` : 'Logged Movie');
+                  const posterSrc = entry.poster_url || movie?.posterUrl;
+                  const targetTmdbId = entry.tmdb_id || movie?.tmdbId;
+
                   return (
                     <div key={entry.id} style={{ display: 'flex', gap: 16, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4, padding: 16, alignItems: 'flex-start' }}>
                       {/* Poster */}
                       <div style={{ flexShrink: 0, width: 60, height: 90, background: 'rgba(0,0,0,0.3)', borderRadius: 3, overflow: 'hidden' }}>
-                        {movie?.posterUrl ? (
-                          <img src={movie.posterUrl} alt={entry.movie_title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {posterSrc ? (
+                          <img src={posterSrc} alt={displayTitle} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Film size={20} color="var(--text-muted)" />
@@ -187,12 +193,12 @@ export default function DiaryPage() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
                           <div>
-                            <Link to={`/movie/tmdb-${entry.tmdb_id}`} style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--text-primary)', fontWeight: 600, textDecoration: 'none' }}>
-                              {entry.movie_title || movie?.title || 'Unknown Movie'}
+                            <Link to={targetTmdbId ? `/movie/tmdb-${targetTmdbId}` : '/discover'} style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--text-primary)', fontWeight: 600, textDecoration: 'none' }}>
+                              {displayTitle}
                             </Link>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
                               <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <Calendar size={10} /> {formatDate(entry.watched_on)}
+                                <Calendar size={10} /> {formatDate(entry.watched_on || entry.dateWatched || entry.created_at)}
                               </span>
                               {entry.is_rewatch && (
                                 <span style={{ fontSize: 10, background: 'rgba(220,182,91,0.15)', color: 'var(--gold)', border: '1px solid var(--gold-dim)', padding: '1px 6px', borderRadius: 10 }}>

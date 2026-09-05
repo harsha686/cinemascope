@@ -19,12 +19,14 @@ export default function DiaryEntryForm({ tmdbId, movieMeta, onClose, onSave }) {
     
     try {
       await addDiaryEntry(tmdbId, {
-        dateWatched,
-        rating,
-        review,
-        isRewatch,
-        tags,
-        movieMeta
+        tmdb_id: tmdbId,
+        movie_title: movieMeta?.title || '',
+        poster_url: movieMeta?.posterUrl || '',
+        watched_on: dateWatched,
+        personal_rating: rating,
+        review_text: review,
+        is_rewatch: isRewatch,
+        tags
       });
       if (onSave) onSave();
       onClose();
