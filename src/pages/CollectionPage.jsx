@@ -192,10 +192,18 @@ export default function CollectionPage() {
   }, [collectionId, currentUser, navigate]);
 
   useEffect(() => {
-    if (!collection) return;
+    if (!collection || !collection.movie_ids || collection.movie_ids.length === 0) {
+      setLoading(false);
+      return;
+    }
     
+    let isSubscribed = true;
     const fetchMovies = async () => {
-      const idsToFetch = collection.movie_ids.filter(id => !moviesData[id]);
+      const idsToFetch = collection.movie_ids.filter(id => {
+        const cleanId = String(id).replace('tmdb-', '');
+        return !moviesData[id] && !moviesData[`tmdb-${cleanId}`] && !moviesData[cleanId];
+      });
+
       if (idsToFetch.length === 0) {
         setLoading(false);
         return;
@@ -203,24 +211,38 @@ export default function CollectionPage() {
 
       try {
         const results = await Promise.all(
-          idsToFetch.map(id => fetchFullTmdbMovieDetails(id).catch(() => null))
+          idsToFetch.map(id => {
+            const cleanId = String(id).replace('tmdb-', '');
+            return fetchFullTmdbMovieDetails(cleanId).catch(() => null);
+          })
         );
         
+        if (!isSubscribed) return;
+
         const newMoviesData = {};
-        results.forEach(movie => {
-          if (movie) newMoviesData[movie.id] = movie;
+        results.forEach((movie, idx) => {
+          const originalReqId = idsToFetch[idx];
+          if (movie) {
+            const cleanId = String(originalReqId).replace('tmdb-', '');
+            newMoviesData[originalReqId] = movie;
+            newMoviesData[`tmdb-${cleanId}`] = movie;
+            newMoviesData[cleanId] = movie;
+            if (movie.id) newMoviesData[movie.id] = movie;
+            if (movie.tmdbId) newMoviesData[movie.tmdbId] = movie;
+          }
         });
         
         setMoviesData(prev => ({ ...prev, ...newMoviesData }));
       } catch (error) {
         console.error(error);
       } finally {
-        setLoading(false);
+        if (isSubscribed) setLoading(false);
       }
     };
 
     fetchMovies();
-  }, [collection, moviesData]);
+    return () => { isSubscribed = false; };
+  }, [collection]);
 
   if (!currentUser) {
     return (
@@ -339,7 +361,8 @@ export default function CollectionPage() {
             gap: '1.5rem'
           }}>
             {collection.movie_ids.map(tmdbId => {
-              const movie = moviesData[tmdbId];
+              const cleanId = String(tmdbId).replace('tmdb-', '');
+              const movie = moviesData[tmdbId] || moviesData[`tmdb-${cleanId}`] || moviesData[cleanId];
               return (
                 <div key={tmdbId} style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
                   {movie ? <GlobalMovieCard movie={movie} /> : <div style={{ height: '240px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)' }}>Loading...</div>}
