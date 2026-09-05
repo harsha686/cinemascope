@@ -1,3 +1,4 @@
+-- Create Tables
 CREATE TABLE IF NOT EXISTS user_movies (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
@@ -43,19 +44,34 @@ ALTER TABLE user_movies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE diary_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE collections ENABLE ROW LEVEL SECURITY;
 
--- Policies for user_movies
+-- Safely recreate policies for user_movies
+DROP POLICY IF EXISTS "Public select for user_movies" ON user_movies;
+DROP POLICY IF EXISTS "Public insert for user_movies" ON user_movies;
+DROP POLICY IF EXISTS "Public update for user_movies" ON user_movies;
+DROP POLICY IF EXISTS "Public delete for user_movies" ON user_movies;
+
 CREATE POLICY "Public select for user_movies" ON user_movies FOR SELECT USING (true);
 CREATE POLICY "Public insert for user_movies" ON user_movies FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public update for user_movies" ON user_movies FOR UPDATE USING (true);
 CREATE POLICY "Public delete for user_movies" ON user_movies FOR DELETE USING (true);
 
--- Policies for diary_entries
+-- Safely recreate policies for diary_entries
+DROP POLICY IF EXISTS "Public select for diary_entries" ON diary_entries;
+DROP POLICY IF EXISTS "Public insert for diary_entries" ON diary_entries;
+DROP POLICY IF EXISTS "Public update for diary_entries" ON diary_entries;
+DROP POLICY IF EXISTS "Public delete for diary_entries" ON diary_entries;
+
 CREATE POLICY "Public select for diary_entries" ON diary_entries FOR SELECT USING (true);
 CREATE POLICY "Public insert for diary_entries" ON diary_entries FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public update for diary_entries" ON diary_entries FOR UPDATE USING (true);
 CREATE POLICY "Public delete for diary_entries" ON diary_entries FOR DELETE USING (true);
 
--- Policies for collections
+-- Safely recreate policies for collections
+DROP POLICY IF EXISTS "Public select for collections" ON collections;
+DROP POLICY IF EXISTS "Public insert for collections" ON collections;
+DROP POLICY IF EXISTS "Public update for collections" ON collections;
+DROP POLICY IF EXISTS "Public delete for collections" ON collections;
+
 CREATE POLICY "Public select for collections" ON collections FOR SELECT USING (true);
 CREATE POLICY "Public insert for collections" ON collections FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public update for collections" ON collections FOR UPDATE USING (true);
