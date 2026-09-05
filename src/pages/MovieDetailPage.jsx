@@ -1,9 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe } from 'lucide-react';
+import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck } from 'lucide-react';
 import { useApp } from '../AppContext';
 import RatingBreakdown from '../components/reviews/RatingBreakdown';
 import ReviewCard from '../components/reviews/ReviewCard';
+import ProfessionalReviewCard from '../components/reviews/ProfessionalReviewCard';
+import ReviewTabs from '../components/reviews/ReviewTabs';
+import ProfessionalRatingBadge from '../components/reviews/ProfessionalRatingBadge';
 import ReviewComposer from '../components/reviews/ReviewComposer';
 import MovieStatusBar from '../components/library/MovieStatusBar';
 import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
@@ -16,6 +19,10 @@ export default function MovieDetailPage() {
     getMovieRating,
     getUserReviewForMovie,
     getMovieReviews,
+    getMovieUserReviews,
+    getMovieProfessionalReviews,
+    getProfessionalRating,
+    isVerifiedPro,
     getCityTheaters,
     getCity,
     state,
@@ -42,14 +49,20 @@ export default function MovieDetailPage() {
   const movie = isTmdbMovie ? tmdbMovie : adminMovie;
   const currentUser = state.currentUser;
   const currentCity = state.selectedCity || getCity('visakhapatnam');
+  const currentUserIsPro = currentUser ? isVerifiedPro(currentUser.id) : false;
 
   const [sortOption, setSortOption] = useState('newest');
   const [showComposer, setShowComposer] = useState(false);
   const [editingReview, setEditingReview] = useState(null);
+  const [reviewTab, setReviewTab] = useState('all'); // 'all' | 'audience' | 'professional'
+  const [submitAsPro, setSubmitAsPro] = useState(false);
 
   const ratingInfo = useMemo(() => getMovieRating(movieId), [getMovieRating, movieId]);
+  const proRatingInfo = useMemo(() => getProfessionalRating(movieId), [getProfessionalRating, movieId]);
   const userExistingReview = useMemo(() => currentUser ? getUserReviewForMovie(currentUser.id, movieId) : null, [getUserReviewForMovie, currentUser, movieId]);
   const allReviews = useMemo(() => getMovieReviews(movieId), [getMovieReviews, movieId]);
+  const userReviewsList = useMemo(() => getMovieUserReviews(movieId), [getMovieUserReviews, movieId]);
+  const proReviewsList = useMemo(() => getMovieProfessionalReviews(movieId), [getMovieProfessionalReviews, movieId]);
 
   // Theaters showing this movie in the current city
   const localTheaters = useMemo(() => {
@@ -61,15 +74,22 @@ export default function MovieDetailPage() {
     return cityTheaters;
   }, [getCityTheaters, currentCity, movie, isTmdbMovie]);
 
+  // Active review list based on tab
+  const activeReviews = useMemo(() => {
+    if (reviewTab === 'audience') return userReviewsList;
+    if (reviewTab === 'professional') return proReviewsList;
+    return allReviews;
+  }, [reviewTab, allReviews, userReviewsList, proReviewsList]);
+
   // Sort reviews
   const sortedReviews = useMemo(() => {
-    const list = [...allReviews];
+    const list = [...activeReviews];
     if (sortOption === 'newest') list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     else if (sortOption === 'highest') list.sort((a, b) => b.rating - a.rating);
     else if (sortOption === 'lowest') list.sort((a, b) => a.rating - b.rating);
     else if (sortOption === 'helpful') list.sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0));
     return list;
-  }, [allReviews, sortOption]);
+  }, [activeReviews, sortOption]);
 
   // Loading state for TMDB movies
   if (isTmdbMovie && tmdbLoading) {
@@ -354,7 +374,7 @@ export default function MovieDetailPage() {
 
             {/* WHAT PEOPLE THINK (REVIEWS SECTION) */}
             <div id="reviews-section">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
                 <div>
                   <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', letterSpacing: '0.04em' }}>
                     What People Think
@@ -365,40 +385,99 @@ export default function MovieDetailPage() {
                 </div>
               </div>
 
-              {/* Review Composer Form Modal / Inline */}
+              {/* Dual Rating Summary Bar */}
+              <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
+                {/* Community Rating */}
+                <div style={{
+                  flex: 1, minWidth: 140, padding: '12px 16px',
+                  background: 'var(--bg-card)', border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    👥 Community Rating
+                  </div>
+                  {ratingInfo.count > 0 ? (
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                      <span style={{ fontSize: 24, fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-serif)' }}>★ {ratingInfo.average}</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>/ 5 · {ratingInfo.count} review{ratingInfo.count !== 1 ? 's' : ''}</span>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>No reviews yet</div>
+                  )}
+                </div>
+                {/* Professional Rating */}
+                <div style={{
+                  flex: 1, minWidth: 140, padding: '12px 16px',
+                  background: 'linear-gradient(135deg, rgba(16,185,129,0.06), rgba(5,150,105,0.02))',
+                  border: '1px solid rgba(16,185,129,0.2)',
+                  borderRadius: 'var(--radius-sm)',
+                }}>
+                  <div style={{ fontSize: 11, color: '#10b981', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <ShieldCheck size={11} /> Professional Rating
+                  </div>
+                  {proRatingInfo.count > 0 ? (
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                      <span style={{ fontSize: 24, fontWeight: 700, color: '#10b981', fontFamily: 'var(--font-serif)' }}>★ {proRatingInfo.average}</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>/ 5 · {proRatingInfo.count} critic{proRatingInfo.count !== 1 ? 's' : ''}</span>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>No critics yet</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Review Composer */}
               {showComposer && (
                 <div style={{ marginBottom: 32 }}>
+                  {/* Pro toggle for verified reviewers */}
+                  {currentUserIsPro && (
+                    <div style={{ marginBottom: 12, padding: '10px 14px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <ShieldCheck size={14} color="#10b981" />
+                      <span style={{ fontSize: 12, color: '#10b981', flex: 1 }}>Submit as Professional Review</span>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={submitAsPro} onChange={e => setSubmitAsPro(e.target.checked)} />
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{submitAsPro ? 'Professional ✓' : 'User Review'}</span>
+                      </label>
+                    </div>
+                  )}
                   <ReviewComposer
                     movie={movie}
                     existingReview={editingReview}
-                    onClose={() => setShowComposer(false)}
-                    onSuccess={() => setShowComposer(false)}
+                    reviewType={submitAsPro && currentUserIsPro ? 'PROFESSIONAL' : 'USER'}
+                    onClose={() => { setShowComposer(false); setSubmitAsPro(false); }}
+                    onSuccess={() => { setShowComposer(false); setSubmitAsPro(false); }}
                   />
                 </div>
               )}
 
               {/* Rating Summary + Per-Parameter Breakdown */}
-              <div style={{ marginBottom: 32 }}>
+              <div style={{ marginBottom: 24 }}>
                 <RatingBreakdown reviews={allReviews} />
               </div>
 
-              {/* User's Own Review Display if Logged In & Reviewed */}
+              {/* User's Own Review Display */}
               {userExistingReview && !showComposer && (
                 <div style={{ marginBottom: 24, padding: 16, background: 'rgba(220,182,91,0.06)', border: '1px solid var(--gold-dim)', borderRadius: 4 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <span style={{ fontSize: 10, fontFamily: 'var(--font-serif)', textTransform: 'uppercase', color: 'var(--gold)', letterSpacing: '0.15em' }}>Your Published Review</span>
                     <button type="button" onClick={() => handleEditClick(userExistingReview)} className="btn btn-ghost btn-sm" style={{ padding: '2px 8px', fontSize: 10 }}>Edit</button>
                   </div>
-                  <ReviewCard review={userExistingReview} onEdit={handleEditClick} onDelete={handleDeleteOwnReview} />
+                  {userExistingReview.reviewType === 'PROFESSIONAL' ? (
+                    <ProfessionalReviewCard review={userExistingReview} onEdit={handleEditClick} onDelete={handleDeleteOwnReview} />
+                  ) : (
+                    <ReviewCard review={userExistingReview} onEdit={handleEditClick} onDelete={handleDeleteOwnReview} />
+                  )}
                 </div>
               )}
 
-              {/* Sorting Header */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 12 }}>
-                <span style={{ fontSize: 13, fontFamily: 'var(--font-serif)', color: 'var(--text-secondary)' }}>
-                  All Reviews ({sortedReviews.length})
-                </span>
-
+              {/* Review Tabs + Sort */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 12 }}>
+                <ReviewTabs
+                  activeTab={reviewTab}
+                  onChange={setReviewTab}
+                  userCount={userReviewsList.length}
+                  proCount={proReviewsList.length}
+                />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Sliders size={13} color="var(--text-muted)" />
                   <select
@@ -419,22 +498,37 @@ export default function MovieDetailPage() {
               {sortedReviews.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '48px 0', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-subtle)' }}>
                   <MessageSquare size={32} color="var(--text-muted)" style={{ marginBottom: 12 }} />
-                  <h4 style={{ fontFamily: 'var(--font-serif)', color: 'var(--text-secondary)', marginBottom: 6 }}>No Reviews Yet</h4>
-                  <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>Be the first person to share your thoughts on this movie!</p>
-                  <button type="button" onClick={handleWriteClick} className="btn btn-primary btn-sm">
-                    Write a Review
-                  </button>
+                  <h4 style={{ fontFamily: 'var(--font-serif)', color: 'var(--text-secondary)', marginBottom: 6 }}>
+                    {reviewTab === 'professional' ? 'No Professional Reviews Yet' : 'No Reviews Yet'}
+                  </h4>
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
+                    {reviewTab === 'professional'
+                      ? 'No verified critics have reviewed this film yet.'
+                      : 'Be the first to share your thoughts on this movie!'}
+                  </p>
+                  {reviewTab !== 'professional' && (
+                    <button type="button" onClick={handleWriteClick} className="btn btn-primary btn-sm">Write a Review</button>
+                  )}
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {sortedReviews.map(rev => (
-                    <ReviewCard
-                      key={rev.id}
-                      review={rev}
-                      onEdit={handleEditClick}
-                      onDelete={handleDeleteOwnReview}
-                    />
-                  ))}
+                  {sortedReviews.map(rev =>
+                    rev.reviewType === 'PROFESSIONAL' ? (
+                      <ProfessionalReviewCard
+                        key={rev.id}
+                        review={rev}
+                        onEdit={handleEditClick}
+                        onDelete={handleDeleteOwnReview}
+                      />
+                    ) : (
+                      <ReviewCard
+                        key={rev.id}
+                        review={rev}
+                        onEdit={handleEditClick}
+                        onDelete={handleDeleteOwnReview}
+                      />
+                    )
+                  )}
                 </div>
               )}
             </div>

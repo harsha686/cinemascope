@@ -21,6 +21,8 @@ import LibraryPage from './pages/LibraryPage';
 import DiaryPage from './pages/DiaryPage';
 import WatchlistPage from './pages/WatchlistPage';
 import CollectionPage from './pages/CollectionPage';
+import ProReviewerApplyPage from './pages/ProReviewerApplyPage';
+import ProReviewerProfilePage from './pages/ProReviewerProfilePage';
 
 export default function App() {
   return (
@@ -50,6 +52,8 @@ export default function App() {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/*" element={<AdminDashboard />} />
+              <Route path="/apply-professional" element={<ProReviewerApplyPage />} />
+              <Route path="/reviewer/:userId" element={<ProReviewerProfilePage />} />
             </Routes>
           </main>
           <Footer />

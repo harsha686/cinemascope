@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShieldAlert, Film, MessageSquare, Users, MapPin, Plus, Search, Edit3, Trash2, CheckCircle2, EyeOff, Sparkles, AlertCircle, ArrowLeft, ExternalLink, Check, Image as ImageIcon, Database, RefreshCw } from 'lucide-react';
+import { ShieldAlert, Film, MessageSquare, Users, MapPin, Plus, Search, Edit3, Trash2, CheckCircle2, EyeOff, Sparkles, AlertCircle, ArrowLeft, ExternalLink, Check, Image as ImageIcon, Database, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useApp } from '../AppContext';
 import TMDBImportHelper from '../components/admin/TMDBImportHelper';
 import XPosterDiscoveryModal from '../components/admin/XPosterDiscoveryModal';
 import { isSupabaseConfigured, setCustomSupabaseCredentials, supabaseService } from '../services/supabase';
+import { getApplications, updateApplicationStatus } from '../services/proReviewerService';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -13,7 +14,7 @@ export default function AdminDashboard() {
   const currentUser = state.currentUser;
   const isAdmin = currentUser && currentUser.role === 'ADMIN';
 
-  const [activeTab, setActiveTab] = useState('movies'); // 'movies' | 'reviews' | 'users' | 'cities'
+  const [activeTab, setActiveTab] = useState('movies'); // 'movies' | 'reviews' | 'users' | 'cities' | 'pro-reviewers'
   const [movieSearch, setMovieSearch] = useState('');
   const [movieStatusFilter, setMovieStatusFilter] = useState('all');
 
@@ -330,6 +331,7 @@ export default function AdminDashboard() {
               { id: 'reviews', label: 'Review Moderation', icon: MessageSquare, count: state.reviews.length },
               { id: 'users', label: 'Users', icon: Users, count: state.users.length },
               { id: 'cities', label: 'Cities', icon: MapPin, count: allCities.length },
+              { id: 'pro-reviewers', label: 'Pro Reviewers', icon: ShieldCheck, count: getApplications().length },
               { id: 'database', label: 'Cloud Database', icon: Database, count: isSupabaseConfigured() ? 'Live' : 'Local' },
             ].map(tab => {
               const Icon = tab.icon;
@@ -654,6 +656,11 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* PRO REVIEWERS TAB */}
+            {activeTab === 'pro-reviewers' && (
+              <ProReviewersPanel dispatch={dispatch} currentUser={currentUser} />
             )}
 
             {/* DATABASE / SUPABASE TAB */}
@@ -1172,6 +1179,202 @@ export default function AdminDashboard() {
           onClose={() => setShowXModal(false)}
           onSelectPoster={handleSelectPosterFromX}
         />
+      )}
+    </div>
+  );
+}
+
+// ─── Pro Reviewers Panel ───────────────────────────────────────────────────
+function ProReviewersPanel({ dispatch, currentUser }) {
+  const [apps, setApps] = React.useState(() => getApplications());
+  const [statusFilter, setStatusFilter] = React.useState('all');
+  const [expandedId, setExpandedId] = React.useState(null);
+  const [adminNote, setAdminNote] = React.useState('');
+  const [rejectReason, setRejectReason] = React.useState('');
+
+  const reload = () => setApps(getApplications());
+
+  const filtered = statusFilter === 'all' ? apps : apps.filter(a => a.status === statusFilter);
+
+  const handleAction = (appId, status) => {
+    updateApplicationStatus(appId, status, adminNote, rejectReason, currentUser?.id || 'admin');
+    dispatch({ type: 'UPDATE_PRO_APPLICATION', payload: { id: appId, status, adminNote, rejectionReason: rejectReason, reviewedAt: new Date().toISOString() } });
+    reload();
+    setAdminNote('');
+    setRejectReason('');
+  };
+
+  const STATUS_COLORS = {
+    SUBMITTED: '#fbbf24',
+    UNDER_REVIEW: '#60a5fa',
+    MORE_INFO_REQUIRED: '#f97316',
+    APPROVED: '#10b981',
+    REJECTED: '#f87171',
+    REVOKED: '#f87171',
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)' }}>Professional Reviewer Applications</h2>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{apps.length} total application{apps.length !== 1 ? 's' : ''}</p>
+        </div>
+        <select
+          style={{ padding: '6px 12px', borderRadius: 6, background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontSize: 12 }}
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+        >
+          <option value="all">All Statuses</option>
+          <option value="SUBMITTED">Submitted</option>
+          <option value="UNDER_REVIEW">Under Review</option>
+          <option value="MORE_INFO_REQUIRED">More Info Required</option>
+          <option value="APPROVED">Approved</option>
+          <option value="REJECTED">Rejected</option>
+          <option value="REVOKED">Revoked</option>
+        </select>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px 24px', background: 'rgba(0,0,0,0.15)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)' }}>
+          <ShieldCheck size={36} color="var(--text-muted)" style={{ marginBottom: 12 }} />
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No applications found.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {filtered.map(app => {
+            const isExpanded = expandedId === app.id;
+            const statusColor = STATUS_COLORS[app.status] || 'var(--text-muted)';
+            return (
+              <div key={app.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                {/* Summary row */}
+                <div
+                  onClick={() => { setExpandedId(isExpanded ? null : app.id); setAdminNote(''); setRejectReason(''); }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', cursor: 'pointer', gap: 12, flexWrap: 'wrap' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: `rgba(${statusColor === '#10b981' ? '16,185,129' : '255,255,255'},0.08)`, border: `1px solid ${statusColor}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: statusColor, fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
+                      {(app.fullName || 'U').charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{app.fullName || app.userId}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        {[app.profession, app.organization].filter(Boolean).join(' · ')} {app.country ? `· ${app.country}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 12, background: `${statusColor}18`, border: `1px solid ${statusColor}40`, color: statusColor, fontWeight: 600 }}>
+                      {app.status.replace(/_/g, ' ')}
+                    </span>
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                      {app.submittedAt ? new Date(app.submittedAt).toLocaleDateString() : ''}
+                    </span>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{isExpanded ? '▲' : '▼'}</span>
+                  </div>
+                </div>
+
+                {/* Expanded detail */}
+                {isExpanded && (
+                  <div style={{ padding: '0 18px 18px', borderTop: '1px solid var(--border-subtle)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10, paddingTop: 14, marginBottom: 16 }}>
+                      {[
+                        ['Full Name', app.fullName],
+                        ['Profession', app.profession],
+                        ['Title', app.professionalTitle],
+                        ['Organization', app.organization],
+                        ['Experience', app.yearsExperience],
+                        ['Country', app.country],
+                        ['Specializations', (app.specializations || []).join(', ')],
+                        ['LinkedIn', app.linkedinUrl],
+                        ['Portfolio', app.portfolioUrl],
+                        ['Social Links', app.socialLinks],
+                        ['Published Reviews', app.publishedReviewsUrls],
+                      ].filter(([, v]) => v).map(([k, v]) => (
+                        <div key={k}>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>{k}</div>
+                          <div style={{ fontSize: 12, color: 'var(--text-primary)', wordBreak: 'break-all' }}>
+                            {v.startsWith?.('http') ? <a href={v} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa' }}>{v}</a> : v}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {app.professionalBio && (
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Professional Bio</div>
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.65 }}>{app.professionalBio}</p>
+                      </div>
+                    )}
+                    {app.criticismBackground && (
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Film Criticism Background</div>
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.65 }}>{app.criticismBackground}</p>
+                      </div>
+                    )}
+                    {app.adminNote && (
+                      <div style={{ marginBottom: 14, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 6, borderLeft: '2px solid var(--gold)' }}>
+                        <div style={{ fontSize: 10, color: 'var(--gold)', textTransform: 'uppercase', marginBottom: 3 }}>Previous Admin Note</div>
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{app.adminNote}</p>
+                      </div>
+                    )}
+
+                    {/* Admin actions */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 14, borderTop: '1px solid var(--border-subtle)' }}>
+                      <div>
+                        <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 5 }}>Admin Note (optional)</label>
+                        <textarea
+                          value={adminNote}
+                          onChange={e => setAdminNote(e.target.value)}
+                          placeholder="Internal note to the applicant..."
+                          style={{ width: '100%', minHeight: 60, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 12, resize: 'vertical', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      {(app.status === 'SUBMITTED' || app.status === 'UNDER_REVIEW' || app.status === 'MORE_INFO_REQUIRED') && (
+                        <div>
+                          <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 5 }}>Rejection Reason (if rejecting)</label>
+                          <input
+                            value={rejectReason}
+                            onChange={e => setRejectReason(e.target.value)}
+                            placeholder="Reason for rejection..."
+                            style={{ width: '100%', padding: '8px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 12, boxSizing: 'border-box' }}
+                          />
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {app.status !== 'APPROVED' && (
+                          <button onClick={() => handleAction(app.id, 'APPROVED')} className="btn btn-primary btn-sm" style={{ background: '#10b981', borderColor: '#10b981', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <ShieldCheck size={13} /> Approve
+                          </button>
+                        )}
+                        {(app.status === 'SUBMITTED' || app.status === 'MORE_INFO_REQUIRED') && (
+                          <button onClick={() => handleAction(app.id, 'UNDER_REVIEW')} className="btn btn-outline btn-sm">
+                            Mark Under Review
+                          </button>
+                        )}
+                        {app.status !== 'MORE_INFO_REQUIRED' && app.status !== 'APPROVED' && app.status !== 'REJECTED' && (
+                          <button onClick={() => handleAction(app.id, 'MORE_INFO_REQUIRED')} className="btn btn-outline btn-sm" style={{ borderColor: '#f97316', color: '#f97316' }}>
+                            Request More Info
+                          </button>
+                        )}
+                        {app.status === 'APPROVED' && (
+                          <button onClick={() => { if (window.confirm('Revoke this reviewer\'s verified status?')) handleAction(app.id, 'REVOKED'); }} className="btn btn-ghost btn-sm" style={{ color: '#f87171' }}>
+                            Revoke
+                          </button>
+                        )}
+                        {app.status !== 'REJECTED' && app.status !== 'APPROVED' && (
+                          <button onClick={() => { if (window.confirm('Reject this application?')) handleAction(app.id, 'REJECTED'); }} className="btn btn-ghost btn-sm" style={{ color: '#f87171' }}>
+                            Reject
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

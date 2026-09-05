@@ -84,6 +84,7 @@ const initialState = {
   helpfulVotes: loadStorage('cinemascope_helpful_votes', []),
   citiesList: sanitizedCities,
   currentUser: sanitizedCurrentUser, // null or User object
+  professionalApplications: loadStorage('cinemascope_pro_applications', []),
 };
 
 function reducer(state, action) {
@@ -245,6 +246,34 @@ function reducer(state, action) {
       return newState;
     }
 
+    // --- PRO REVIEWER APPLICATION ACTIONS ---
+    case 'SET_PRO_APPLICATIONS':
+      newState = { ...state, professionalApplications: action.payload };
+      saveStorage('cinemascope_pro_applications', action.payload);
+      return newState;
+
+    case 'SUBMIT_PRO_APPLICATION': {
+      const existingIdx = state.professionalApplications.findIndex(a => a.userId === action.payload.userId);
+      let updatedApps;
+      if (existingIdx >= 0) {
+        updatedApps = state.professionalApplications.map((a, i) => i === existingIdx ? action.payload : a);
+      } else {
+        updatedApps = [action.payload, ...state.professionalApplications];
+      }
+      newState = { ...state, professionalApplications: updatedApps };
+      saveStorage('cinemascope_pro_applications', updatedApps);
+      return newState;
+    }
+
+    case 'UPDATE_PRO_APPLICATION': {
+      const updatedProApps = state.professionalApplications.map(a =>
+        a.id === action.payload.id ? { ...a, ...action.payload } : a
+      );
+      newState = { ...state, professionalApplications: updatedProApps };
+      saveStorage('cinemascope_pro_applications', updatedProApps);
+      return newState;
+    }
+
     default:
       return state;
   }
@@ -401,6 +430,44 @@ export function AppProvider({ children }) {
   const allCities = state.citiesList;
   const allTheaters = theaterDB.theaters;
 
+  // Pro reviewer helpers
+  const getUserApplication = useCallback((userId) => {
+    return state.professionalApplications.find(a => a.userId === userId) || null;
+  }, [state.professionalApplications]);
+
+  const isVerifiedPro = useCallback((userId) => {
+    const app = state.professionalApplications.find(a => a.userId === userId);
+    return !!(app && app.status === 'APPROVED');
+  }, [state.professionalApplications]);
+
+  // Separate review lists by type
+  const getMovieUserReviews = useCallback((movieId) => {
+    return state.reviews.filter(r =>
+      isMovieMatch(r, movieId) &&
+      r.status === 'PUBLISHED' &&
+      (!r.reviewType || r.reviewType === 'USER')
+    );
+  }, [state.reviews, isMovieMatch]);
+
+  const getMovieProfessionalReviews = useCallback((movieId) => {
+    return state.reviews.filter(r =>
+      isMovieMatch(r, movieId) &&
+      r.status === 'PUBLISHED' &&
+      r.reviewType === 'PROFESSIONAL'
+    );
+  }, [state.reviews, isMovieMatch]);
+
+  const getProfessionalRating = useCallback((movieId) => {
+    const proRevs = state.reviews.filter(r =>
+      isMovieMatch(r, movieId) &&
+      r.status === 'PUBLISHED' &&
+      r.reviewType === 'PROFESSIONAL'
+    );
+    if (proRevs.length === 0) return { average: 0, count: 0 };
+    const sum = proRevs.reduce((acc, r) => acc + (r.rating || 0), 0);
+    return { average: Math.round((sum / proRevs.length) * 10) / 10, count: proRevs.length };
+  }, [state.reviews, isMovieMatch]);
+
   return (
     <AppContext.Provider value={{
       state,
@@ -418,6 +485,12 @@ export function AppProvider({ children }) {
       getCityMovies,
       allCities,
       allTheaters,
+      // Pro reviewer
+      getUserApplication,
+      isVerifiedPro,
+      getMovieUserReviews,
+      getMovieProfessionalReviews,
+      getProfessionalRating,
     }}>
       {children}
     </AppContext.Provider>

@@ -4,10 +4,13 @@ import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, Boo
 import { useApp } from '../AppContext';
 import ReviewCard from '../components/reviews/ReviewCard';
 import * as LibService from '../services/movieLibraryService';
+import ApplicationStatusBanner from '../components/pro/ApplicationStatusBanner';
+import ProfessionalRatingBadge from '../components/reviews/ProfessionalRatingBadge';
+import { getUserApplication } from '../services/proReviewerService';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { state, dispatch, getMovie } = useApp();
+  const { state, dispatch, getMovie, isVerifiedPro } = useApp();
   const currentUser = state.currentUser;
 
   const [libStats, setLibStats] = useState({ totalWatchlist: 0, totalWatched: 0, totalFavorites: 0, totalRated: 0, avgRating: 0 });
@@ -33,6 +36,10 @@ export default function ProfilePage() {
     if (!currentUser) return [];
     return state.reviews.filter(r => r.userId === currentUser.id);
   }, [state.reviews, currentUser]);
+
+  // Pro reviewer status
+  const proApplication = useMemo(() => currentUser ? getUserApplication(currentUser.id) : null, [currentUser, state.professionalApplications]);
+  const isPro = currentUser ? isVerifiedPro(currentUser.id) : false;
 
   if (!currentUser) {
     return (
@@ -83,7 +90,7 @@ export default function ProfilePage() {
                 {currentUser.displayName.charAt(0).toUpperCase()}
               </div>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 26, color: 'var(--text-primary)' }}>
                     {currentUser.displayName}
                   </h1>
@@ -92,6 +99,7 @@ export default function ProfilePage() {
                       <ShieldAlert size={10} /> ADMIN
                     </span>
                   )}
+                  {isPro && <ProfessionalRatingBadge size="sm" />}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                   Member since {formatDate(currentUser.createdAt)} · <span style={{ color: 'var(--text-secondary)' }}>{currentUser.email}</span>
@@ -150,6 +158,19 @@ export default function ProfilePage() {
           <Link to="/library" className="btn btn-outline btn-sm">My Library</Link>
           <Link to="/diary" className="btn btn-outline btn-sm">Movie Diary</Link>
           <Link to="/watchlist" className="btn btn-outline btn-sm">Watchlist</Link>
+        </div>
+
+        {/* Professional Reviewer Status */}
+        <div style={{ marginBottom: 40 }}>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 14, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>
+            Professional Reviewer
+          </h2>
+          <ApplicationStatusBanner application={proApplication} />
+          {isPro && (
+            <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)' }}>
+              As a verified reviewer, your reviews on movie pages will appear in the dedicated <strong style={{ color: '#10b981' }}>Professional Reviews</strong> section with a ✓ badge.
+            </div>
+          )}
         </div>
 
         {/* User Reviews List */}

@@ -90,7 +90,7 @@ function ParamStarPicker({ param, value, onChange }) {
   );
 }
 
-export default function ReviewComposer({ movie, existingReview = null, onClose, onSuccess }) {
+export default function ReviewComposer({ movie, existingReview = null, onClose, onSuccess, reviewType = 'USER' }) {
   const { state, dispatch } = useApp();
   const currentUser = state.currentUser;
 
@@ -153,6 +153,7 @@ export default function ReviewComposer({ movie, existingReview = null, onClose, 
             tmdbId: rawTmdbId,
             userId: currentUser.id,
             userDisplayName: currentUser.displayName || 'Cinema Enthusiast',
+            reviewType: reviewType || 'USER',
             ...payload,
             status: 'PUBLISHED',
             createdAt: new Date().toISOString(),
