@@ -1,17 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Bookmark, Heart, Eye, Star, BookOpen } from 'lucide-react';
+import { Bookmark, Heart, Eye } from 'lucide-react';
 import { useApp } from '../../AppContext';
-import { getMovieStatus, toggleWatchlist, toggleWatched, toggleFavorite, setPersonalRating } from '../../services/movieLibraryService';
-import DiaryEntryForm from './DiaryEntryForm';
-import PersonalRatingPicker from './PersonalRatingPicker';
+import { getMovieStatus, toggleWatchlist, toggleWatched, toggleFavorite } from '../../services/movieLibraryService';
 
 export default function MovieStatusBar({ tmdbId, movieMeta, compact, onStatusChange }) {
   const { currentUser, state } = useApp();
   const activeUser = currentUser || state?.currentUser;
 
   const [status, setStatus] = useState({ inWatchlist: false, isWatched: false, isFavorite: false, rating: 0 });
-  const [showDiary, setShowDiary] = useState(false);
-  const [showRating, setShowRating] = useState(false);
 
   useEffect(() => {
     if (tmdbId) {
@@ -115,27 +111,7 @@ export default function MovieStatusBar({ tmdbId, movieMeta, compact, onStatusCha
 
 
 
-      <button
-        type="button"
-        className={`btn ${compact ? 'btn-sm' : ''} btn-primary`}
-        onClick={() => activeUser ? setShowDiary(true) : alert('Please log in to add to diary.')}
-        title="Add to Movie Diary"
-      >
-        <BookOpen size={iconSize} />
-        {!compact && <span style={{ marginLeft: '6px' }}>Log it</span>}
-      </button>
 
-      {showDiary && (
-        <DiaryEntryForm
-          tmdbId={tmdbId}
-          movieMeta={movieMeta}
-          onClose={() => setShowDiary(false)}
-          onSave={() => {
-            loadStatus();
-            if (onStatusChange) onStatusChange({ ...status, isWatched: true });
-          }}
-        />
-      )}
     </div>
   );
 }
