@@ -15,15 +15,23 @@ export async function saveLibrary(lib) {
 
 export async function getMovieStatus(tmdbId) {
   const lib = await getLibrary();
-  return lib[tmdbId] || { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
+  const entry = lib[tmdbId] || { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
+  return {
+    ...entry,
+    inWatchlist: !!entry.watchlist,
+    isWatched: !!entry.watched,
+    isFavorite: !!entry.favorite,
+    rating: entry.rating || 0
+  };
 }
 
-export async function toggleWatchlist(tmdbId, userId) {
+export async function toggleWatchlist(tmdbId, userIdOrMeta) {
   const lib = await getLibrary();
   if (!lib[tmdbId]) lib[tmdbId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
   lib[tmdbId].watchlist = !lib[tmdbId].watchlist;
   await saveLibrary(lib);
   
+  const userId = typeof userIdOrMeta === 'string' ? userIdOrMeta : userIdOrMeta?.id;
   if (isSupabaseConfigured() && userId) {
     supabaseService.upsertUserMovie({
       id: `${userId}_${tmdbId}`,
@@ -38,9 +46,17 @@ export async function toggleWatchlist(tmdbId, userId) {
       updated_at: new Date().toISOString()
     }).catch(console.error);
   }
+
+  return {
+    ...lib[tmdbId],
+    inWatchlist: !!lib[tmdbId].watchlist,
+    isWatched: !!lib[tmdbId].watched,
+    isFavorite: !!lib[tmdbId].favorite,
+    rating: lib[tmdbId].rating || 0
+  };
 }
 
-export async function toggleWatched(tmdbId, userId, movieMeta) {
+export async function toggleWatched(tmdbId, userIdOrMeta) {
   const lib = await getLibrary();
   if (!lib[tmdbId]) lib[tmdbId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
   lib[tmdbId].watched = !lib[tmdbId].watched;
@@ -49,6 +65,7 @@ export async function toggleWatched(tmdbId, userId, movieMeta) {
   }
   await saveLibrary(lib);
 
+  const userId = typeof userIdOrMeta === 'string' ? userIdOrMeta : userIdOrMeta?.id;
   if (isSupabaseConfigured() && userId) {
     supabaseService.upsertUserMovie({
       id: `${userId}_${tmdbId}`,
@@ -63,14 +80,23 @@ export async function toggleWatched(tmdbId, userId, movieMeta) {
       updated_at: new Date().toISOString()
     }).catch(console.error);
   }
+
+  return {
+    ...lib[tmdbId],
+    inWatchlist: !!lib[tmdbId].watchlist,
+    isWatched: !!lib[tmdbId].watched,
+    isFavorite: !!lib[tmdbId].favorite,
+    rating: lib[tmdbId].rating || 0
+  };
 }
 
-export async function toggleFavorite(tmdbId, userId) {
+export async function toggleFavorite(tmdbId, userIdOrMeta) {
   const lib = await getLibrary();
   if (!lib[tmdbId]) lib[tmdbId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
   lib[tmdbId].favorite = !lib[tmdbId].favorite;
   await saveLibrary(lib);
 
+  const userId = typeof userIdOrMeta === 'string' ? userIdOrMeta : userIdOrMeta?.id;
   if (isSupabaseConfigured() && userId) {
     supabaseService.upsertUserMovie({
       id: `${userId}_${tmdbId}`,
@@ -85,14 +111,23 @@ export async function toggleFavorite(tmdbId, userId) {
       updated_at: new Date().toISOString()
     }).catch(console.error);
   }
+
+  return {
+    ...lib[tmdbId],
+    inWatchlist: !!lib[tmdbId].watchlist,
+    isWatched: !!lib[tmdbId].watched,
+    isFavorite: !!lib[tmdbId].favorite,
+    rating: lib[tmdbId].rating || 0
+  };
 }
 
-export async function setPersonalRating(tmdbId, userId, rating) {
+export async function setPersonalRating(tmdbId, userIdOrMeta, rating) {
   const lib = await getLibrary();
   if (!lib[tmdbId]) lib[tmdbId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
   lib[tmdbId].rating = rating;
   await saveLibrary(lib);
 
+  const userId = typeof userIdOrMeta === 'string' ? userIdOrMeta : userIdOrMeta?.id;
   if (isSupabaseConfigured() && userId) {
     supabaseService.upsertUserMovie({
       id: `${userId}_${tmdbId}`,
@@ -107,6 +142,14 @@ export async function setPersonalRating(tmdbId, userId, rating) {
       updated_at: new Date().toISOString()
     }).catch(console.error);
   }
+
+  return {
+    ...lib[tmdbId],
+    inWatchlist: !!lib[tmdbId].watchlist,
+    isWatched: !!lib[tmdbId].watched,
+    isFavorite: !!lib[tmdbId].favorite,
+    rating: lib[tmdbId].rating || 0
+  };
 }
 
 export async function setNotes(tmdbId, userId, notes) {

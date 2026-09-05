@@ -6,15 +6,16 @@ import { getMovieStatus, toggleWatchlist, toggleWatched, toggleFavorite } from '
 
 export default function GlobalMovieCard({ movie, onStatusChange }) {
   const navigate = useNavigate();
-  const { currentUser } = useApp();
+  const { currentUser, state } = useApp();
+  const activeUser = currentUser || state?.currentUser;
   const [status, setStatus] = useState({ inWatchlist: false, isWatched: false, isFavorite: false });
   const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
-    if (currentUser && movie?.tmdbId) {
+    if (movie?.tmdbId) {
       loadStatus();
     }
-  }, [currentUser, movie]);
+  }, [activeUser, movie]);
 
   const loadStatus = async () => {
     try {
@@ -27,16 +28,16 @@ export default function GlobalMovieCard({ movie, onStatusChange }) {
 
   const handleAction = async (e, action) => {
     e.stopPropagation();
-    if (!currentUser) {
-      alert('Please log in to track movies');
+    if (!activeUser) {
+      alert('Please log in to track movies in your personal library.');
       return;
     }
     
     try {
       let result;
-      if (action === 'watchlist') result = await toggleWatchlist(movie.tmdbId, movie);
-      else if (action === 'watched') result = await toggleWatched(movie.tmdbId, movie);
-      else if (action === 'favorite') result = await toggleFavorite(movie.tmdbId, movie);
+      if (action === 'watchlist') result = await toggleWatchlist(movie.tmdbId, activeUser.id);
+      else if (action === 'watched') result = await toggleWatched(movie.tmdbId, activeUser.id);
+      else if (action === 'favorite') result = await toggleFavorite(movie.tmdbId, activeUser.id);
       
       const newStatus = { ...status, ...result };
       setStatus(newStatus);

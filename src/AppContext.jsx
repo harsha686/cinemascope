@@ -396,6 +396,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       state,
       dispatch,
+      currentUser: state.currentUser,
       getCityTheaters,
       getTheater,
       getScreen,
