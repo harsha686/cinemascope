@@ -116,6 +116,12 @@ export default function MovieDetailPage() {
       setEditingReview(null);
     }
     setShowComposer(true);
+    setTimeout(() => {
+      const elem = document.getElementById('reviews-section');
+      if (elem) {
+        elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 60);
   };
 
   // YouTube embed helper
@@ -217,7 +223,14 @@ export default function MovieDetailPage() {
                   </span>
                 </div>
                 <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
-                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                <span
+                  onClick={() => {
+                    const elem = document.getElementById('reviews-section');
+                    if (elem) elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  style={{ fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}
+                  title="Jump to reviews"
+                >
                   <strong style={{ color: 'var(--text-primary)' }}>{ratingInfo.count}</strong> user reviews
                 </span>
                 {movie.runtime && (
