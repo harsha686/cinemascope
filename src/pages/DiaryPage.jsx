@@ -34,7 +34,12 @@ export default function DiaryPage() {
     if (idsToFetch.length === 0) return;
     Promise.all(idsToFetch.map(id => fetchFullTmdbMovieDetails(id).catch(() => null))).then(results => {
       const map = {};
-      results.forEach(m => { if (m) map[m.tmdbId] = m; });
+      results.forEach(m => {
+        if (m) {
+          map[m.tmdbId] = m;
+          map[String(m.tmdbId)] = m;
+        }
+      });
       setMoviesData(prev => ({ ...prev, ...map }));
     });
   }, [entries]);

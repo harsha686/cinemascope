@@ -235,7 +235,13 @@ export async function getDiary() {
       tags: e.tags || []
     };
   });
-  return sanitized.sort((a, b) => new Date(b.watched_on || b.created_at) - new Date(a.watched_on || a.created_at));
+  
+  // Filter out any ghost entries that have no movie identifier and no title
+  const valid = sanitized.filter(e => Boolean(e.tmdb_id || e.movie_title));
+  if (valid.length !== raw.length) {
+    localStorage.setItem(DIARY_KEY, JSON.stringify(valid));
+  }
+  return valid.sort((a, b) => new Date(b.watched_on || b.created_at) - new Date(a.watched_on || a.created_at));
 }
 
 export async function saveDiary(entries) {
