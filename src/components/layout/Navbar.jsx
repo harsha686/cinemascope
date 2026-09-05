@@ -36,7 +36,8 @@ export default function Navbar() {
 
   const navLinks = [
     { to: '/', label: 'Home' },
-    { to: '/movies', label: 'Movies' },
+    { to: '/discover', label: 'Discover' },
+    { to: '/movies', label: 'Now Showing' },
     { to: `/city/${activeCity?.id || 'visakhapatnam'}`, label: 'Theaters' },
     { to: '/formats', label: 'Formats' },
     { to: '/compare', label: 'Compare' },
@@ -167,6 +168,14 @@ export default function Navbar() {
                     onMouseLeave={e => e.currentTarget.style.background = 'none'}
                   >
                     <User size={14} color="var(--gold)" /> My Profile
+                  </Link>
+                  <Link
+                    to="/library"
+                    style={{ padding: '10px 16px', fontSize: 12, color: 'var(--text-primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(220,182,91,0.08)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                  >
+                    <Film size={14} color="var(--gold)" /> My Library
                   </Link>
 
                   {currentUser.role === 'ADMIN' && (

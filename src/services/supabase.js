@@ -150,4 +150,79 @@ export const supabaseService = {
     const { error } = await supabase.from('reviews').delete().eq('id', id);
     return !error;
   },
+
+  // User Movies
+  async upsertUserMovie(record) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return false;
+    const { error } = await supabase.from('user_movies').upsert(record);
+    if (error) console.error('Supabase upsertUserMovie error:', error);
+    return !error;
+  },
+  async deleteUserMovie(id) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return false;
+    const { error } = await supabase.from('user_movies').delete().eq('id', id);
+    return !error;
+  },
+  async getUserMovies(userId) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    const { data, error } = await supabase.from('user_movies').select('*').eq('user_id', userId);
+    if (error) {
+      console.warn('Supabase getUserMovies error:', error);
+      return null;
+    }
+    return data;
+  },
+
+  // Diary
+  async addDiaryEntry(entry) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return false;
+    const { error } = await supabase.from('diary_entries').insert(entry);
+    if (error) console.error('Supabase addDiaryEntry error:', error);
+    return !error;
+  },
+  async deleteDiaryEntry(id) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return false;
+    const { error } = await supabase.from('diary_entries').delete().eq('id', id);
+    return !error;
+  },
+  async getUserDiary(userId) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    const { data, error } = await supabase.from('diary_entries').select('*').eq('user_id', userId).order('watched_on', { ascending: false });
+    if (error) {
+      console.warn('Supabase getUserDiary error:', error);
+      return null;
+    }
+    return data;
+  },
+
+  // Collections
+  async upsertCollection(collection) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return false;
+    const { error } = await supabase.from('collections').upsert(collection);
+    if (error) console.error('Supabase upsertCollection error:', error);
+    return !error;
+  },
+  async deleteCollection(id) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return false;
+    const { error } = await supabase.from('collections').delete().eq('id', id);
+    return !error;
+  },
+  async getUserCollections(userId) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    const { data, error } = await supabase.from('collections').select('*').eq('user_id', userId);
+    if (error) {
+      console.warn('Supabase getUserCollections error:', error);
+      return null;
+    }
+    return data;
+  },
 };

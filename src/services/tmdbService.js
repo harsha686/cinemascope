@@ -265,3 +265,96 @@ export async function testTmdbConnection() {
     };
   }
 }
+
+/**
+ * Discover movies with filters
+ * Params: { genreId, year, language, sortBy, page }
+ */
+export async function discoverMovies({ genreId, year, language, sortBy = 'popularity.desc', page = 1 } = {}) {
+  let endpoint = `/discover/movie?sort_by=${sortBy}&page=${page}&include_adult=false`;
+  if (genreId) endpoint += `&with_genres=${genreId}`;
+  if (year) endpoint += `&primary_release_year=${year}`;
+  if (language) endpoint += `&with_original_language=${language}`;
+  const data = await tmdbFetch(endpoint);
+  return normalizeResults(data);
+}
+
+/**
+ * Trending movies (week or day)
+ */
+export async function fetchTrendingMovies(timeWindow = 'week') {
+  const data = await tmdbFetch(`/trending/movie/${timeWindow}`);
+  return normalizeResults(data);
+}
+
+/**
+ * Top rated movies of all time
+ */
+export async function fetchTopRatedMovies(page = 1) {
+  const data = await tmdbFetch(`/movie/top_rated?page=${page}`);
+  return normalizeResults(data);
+}
+
+/**
+ * Popular movies
+ */
+export async function fetchPopularMovies(page = 1) {
+  const data = await tmdbFetch(`/movie/popular?page=${page}`);
+  return normalizeResults(data);
+}
+
+/**
+ * Classic movies by decade (e.g. decade=1990)
+ */
+export async function fetchMoviesByDecade(decade, page = 1) {
+  const startYear = decade;
+  const endYear = decade + 9;
+  const data = await tmdbFetch(`/discover/movie?primary_release_date.gte=${startYear}-01-01&primary_release_date.lte=${endYear}-12-31&sort_by=vote_count.desc&vote_count.gte=100&page=${page}&include_adult=false`);
+  return normalizeResults(data);
+}
+
+/**
+ * Genre list from TMDB
+ */
+export async function fetchGenres() {
+  const data = await tmdbFetch(`/genre/movie/list`);
+  return data.genres || [];
+}
+
+/**
+ * Movies similar to a given TMDB movie
+ */
+export async function fetchSimilarMovies(tmdbId) {
+  const data = await tmdbFetch(`/movie/${tmdbId}/similar`);
+  return normalizeResults(data);
+}
+
+/**
+ * Helper to normalize TMDB results consistently
+ */
+function normalizeResults(data) {
+  const results = (data.results || []).map(m => ({
+    tmdbId: m.id,
+    id: `tmdb-${m.id}`,
+    title: m.title || m.original_title || '',
+    originalTitle: m.original_title || m.title || '',
+    releaseDate: m.release_date || '',
+    releaseYear: m.release_date ? m.release_date.split('-')[0] : '',
+    language: m.original_language ? m.original_language.toUpperCase() : 'EN',
+    overview: m.overview || '',
+    posterPath: m.poster_path,
+    posterUrl: m.poster_path ? getTmdbImageUrl(m.poster_path, 'w500') : '',
+    backdropPath: m.backdrop_path,
+    backdropUrl: m.backdrop_path ? getTmdbImageUrl(m.backdrop_path, 'original') : '',
+    voteAverage: m.vote_average ? Math.round(m.vote_average * 10) / 10 : 0,
+    voteCount: m.vote_count || 0,
+    popularity: m.popularity || 0,
+    genreIds: m.genre_ids || [],
+  }));
+  return {
+    results,
+    page: data.page || 1,
+    totalPages: data.total_pages || 1,
+    totalResults: data.total_results || 0,
+  };
+}

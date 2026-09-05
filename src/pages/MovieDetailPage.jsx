@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe } from 'lucide-react';
 import { useApp } from '../AppContext';
 import RatingBreakdown from '../components/reviews/RatingBreakdown';
 import ReviewCard from '../components/reviews/ReviewCard';
 import ReviewComposer from '../components/reviews/ReviewComposer';
+import MovieStatusBar from '../components/library/MovieStatusBar';
+import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
 
 export default function MovieDetailPage() {
   const { movieId } = useParams();
@@ -20,7 +22,24 @@ export default function MovieDetailPage() {
     dispatch,
   } = useApp();
 
-  const movie = getMovie(movieId);
+  const isTmdbMovie = movieId?.startsWith('tmdb-');
+  const tmdbId = isTmdbMovie ? movieId.replace('tmdb-', '') : null;
+
+  const [tmdbMovie, setTmdbMovie] = useState(null);
+  const [tmdbLoading, setTmdbLoading] = useState(false);
+  const [tmdbError, setTmdbError] = useState(null);
+
+  // Fetch TMDB data when ID starts with "tmdb-"
+  useEffect(() => {
+    if (!isTmdbMovie || !tmdbId) return;
+    setTmdbLoading(true);
+    fetchFullTmdbMovieDetails(tmdbId)
+      .then(m => { setTmdbMovie(m); setTmdbLoading(false); })
+      .catch(err => { setTmdbError(err.message); setTmdbLoading(false); });
+  }, [isTmdbMovie, tmdbId]);
+
+  const adminMovie = getMovie(movieId);
+  const movie = isTmdbMovie ? tmdbMovie : adminMovie;
   const currentUser = state.currentUser;
   const currentCity = state.selectedCity || getCity('visakhapatnam');
 
@@ -34,37 +53,43 @@ export default function MovieDetailPage() {
 
   // Theaters showing this movie in the current city
   const localTheaters = useMemo(() => {
-    if (!currentCity || !movie) return [];
+    if (!currentCity || !movie || isTmdbMovie) return [];
     const cityTheaters = getCityTheaters(currentCity.id);
-    // If admin has pinned specific theaters, show only those; otherwise show all city theaters
     if (movie.theaters && movie.theaters.length > 0) {
       return cityTheaters.filter(t => movie.theaters.includes(t.id));
     }
     return cityTheaters;
-  }, [getCityTheaters, currentCity, movie]);
+  }, [getCityTheaters, currentCity, movie, isTmdbMovie]);
 
   // Sort reviews
   const sortedReviews = useMemo(() => {
     const list = [...allReviews];
-    if (sortOption === 'newest') {
-      list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    } else if (sortOption === 'highest') {
-      list.sort((a, b) => b.rating - a.rating);
-    } else if (sortOption === 'lowest') {
-      list.sort((a, b) => a.rating - b.rating);
-    } else if (sortOption === 'helpful') {
-      list.sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0));
-    }
+    if (sortOption === 'newest') list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    else if (sortOption === 'highest') list.sort((a, b) => b.rating - a.rating);
+    else if (sortOption === 'lowest') list.sort((a, b) => a.rating - b.rating);
+    else if (sortOption === 'helpful') list.sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0));
     return list;
   }, [allReviews, sortOption]);
+
+  // Loading state for TMDB movies
+  if (isTmdbMovie && tmdbLoading) {
+    return (
+      <div style={{ padding: '80px 24px', textAlign: 'center' }}>
+        <div style={{ fontFamily: 'var(--font-serif)', color: 'var(--gold)', fontSize: 18, marginBottom: 12 }}>Loading movie…</div>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Fetching from global movie archive</p>
+      </div>
+    );
+  }
 
   if (!movie) {
     return (
       <div style={{ padding: '80px 24px', textAlign: 'center' }}>
         <h1 style={{ fontFamily: 'var(--font-serif)', color: 'var(--gold)' }}>Movie Not Found</h1>
-        <p style={{ color: 'var(--text-secondary)', marginTop: 12 }}>The requested movie could not be found.</p>
-        <button onClick={() => navigate('/movies')} className="btn btn-outline" style={{ marginTop: 24 }}>
-          ← Back to Movies
+        <p style={{ color: 'var(--text-secondary)', marginTop: 12 }}>
+          {tmdbError ? `Error: ${tmdbError}` : 'The requested movie could not be found.'}
+        </p>
+        <button onClick={() => navigate('/discover')} className="btn btn-outline" style={{ marginTop: 24 }}>
+          ← Explore Movies
         </button>
       </div>
     );
@@ -244,6 +269,14 @@ export default function MovieDetailPage() {
                     <Play size={16} /> Watch Trailer
                   </a>
                 )}
+              </div>
+
+              {/* Personal Movie Status Bar */}
+              <div style={{ marginTop: 16 }}>
+                <MovieStatusBar
+                  tmdbId={isTmdbMovie ? tmdbId : movieId}
+                  movieMeta={{ title: movie.title, posterUrl: movie.posterUrl }}
+                />
               </div>
             </div>
           </div>

@@ -16,6 +16,11 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminDashboard from './pages/AdminDashboard';
+import DiscoverPage from './pages/DiscoverPage';
+import LibraryPage from './pages/LibraryPage';
+import DiaryPage from './pages/DiaryPage';
+import WatchlistPage from './pages/WatchlistPage';
+import CollectionPage from './pages/CollectionPage';
 
 export default function App() {
   return (
@@ -26,8 +31,14 @@ export default function App() {
           <main style={{ flex: 1, paddingTop: 'var(--nav-height)' }}>
             <Routes>
               <Route path="/" element={<HomePage />} />
+              <Route path="/discover" element={<DiscoverPage />} />
               <Route path="/movies" element={<MoviesPage />} />
               <Route path="/movie/:movieId" element={<MovieDetailPage />} />
+              <Route path="/library" element={<LibraryPage />} />
+              <Route path="/library/:section" element={<LibraryPage />} />
+              <Route path="/diary" element={<DiaryPage />} />
+              <Route path="/watchlist" element={<WatchlistPage />} />
+              <Route path="/collection/:collectionId" element={<CollectionPage />} />
               <Route path="/city/:cityId" element={<CityPage />} />
               <Route path="/theater/:theaterId" element={<TheaterPage />} />
               <Route path="/theater/:theaterId/screen/:screenId" element={<ScreenPage />} />
