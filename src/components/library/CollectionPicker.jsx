@@ -26,11 +26,11 @@ export default function CollectionPicker({ tmdbId, movieMeta, onClose }) {
 
   const handleToggle = async (collection) => {
     try {
-      const hasMovie = collection.movies?.some(m => m.tmdbId === tmdbId);
+      const hasMovie = (collection.movie_ids || []).includes(tmdbId);
       if (hasMovie) {
         await removeMovieFromCollection(collection.id, tmdbId);
       } else {
-        await addMovieToCollection(collection.id, { tmdbId, ...movieMeta });
+        await addMovieToCollection(collection.id, tmdbId, movieMeta);
       }
       await loadCollections();
     } catch (err) {
@@ -44,9 +44,11 @@ export default function CollectionPicker({ tmdbId, movieMeta, onClose }) {
     
     setIsCreating(true);
     try {
-      const newCol = await createCollection({ name: newCollectionName.trim() });
+      const newCol = await createCollection(newCollectionName.trim());
       if (newCol) {
-        await addMovieToCollection(newCol.id, { tmdbId, ...movieMeta });
+        if (tmdbId) {
+          await addMovieToCollection(newCol.id, tmdbId, movieMeta);
+        }
         setNewCollectionName('');
         await loadCollections();
       }
@@ -76,7 +78,7 @@ export default function CollectionPicker({ tmdbId, movieMeta, onClose }) {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
               {collections.map(col => {
-                const hasMovie = col.movies?.some(m => m.tmdbId === tmdbId);
+                const hasMovie = (col.movie_ids || []).includes(tmdbId);
                 return (
                   <label key={col.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '8px', borderRadius: '4px', backgroundColor: hasMovie ? 'rgba(255,215,0,0.1)' : 'transparent' }}>
                     <input 

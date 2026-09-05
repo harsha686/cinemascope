@@ -1,10 +1,164 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Folder, Edit2, Trash2, Check, X, ArrowLeft } from 'lucide-react';
+import { Folder, Edit2, Trash2, Check, X, ArrowLeft, Plus } from 'lucide-react';
 import { useApp } from '../AppContext';
 import * as LibService from '../services/movieLibraryService';
-import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
+import { fetchFullTmdbMovieDetails, searchTmdbMovies } from '../services/tmdbService';
 import GlobalMovieCard from '../components/discovery/GlobalMovieCard';
+
+function AddMoviesModal({ collection, onClose, onCollectionUpdated }) {
+  const [query, setQuery] = useState('');
+  const [libraryMovies, setLibraryMovies] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadLibraryMovies();
+  }, []);
+
+  const loadLibraryMovies = async () => {
+    setLoading(true);
+    try {
+      const lib = await LibService.getLibrary();
+      const ids = Object.keys(lib);
+      const movies = await Promise.all(
+        ids.map(id => fetchFullTmdbMovieDetails(id).catch(() => null))
+      );
+      setLibraryMovies(movies.filter(Boolean));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!query.trim()) return;
+    setLoading(true);
+    try {
+      const res = await searchTmdbMovies(query);
+      setSearchResults(res.results || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const displayMovies = query.trim() ? searchResults : libraryMovies;
+
+  const handleToggleMovie = async (movie) => {
+    const rawId = String(movie.tmdbId || movie.id).replace('tmdb-', '');
+    const currentIds = collection.movie_ids || [];
+    const isInCol = currentIds.includes(rawId);
+
+    if (isInCol) {
+      await LibService.removeMovieFromCollection(collection.id, rawId);
+      onCollectionUpdated({
+        ...collection,
+        movie_ids: currentIds.filter(id => id !== rawId)
+      });
+    } else {
+      await LibService.addMovieToCollection(collection.id, rawId, {
+        title: movie.title,
+        posterUrl: movie.posterUrl
+      });
+      onCollectionUpdated({
+        ...collection,
+        movie_ids: [...currentIds, rawId]
+      });
+    }
+  };
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+      <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', width: '100%', maxWidth: '540px', border: '1px solid var(--border)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '85vh' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ margin: 0, color: 'var(--text-primary)', fontFamily: 'var(--font-serif)' }}>Add Movies to "{collection.name}"</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+            <X size={20} />
+          </button>
+        </div>
+
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
+          <form onSubmit={handleSearch} style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              className="input"
+              style={{ flex: 1 }}
+              placeholder="Search movies by title..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <button type="submit" className="btn btn-primary btn-sm">Search</button>
+          </form>
+          {!query.trim() && (
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
+              Showing movies from your personal library
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1 }}>
+          {loading ? (
+            <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '24px' }}>Loading movies...</div>
+          ) : displayMovies.length === 0 ? (
+            <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>
+              {query.trim() ? 'No movies found matching search.' : 'No movies found in library. Use the search bar above to find any movie.'}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {displayMovies.map(movie => {
+                const rawId = String(movie.tmdbId || movie.id).replace('tmdb-', '');
+                const isSelected = (collection.movie_ids || []).includes(rawId);
+                return (
+                  <div
+                    key={rawId}
+                    onClick={() => handleToggleMovie(movie)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '8px 12px',
+                      borderRadius: '4px',
+                      backgroundColor: isSelected ? 'rgba(255,215,0,0.1)' : 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${isSelected ? 'var(--gold)' : 'var(--border-subtle)'}`,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <img
+                      src={movie.posterUrl}
+                      alt={movie.title}
+                      style={{ width: '36px', height: '54px', objectFit: 'cover', borderRadius: '3px', backgroundColor: '#222' }}
+                      onError={(e) => { e.target.src = '/demo-frame.jpg'; }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '14px' }}>{movie.title}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{movie.releaseYear || movie.releaseDate?.split('-')[0] || ''} {movie.language ? `• ${movie.language}` : ''}</div>
+                    </div>
+                    <div style={{
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '4px',
+                      border: `1px solid ${isSelected ? 'var(--gold)' : 'var(--border)'}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: isSelected ? 'var(--gold)' : 'transparent'
+                    }}>
+                      {isSelected && <Check size={16} color="#000" />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function CollectionPage() {
   const { currentUser } = useApp();
@@ -14,6 +168,7 @@ export default function CollectionPage() {
   const [collection, setCollection] = useState(null);
   const [moviesData, setMoviesData] = useState({});
   const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
   
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
@@ -140,7 +295,10 @@ export default function CollectionPage() {
               </p>
             </div>
             
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button className="btn btn-primary btn-sm" onClick={() => setShowAddModal(true)}>
+                <Plus size={16} /> Add Movies
+              </button>
               <button className="btn btn-outline btn-sm" onClick={() => setIsEditing(true)}>
                 <Edit2 size={16} /> Edit Details
               </button>
@@ -153,14 +311,26 @@ export default function CollectionPage() {
       </div>
 
       <div>
-        <h2 style={{ fontFamily: 'var(--font-serif)', marginBottom: '1.5rem', fontSize: '1.5rem' }}>Movies in this collection</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <h2 style={{ fontFamily: 'var(--font-serif)', margin: 0, fontSize: '1.5rem' }}>Movies in this collection</h2>
+          {collection.movie_ids.length > 0 && (
+            <button className="btn btn-outline btn-sm" onClick={() => setShowAddModal(true)}>
+              <Plus size={14} /> Add Movies
+            </button>
+          )}
+        </div>
         
         {collection.movie_ids.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '4rem 1rem', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-dashed)' }}>
             <Folder size={48} style={{ margin: '0 auto 1rem', opacity: 0.5, color: 'var(--text-muted)' }} />
-            <h3 style={{ marginBottom: '1rem' }}>This collection is empty</h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>Go to any movie page and click "Add to Collection" to put it here.</p>
-            <Link to="/discover" className="btn btn-outline">Discover Movies</Link>
+            <h3 style={{ marginBottom: '0.5rem' }}>This collection is empty</h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Add movies from your watched list or search for any movie to include here.</p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+                <Plus size={18} /> Add Movies to Collection
+              </button>
+              <Link to="/discover" className="btn btn-outline">Discover Movies</Link>
+            </div>
           </div>
         ) : (
           <div style={{
@@ -186,6 +356,14 @@ export default function CollectionPage() {
           </div>
         )}
       </div>
+
+      {showAddModal && (
+        <AddMoviesModal
+          collection={collection}
+          onClose={() => setShowAddModal(false)}
+          onCollectionUpdated={(updatedCol) => setCollection(updatedCol)}
+        />
+      )}
     </div>
   );
 }

@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Bookmark, Heart, Eye } from 'lucide-react';
+import { Bookmark, Heart, Eye, FolderPlus } from 'lucide-react';
 import { useApp } from '../../AppContext';
 import { getMovieStatus, toggleWatchlist, toggleWatched, toggleFavorite } from '../../services/movieLibraryService';
+import CollectionPicker from './CollectionPicker';
 
 export default function MovieStatusBar({ tmdbId, movieMeta, compact, onStatusChange }) {
   const { currentUser, state } = useApp();
   const activeUser = currentUser || state?.currentUser;
 
   const [status, setStatus] = useState({ inWatchlist: false, isWatched: false, isFavorite: false, rating: 0 });
+  const [showCollectionPicker, setShowCollectionPicker] = useState(false);
 
   useEffect(() => {
     if (tmdbId) {
@@ -38,22 +40,6 @@ export default function MovieStatusBar({ tmdbId, movieMeta, compact, onStatusCha
       
       const newStatus = { ...status, ...result };
       setStatus(newStatus);
-      if (onStatusChange) onStatusChange(newStatus);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleRatingChange = async (newRating) => {
-    if (!activeUser) {
-      alert('Please log in to rate movies.');
-      return;
-    }
-    try {
-      const res = await setPersonalRating(tmdbId, activeUser.id, newRating);
-      const newStatus = { ...status, ...res, rating: newRating };
-      setStatus(newStatus);
-      setShowRating(false);
       if (onStatusChange) onStatusChange(newStatus);
     } catch (err) {
       console.error(err);
@@ -109,9 +95,32 @@ export default function MovieStatusBar({ tmdbId, movieMeta, compact, onStatusCha
         {!compact && <span style={{ marginLeft: '6px' }}>Watched</span>}
       </button>
 
+      <button
+        type="button"
+        className={`btn ${compact ? 'btn-sm' : ''} btn-ghost`}
+        onClick={() => {
+          if (!activeUser) {
+            alert('Please log in to manage your collections.');
+            return;
+          }
+          setShowCollectionPicker(true);
+        }}
+        style={{
+          color: 'var(--text-secondary)'
+        }}
+        title="Add to Collection"
+      >
+        <FolderPlus size={iconSize} color="var(--gold)" />
+        {!compact && <span style={{ marginLeft: '6px' }}>Collection</span>}
+      </button>
 
-
-
+      {showCollectionPicker && (
+        <CollectionPicker
+          tmdbId={tmdbId}
+          movieMeta={movieMeta}
+          onClose={() => setShowCollectionPicker(false)}
+        />
+      )}
     </div>
   );
 }
