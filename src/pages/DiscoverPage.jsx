@@ -103,7 +103,8 @@ export default function DiscoverPage() {
   };
 
   const handleSearchSelect = (movie) => {
-    navigate(`/movie/tmdb-${movie.id}`);
+    const rawId = movie.tmdbId || (typeof movie.id === 'string' ? movie.id.replace(/^tmdb-/, '') : movie.id);
+    navigate(`/movie/tmdb-${rawId}`);
   };
 
   const languages = [

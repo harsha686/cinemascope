@@ -115,10 +115,11 @@ async function tmdbFetch(endpoint) {
  * Real TMDB Movie Search API
  * GET /3/search/movie?query={query}&page={page}&region=IN
  */
-export async function searchTmdbMovies(query, page = 1, region = 'IN') {
+export async function searchTmdbMovies(query, page = 1, region = '') {
   if (!query || !query.trim()) return { results: [], total_pages: 0, total_results: 0 };
 
-  const data = await tmdbFetch(`/search/movie?query=${encodeURIComponent(query.trim())}&page=${page}&region=${region}&include_adult=false`);
+  const regionParam = region ? `&region=${region}` : '';
+  const data = await tmdbFetch(`/search/movie?query=${encodeURIComponent(query.trim())}&page=${page}${regionParam}&include_adult=false`);
 
   const normalizedResults = (data.results || []).map(m => ({
     tmdbId: m.id,
