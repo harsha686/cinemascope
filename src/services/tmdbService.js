@@ -184,7 +184,7 @@ export async function discoverRecentIndianMovies(page = 1) {
  * GET /3/movie/{movie_id}?append_to_response=credits,images,external_ids
  */
 export async function fetchFullTmdbMovieDetails(tmdbId) {
-  const data = await tmdbFetch(`/movie/${tmdbId}?append_to_response=credits,images,external_ids`);
+  const data = await tmdbFetch(`/movie/${tmdbId}?append_to_response=credits,images,external_ids,watch/providers,release_dates`);
 
   // Extract Director(s)
   const directors = (data.credits?.crew || [])
@@ -222,6 +222,52 @@ export async function fetchFullTmdbMovieDetails(tmdbId) {
   };
   const langName = langMap[data.original_language] || data.original_language?.toUpperCase() || 'Telugu';
 
+  // Extract OTT Streaming Providers & Watch Links
+  // Prioritize India (IN), fallback to US or first available country
+  const watchResults = data['watch/providers']?.results || {};
+  const regionWatch = watchResults.IN || watchResults.US || Object.values(watchResults)[0] || null;
+
+  const mapProvider = (p, type) => ({
+    id: p.provider_id,
+    name: p.provider_name,
+    logoUrl: p.logo_path ? getTmdbImageUrl(p.logo_path, 'w154') : '',
+    type, // 'stream', 'rent', 'buy'
+    priority: p.display_priority || 99,
+  });
+
+  const streamProviders = (regionWatch?.flatrate || []).map(p => mapProvider(p, 'stream'));
+  const rentProviders = (regionWatch?.rent || []).map(p => mapProvider(p, 'rent'));
+  const buyProviders = (regionWatch?.buy || []).map(p => mapProvider(p, 'buy'));
+
+  // Unified list of unique platforms (flatrate/stream first)
+  const platformMap = new Map();
+  [...streamProviders, ...rentProviders, ...buyProviders].forEach(p => {
+    if (!platformMap.has(p.name)) {
+      platformMap.set(p.name, p);
+    }
+  });
+  const ottPlatforms = Array.from(platformMap.values());
+
+  // Extract OTT / Digital Release Date from release_dates (type 4 = Digital)
+  const allReleaseDates = data.release_dates?.results || [];
+  const inReleases = allReleaseDates.find(r => r.iso_3166_1 === 'IN')?.release_dates || [];
+  const digitalIN = inReleases.find(rd => rd.type === 4 && rd.release_date);
+
+  let rawOttDate = digitalIN?.release_date || null;
+  if (!rawOttDate) {
+    // Look across all countries for digital release
+    const allDigital = allReleaseDates
+      .flatMap(r => r.release_dates || [])
+      .filter(rd => rd.type === 4 && rd.release_date)
+      .sort((a, b) => new Date(a.release_date) - new Date(b.release_date));
+    if (allDigital.length > 0) {
+      rawOttDate = allDigital[0].release_date;
+    }
+  }
+
+  const ottReleaseDate = rawOttDate ? rawOttDate.split('T')[0] : '';
+  const primaryPlatform = streamProviders[0]?.name || ottPlatforms[0]?.name || '';
+
   return {
     id: `tmdb-${data.id}`,
     tmdbId: data.id,
@@ -243,6 +289,14 @@ export async function fetchFullTmdbMovieDetails(tmdbId) {
     imdbId: data.external_ids?.imdb_id || '',
     voteAverage: data.vote_average ? Math.round(data.vote_average * 10) / 10 : 0,
     postersList: postersList.length > 0 ? postersList : (data.poster_path ? [{ id: 'tmdb-img-0', posterUrl: getTmdbImageUrl(data.poster_path, 'w500') }] : []),
+    // OTT & Streaming Fields
+    ottReleaseDate,
+    ottPlatforms,
+    ottPlatform: primaryPlatform,
+    ottWatchUrl: regionWatch?.link || '',
+    ottStreamProviders: streamProviders,
+    ottRentProviders: rentProviders,
+    ottBuyProviders: buyProviders,
   };
 }
 

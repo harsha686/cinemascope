@@ -52,6 +52,9 @@ export default function AdminDashboard() {
     cities: ['visakhapatnam'],
     theaters: [],
     posterHistory: [],
+    ottPlatform: '',
+    ottReleaseDate: '',
+    ottUrl: '',
   };
 
   const [formData, setFormData] = useState(emptyMovieForm);
@@ -134,6 +137,9 @@ export default function AdminDashboard() {
       cities: m.cities || ['visakhapatnam'],
       theaters: m.theaters || [],
       posterHistory: m.posterHistory || [],
+      ottPlatform: m.ottPlatform || '',
+      ottReleaseDate: m.ottReleaseDate || '',
+      ottUrl: m.ottUrl || '',
     });
     setFormStep(1);
     setShowMovieForm(true);
@@ -160,6 +166,9 @@ export default function AdminDashboard() {
       cast: preset.cast.join(', '),
       director: preset.director,
       certificate: preset.certificate,
+      ottPlatform: preset.ottPlatform || '',
+      ottReleaseDate: preset.ottReleaseDate || '',
+      ottUrl: preset.ottWatchUrl || preset.ottUrl || '',
       aspectRatio: preset.aspectRatio,
       status: preset.status,
       cities: preset.cities,
@@ -233,6 +242,9 @@ export default function AdminDashboard() {
       cities: formData.cities,
       theaters: formData.theaters || [],
       posterHistory: formData.posterHistory || [],
+      ottPlatform: formData.ottPlatform ? formData.ottPlatform.trim() : '',
+      ottReleaseDate: formData.ottReleaseDate || '',
+      ottUrl: formData.ottUrl ? formData.ottUrl.trim() : '',
     };
 
     if (editingMovieId) {
@@ -1147,6 +1159,50 @@ export default function AdminDashboard() {
                     <div>
                       <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 4 }}>YouTube Trailer URL</label>
                       <input className="input" value={formData.trailerUrl} onChange={e => setFormData({ ...formData, trailerUrl: e.target.value })} placeholder="https://www.youtube.com/watch?v=..." />
+                    </div>
+
+                    {/* OTT & Streaming Release Details */}
+                    <div style={{ marginTop: 14, padding: '16px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
+                      <div style={{ fontSize: 12, fontFamily: 'var(--font-serif)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>📺</span> OTT &amp; Streaming Release Details
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                            OTT Platform(s)
+                          </label>
+                          <input
+                            className="input"
+                            value={formData.ottPlatform}
+                            onChange={e => setFormData({ ...formData, ottPlatform: e.target.value })}
+                            placeholder="e.g. Netflix, Amazon Prime Video, Aha"
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                            OTT Release Date
+                          </label>
+                          <input
+                            type="date"
+                            className="input"
+                            value={formData.ottReleaseDate}
+                            onChange={e => setFormData({ ...formData, ottReleaseDate: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                          Direct Streaming URL (optional)
+                        </label>
+                        <input
+                          className="input"
+                          value={formData.ottUrl}
+                          onChange={e => setFormData({ ...formData, ottUrl: e.target.value })}
+                          placeholder="https://www.netflix.com/title/..."
+                        />
+                      </div>
                     </div>
                   </div>
 

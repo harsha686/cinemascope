@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck } from 'lucide-react';
+import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck, Tv } from 'lucide-react';
 import { useApp } from '../AppContext';
 import RatingBreakdown from '../components/reviews/RatingBreakdown';
 import ReviewCard from '../components/reviews/ReviewCard';
@@ -9,6 +9,7 @@ import ReviewTabs from '../components/reviews/ReviewTabs';
 import ProfessionalRatingBadge from '../components/reviews/ProfessionalRatingBadge';
 import ReviewComposer from '../components/reviews/ReviewComposer';
 import MovieStatusBar from '../components/library/MovieStatusBar';
+import OttStreamingInfo from '../components/movies/OttStreamingInfo';
 import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
 
 export default function MovieDetailPage() {
@@ -214,6 +215,27 @@ export default function MovieDetailPage() {
                 <span className="badge badge-verified">{movie.status === 'CURRENTLY_SHOWING' ? 'Now Showing' : movie.status === 'COMING_SOON' ? 'Coming Soon' : 'Archived'}</span>
                 <span className="badge badge-gold">{movie.language}</span>
                 {movie.certificate && <span className="badge badge-dim">{movie.certificate}</span>}
+                {(movie.ottPlatform || movie.ottReleaseDate || (movie.ottPlatforms && movie.ottPlatforms.length > 0)) && (
+                  <span
+                    onClick={() => {
+                      const el = document.getElementById('streaming-section');
+                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    className="badge"
+                    style={{
+                      background: 'rgba(16,185,129,0.12)',
+                      color: '#10b981',
+                      border: '1px solid rgba(16,185,129,0.3)',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                    title="Jump to Streaming details"
+                  >
+                    <Tv size={11} /> {movie.ottPlatform ? `Streaming on ${movie.ottPlatform}` : 'OTT Available'}
+                  </span>
+                )}
                 {movie.aspectRatio && (
                   <span className="badge badge-dim" style={{ marginLeft: 'auto' }}>
                     Ratio: {movie.aspectRatio}
@@ -537,6 +559,11 @@ export default function MovieDetailPage() {
 
           {/* Right Sidebar: Where to Watch & Screen Tech */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+
+            {/* OTT STREAMING & RELEASE DETAILS */}
+            <div id="streaming-section">
+              <OttStreamingInfo movie={movie} />
+            </div>
 
             {/* SCREEN EXPERIENCE & ASPECT RATIO TECH */}
             {movie.aspectRatio && (

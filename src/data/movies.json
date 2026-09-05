@@ -19,7 +19,10 @@
     "aspectRatio": "1.90:1",
     "status": "CURRENTLY_SHOWING",
     "cities": ["visakhapatnam", "hyderabad", "vijayawada", "bengaluru", "chennai"],
-    "theaters": ["varun-inox", "ambience-mall-pvr", "kameswari-kinnera", "jyothi-theatre"]
+    "theaters": ["varun-inox", "ambience-mall-pvr", "kameswari-kinnera", "jyothi-theatre"],
+    "ottPlatform": "Netflix, Amazon Prime Video",
+    "ottReleaseDate": "2024-08-22",
+    "ottUrl": "https://www.netflix.com/title/81732650"
   },
   {
     "id": "devara-part-1",
@@ -41,7 +44,10 @@
     "aspectRatio": "2.39:1",
     "status": "CURRENTLY_SHOWING",
     "cities": ["visakhapatnam", "hyderabad", "vijayawada", "bengaluru"],
-    "theaters": ["varun-inox", "ambience-mall-pvr", "sangam-sarat", "srinivasa-theatre"]
+    "theaters": ["varun-inox", "ambience-mall-pvr", "sangam-sarat", "srinivasa-theatre"],
+    "ottPlatform": "Netflix",
+    "ottReleaseDate": "2024-11-08",
+    "ottUrl": "https://www.netflix.com/title/81729606"
   },
   {
     "id": "pushpa-2-the-rule",
@@ -63,7 +69,10 @@
     "aspectRatio": "2.39:1",
     "status": "COMING_SOON",
     "cities": ["visakhapatnam", "hyderabad", "vijayawada", "bengaluru", "chennai"],
-    "theaters": []
+    "theaters": [],
+    "ottPlatform": "Netflix",
+    "ottReleaseDate": "2025-01-30",
+    "ottUrl": "https://www.netflix.com"
   },
   {
     "id": "dune-part-two",
@@ -85,7 +94,10 @@
     "aspectRatio": "1.90:1",
     "status": "CURRENTLY_SHOWING",
     "cities": ["visakhapatnam", "hyderabad", "bengaluru"],
-    "theaters": ["varun-inox", "ambience-mall-pvr"]
+    "theaters": ["varun-inox", "ambience-mall-pvr"],
+    "ottPlatform": "JioCinema",
+    "ottReleaseDate": "2024-05-21",
+    "ottUrl": "https://www.jiocinema.com"
   },
   {
     "id": "saripodhaa-sanivaram",
@@ -107,7 +119,10 @@
     "aspectRatio": "2.39:1",
     "status": "CURRENTLY_SHOWING",
     "cities": ["visakhapatnam", "hyderabad", "vijayawada"],
-    "theaters": ["kameswari-kinnera", "sangam-sarat", "melody-theatre", "lepakshi-theatre"]
+    "theaters": ["kameswari-kinnera", "sangam-sarat", "melody-theatre", "lepakshi-theatre"],
+    "ottPlatform": "Netflix",
+    "ottReleaseDate": "2024-09-26",
+    "ottUrl": "https://www.netflix.com"
   },
   {
     "id": "game-changer",
@@ -129,7 +144,10 @@
     "aspectRatio": "2.39:1",
     "status": "COMING_SOON",
     "cities": ["visakhapatnam", "hyderabad", "vijayawada", "bengaluru", "chennai"],
-    "theaters": []
+    "theaters": [],
+    "ottPlatform": "Amazon Prime Video",
+    "ottReleaseDate": "2025-02-15",
+    "ottUrl": "https://www.primevideo.com"
   },
   {
     "id": "stree-2",
@@ -151,7 +169,10 @@
     "aspectRatio": "2.39:1",
     "status": "CURRENTLY_SHOWING",
     "cities": ["visakhapatnam", "hyderabad", "vijayawada"],
-    "theaters": ["varun-inox", "ambience-mall-pvr"]
+    "theaters": ["varun-inox", "ambience-mall-pvr"],
+    "ottPlatform": "Amazon Prime Video",
+    "ottReleaseDate": "2024-10-10",
+    "ottUrl": "https://www.primevideo.com"
   },
   {
     "id": "hit-the-3rd-case",
@@ -173,6 +194,9 @@
     "aspectRatio": "2.39:1",
     "status": "COMING_SOON",
     "cities": ["visakhapatnam", "hyderabad", "vijayawada"],
-    "theaters": []
+    "theaters": [],
+    "ottPlatform": "Netflix",
+    "ottReleaseDate": "2025-06-15",
+    "ottUrl": "https://www.netflix.com"
   }
 ]
