@@ -350,14 +350,6 @@ export default function MovieDetailPage() {
                     Real user reviews & visual presentation feedback
                   </p>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={handleWriteClick}
-                  className="btn btn-outline btn-sm"
-                >
-                  {userExistingReview ? 'Edit Your Review' : '+ Add Review'}
-                </button>
               </div>
 
               {/* Review Composer Form Modal / Inline */}

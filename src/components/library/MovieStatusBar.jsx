@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Bookmark, Heart, Eye, FolderPlus, Star } from 'lucide-react';
+import { Bookmark, Heart, Eye, FolderPlus } from 'lucide-react';
 import { useApp } from '../../AppContext';
-import { getMovieStatus, toggleWatchlist, toggleWatched, toggleFavorite, setPersonalRating } from '../../services/movieLibraryService';
+import { getMovieStatus, toggleWatchlist, toggleWatched, toggleFavorite } from '../../services/movieLibraryService';
 import CollectionPicker from './CollectionPicker';
-import PersonalRatingPicker from './PersonalRatingPicker';
 
 export default function MovieStatusBar({ tmdbId, movieMeta, compact, onStatusChange }) {
   const { currentUser, state } = useApp();
@@ -13,7 +12,6 @@ export default function MovieStatusBar({ tmdbId, movieMeta, compact, onStatusCha
 
   const [status, setStatus] = useState({ inWatchlist: false, isWatched: false, isFavorite: false, rating: 0 });
   const [showCollectionPicker, setShowCollectionPicker] = useState(false);
-  const [showRatingPopover, setShowRatingPopover] = useState(false);
 
   useEffect(() => {
     if (cleanTmdbId) {
@@ -50,26 +48,10 @@ export default function MovieStatusBar({ tmdbId, movieMeta, compact, onStatusCha
     }
   };
 
-  const handleRatingSelect = async (newRating) => {
-    if (!activeUser) {
-      alert('Please log in to rate movies.');
-      return;
-    }
-    try {
-      const res = await setPersonalRating(cleanTmdbId, activeUser.id, newRating);
-      const newStatus = { ...status, ...res, rating: newRating };
-      setStatus(newStatus);
-      setShowRatingPopover(false);
-      if (onStatusChange) onStatusChange(newStatus);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const iconSize = compact ? 15 : 18;
 
   return (
-    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', position: 'relative' }}>
+    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
       <button
         type="button"
         className={`btn ${compact ? 'btn-sm' : ''} ${status.inWatchlist ? 'btn-outline' : 'btn-ghost'}`}
@@ -114,62 +96,6 @@ export default function MovieStatusBar({ tmdbId, movieMeta, compact, onStatusCha
         <Eye size={iconSize} />
         {!compact && <span style={{ marginLeft: '6px' }}>Watched</span>}
       </button>
-
-      <div style={{ position: 'relative' }}>
-        <button
-          type="button"
-          className={`btn ${compact ? 'btn-sm' : ''} ${status.rating > 0 ? 'btn-outline' : 'btn-ghost'}`}
-          onClick={() => {
-            if (!activeUser) {
-              alert('Please log in to rate movies.');
-              return;
-            }
-            setShowRatingPopover(!showRatingPopover);
-          }}
-          style={{
-            color: status.rating > 0 ? 'var(--gold)' : 'var(--text-secondary)',
-            borderColor: status.rating > 0 ? 'var(--gold)' : undefined,
-            background: status.rating > 0 ? 'var(--gold-faint)' : undefined
-          }}
-          title="Rate Movie"
-        >
-          <Star size={iconSize} fill={status.rating > 0 ? 'var(--gold)' : 'none'} />
-          {!compact && (
-            <span style={{ marginLeft: '6px' }}>
-              {status.rating > 0 ? `★ ${status.rating}` : 'Rate'}
-            </span>
-          )}
-        </button>
-
-        {showRatingPopover && (
-          <div style={{
-            position: 'absolute',
-            top: 'calc(100% + 8px)',
-            left: 0,
-            zIndex: 100,
-            backgroundColor: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            padding: '12px 16px',
-            borderRadius: 'var(--radius-sm)',
-            boxShadow: 'var(--shadow-card)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            minWidth: '200px'
-          }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Your Personal Rating
-            </div>
-            <PersonalRatingPicker value={status.rating} onChange={handleRatingSelect} size="md" />
-            <button
-              onClick={() => setShowRatingPopover(false)}
-              style={{ fontSize: '11px', color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'right', marginTop: '4px' }}
-            >
-              Done
-            </button>
-          </div>
-        )}
-      </div>
 
       <button
         type="button"
