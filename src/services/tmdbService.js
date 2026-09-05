@@ -268,15 +268,63 @@ export async function testTmdbConnection() {
 }
 
 /**
- * Discover movies with filters
- * Params: { genreId, year, language, sortBy, page }
+ * Discover movies with flexible filters
+ * Params: { genreId, year, language, sortBy, page, with_origin_country, with_genres, with_original_language, region }
  */
-export async function discoverMovies({ genreId, year, language, sortBy = 'popularity.desc', page = 1 } = {}) {
+export async function discoverMovies({ 
+  genreId, 
+  year, 
+  language, 
+  sortBy = 'popularity.desc', 
+  page = 1, 
+  with_origin_country, 
+  with_genres, 
+  with_original_language,
+  region
+} = {}) {
   let endpoint = `/discover/movie?sort_by=${sortBy}&page=${page}&include_adult=false`;
-  if (genreId) endpoint += `&with_genres=${genreId}`;
+  const genres = with_genres || genreId;
+  const lang = with_original_language || language;
+  
+  if (genres) endpoint += `&with_genres=${genres}`;
   if (year) endpoint += `&primary_release_year=${year}`;
-  if (language) endpoint += `&with_original_language=${language}`;
+  if (lang) endpoint += `&with_original_language=${lang}`;
+  if (with_origin_country) endpoint += `&with_origin_country=${with_origin_country}`;
+  if (region) endpoint += `&region=${region}`;
+
   const data = await tmdbFetch(endpoint);
+  return normalizeResults(data);
+}
+
+/**
+ * Fetch Telugu Cinema Movies (Tollywood)
+ */
+export async function fetchTeluguMovies(page = 1) {
+  const data = await tmdbFetch(`/discover/movie?with_original_language=te&sort_by=popularity.desc&page=${page}&include_adult=false`);
+  return normalizeResults(data);
+}
+
+/**
+ * Fetch Horror Movies (Genre ID: 27)
+ */
+export async function fetchHorrorMovies(page = 1) {
+  const data = await tmdbFetch(`/discover/movie?with_genres=27&sort_by=popularity.desc&page=${page}&include_adult=false`);
+  return normalizeResults(data);
+}
+
+/**
+ * Fetch Crime & Suspense Thrillers (Genre IDs: 80=Crime, 53=Thriller, 9648=Mystery)
+ */
+export async function fetchCrimeSuspenseMovies(page = 1) {
+  const data = await tmdbFetch(`/discover/movie?with_genres=80,53,9648&sort_by=popularity.desc&page=${page}&include_adult=false`);
+  return normalizeResults(data);
+}
+
+/**
+ * Fetch Action Movies (Genre ID: 28)
+ */
+export async function fetchActionMovies(page = 1) {
+  const data = await tmdbFetch(`/discover/movie?with_genres=28&sort_by=popularity.desc&page=${page}&include_adult=false`);
   return normalizeResults(data);
 }
 

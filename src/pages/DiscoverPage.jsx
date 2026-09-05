@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Search, Filter, X, Film, Star, Clock, Heart, Plus } from 'lucide-react';
+import { Search, Filter, X, Film, Star, Clock, Heart, Plus, Flame, ShieldAlert, Zap, Skull, Compass } from 'lucide-react';
 import { 
   searchTmdbMovies, 
   fetchTrendingMovies, 
@@ -8,7 +8,12 @@ import {
   fetchPopularMovies, 
   fetchMoviesByDecade, 
   fetchGenres, 
-  discoverMovies 
+  discoverMovies,
+  discoverRecentIndianMovies,
+  fetchTeluguMovies,
+  fetchHorrorMovies,
+  fetchCrimeSuspenseMovies,
+  fetchActionMovies
 } from '../services/tmdbService';
 import GlobalMovieCard from '../components/discovery/GlobalMovieCard';
 import SearchAutocomplete from '../components/discovery/SearchAutocomplete';
@@ -27,6 +32,10 @@ export default function DiscoverPage() {
   const [trending, setTrending] = useState([]);
   const [topRated, setTopRated] = useState([]);
   const [indian, setIndian] = useState([]);
+  const [telugu, setTelugu] = useState([]);
+  const [horror, setHorror] = useState([]);
+  const [crimeSuspense, setCrimeSuspense] = useState([]);
+  const [actionMovies, setActionMovies] = useState([]);
 
   const activeGenre = searchParams.get('genre') || '';
   const activeLang = searchParams.get('language') || '';
@@ -40,9 +49,13 @@ export default function DiscoverPage() {
     fetchGenres().then(setGenres).catch(console.error);
     
     if (!hasFilters) {
-      fetchTrendingMovies().then(res => setTrending(res.results.slice(0, 10))).catch(console.error);
-      fetchTopRatedMovies().then(res => setTopRated(res.results.slice(0, 10))).catch(console.error);
-      discoverMovies({ with_original_language: 'hi|te|ta' }).then(res => setIndian(res.results.slice(0, 10))).catch(console.error);
+      fetchTrendingMovies().then(res => setTrending(res.results.slice(0, 12))).catch(console.error);
+      fetchTopRatedMovies().then(res => setTopRated(res.results.slice(0, 12))).catch(console.error);
+      discoverRecentIndianMovies().then(res => setIndian(res.results.slice(0, 15))).catch(console.error);
+      fetchTeluguMovies().then(res => setTelugu(res.results.slice(0, 15))).catch(console.error);
+      fetchHorrorMovies().then(res => setHorror(res.results.slice(0, 15))).catch(console.error);
+      fetchCrimeSuspenseMovies().then(res => setCrimeSuspense(res.results.slice(0, 15))).catch(console.error);
+      fetchActionMovies().then(res => setActionMovies(res.results.slice(0, 15))).catch(console.error);
     }
   }, [hasFilters]);
 
@@ -109,13 +122,14 @@ export default function DiscoverPage() {
 
   const languages = [
     { code: '', label: 'All Languages' },
-    { code: 'hi', label: 'Hindi' },
     { code: 'te', label: 'Telugu' },
+    { code: 'hi', label: 'Hindi' },
     { code: 'ta', label: 'Tamil' },
+    { code: 'kn', label: 'Kannada' },
+    { code: 'ml', label: 'Malayalam' },
     { code: 'en', label: 'English' },
     { code: 'ko', label: 'Korean' },
-    { code: 'ja', label: 'Japanese' },
-    { code: 'fr', label: 'French' }
+    { code: 'ja', label: 'Japanese' }
   ];
 
   const decades = [
@@ -134,6 +148,49 @@ export default function DiscoverPage() {
     { val: 'primary_release_date.desc', label: 'Newest' }
   ];
 
+  const renderMovieShelf = (title, icon, movieList, onSeeAll) => {
+    if (!movieList || movieList.length === 0) return null;
+    return (
+      <section style={{ marginBottom: '2.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <h2 style={{ 
+            fontFamily: 'var(--font-sans)',
+            fontSize: '1.4rem',
+            fontWeight: '700',
+            color: 'var(--text-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.6rem'
+          }}>
+            {icon} {title}
+          </h2>
+          {onSeeAll && (
+            <button 
+              className="btn btn-ghost btn-sm" 
+              onClick={onSeeAll}
+              style={{ color: 'var(--gold)', fontSize: '0.85rem' }}
+            >
+              See All →
+            </button>
+          )}
+        </div>
+        <div style={{
+          display: 'flex',
+          gap: '1.25rem',
+          overflowX: 'auto',
+          paddingBottom: '1rem',
+          scrollbarWidth: 'thin'
+        }} className="hide-scrollbar">
+          {movieList.map(movie => (
+            <div key={movie.id || movie.tmdbId} style={{ minWidth: '170px', width: '170px', flexShrink: 0 }}>
+              <GlobalMovieCard movie={movie} />
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  };
+
   return (
     <div className="page-enter" style={{ minHeight: '100vh', paddingBottom: '2rem' }}>
       {/* Hero Section */}
@@ -146,7 +203,8 @@ export default function DiscoverPage() {
         <div className="container" style={{ maxWidth: '800px', margin: '0 auto' }}>
           <h1 style={{ 
             fontSize: '3rem', 
-            fontFamily: 'var(--font-serif)', 
+            fontFamily: 'var(--font-sans)', 
+            fontWeight: '800',
             color: 'var(--gold)',
             marginBottom: '1rem'
           }}>
@@ -157,11 +215,11 @@ export default function DiscoverPage() {
             fontSize: '1.2rem',
             marginBottom: '2rem'
           }}>
-            From silent films to the latest releases — rated, tracked, and saved to your personal archive.
+            Explore Indian Cinema, Telugu Movies, Horror, Crime & Suspense, Action, and worldwide releases.
           </p>
           
           <div style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'left' }}>
-            <SearchAutocomplete onSelect={handleSearchSelect} placeholder="Search for a movie..." />
+            <SearchAutocomplete onSelect={handleSearchSelect} placeholder="Search for any movie, actor, or director..." />
           </div>
         </div>
       </div>
@@ -172,7 +230,7 @@ export default function DiscoverPage() {
         padding: '1rem',
         position: 'sticky',
         top: '60px',
-        background: 'rgba(var(--bg-rgb), 0.9)',
+        background: 'rgba(10, 8, 6, 0.95)',
         backdropFilter: 'blur(10px)',
         zIndex: 10
       }}>
@@ -225,7 +283,7 @@ export default function DiscoverPage() {
             <button 
               className="btn btn-ghost btn-sm"
               onClick={() => setSearchParams(new URLSearchParams())}
-              style={{ color: 'var(--text-secondary)' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--gold)' }}
             >
               <X size={16} /> Clear Filters
             </button>
@@ -233,39 +291,39 @@ export default function DiscoverPage() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="container" style={{ marginTop: '2rem' }}>
-        {(hasFilters || activeSort !== 'popularity.desc') ? (
+      {/* Main Content Area */}
+      <div className="container" style={{ padding: '2rem 1rem' }}>
+        {hasFilters ? (
           <div>
-            <h2 style={{ marginBottom: '1.5rem', fontFamily: 'var(--font-serif)' }}>
-              {query ? `Search Results for "${query}"` : 'Discovery Results'}
+            <h2 style={{ marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
+              {query ? `Search Results for "${query}"` : 'Filtered Movies'}
             </h2>
             
             {results.length === 0 && !loading ? (
-              <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--text-muted)' }}>
-                <Film size={48} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
-                <p>No movies found matching your criteria.</p>
+              <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--text-muted)' }}>
+                No movies found. Try adjusting your filters.
               </div>
             ) : (
               <>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-                  gap: '1.5rem'
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', 
+                  gap: '1.5rem',
+                  marginBottom: '2rem'
                 }}>
                   {results.map(movie => (
                     <GlobalMovieCard key={movie.id} movie={movie} />
                   ))}
                 </div>
-                
-                {loading && (
-                  <div style={{ textAlign: 'center', padding: '2rem' }}>Loading...</div>
-                )}
-                
-                {hasMore && !loading && (
+
+                {hasMore && (
                   <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-                    <button className="btn btn-outline" onClick={() => loadResults(true)}>
-                      Load More
+                    <button 
+                      className="btn btn-outline" 
+                      onClick={() => loadResults(true)}
+                      disabled={loading}
+                    >
+                      {loading ? 'Loading...' : 'Load More Movies'}
                     </button>
                   </div>
                 )}
@@ -273,82 +331,28 @@ export default function DiscoverPage() {
             )}
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-            {/* Default State - Sections */}
-            <section>
-              <h2 style={{ 
-                marginBottom: '1.5rem', 
-                fontFamily: 'var(--font-serif)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}>
-                <span style={{ color: 'var(--gold)' }}>🔥</span> Trending This Week
-              </h2>
-              <div style={{
-                display: 'flex',
-                gap: '1.5rem',
-                overflowX: 'auto',
-                paddingBottom: '1rem',
-                scrollbarWidth: 'thin'
-              }}>
-                {trending.map(movie => (
-                  <div key={movie.id} style={{ minWidth: '160px', width: '160px' }}>
-                    <GlobalMovieCard movie={movie} />
-                  </div>
-                ))}
-              </div>
-            </section>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            
+            {/* 1. Indian Cinema */}
+            {renderMovieShelf("Indian Cinema", "🎬", indian, () => updateFilter('language', 'te'))}
 
-            <section>
-              <h2 style={{ 
-                marginBottom: '1.5rem', 
-                fontFamily: 'var(--font-serif)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}>
-                <Star size={24} color="var(--gold)" /> Top Rated All Time
-              </h2>
-              <div style={{
-                display: 'flex',
-                gap: '1.5rem',
-                overflowX: 'auto',
-                paddingBottom: '1rem',
-                scrollbarWidth: 'thin'
-              }}>
-                {topRated.map(movie => (
-                  <div key={movie.id} style={{ minWidth: '160px', width: '160px' }}>
-                    <GlobalMovieCard movie={movie} />
-                  </div>
-                ))}
-              </div>
-            </section>
+            {/* 2. Telugu Movies */}
+            {renderMovieShelf("Telugu Movies", "🔥", telugu, () => updateFilter('language', 'te'))}
 
-            <section>
-              <h2 style={{ 
-                marginBottom: '1.5rem', 
-                fontFamily: 'var(--font-serif)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}>
-                🎬 Indian Cinema
-              </h2>
-              <div style={{
-                display: 'flex',
-                gap: '1.5rem',
-                overflowX: 'auto',
-                paddingBottom: '1rem',
-                scrollbarWidth: 'thin'
-              }}>
-                {indian.map(movie => (
-                  <div key={movie.id} style={{ minWidth: '160px', width: '160px' }}>
-                    <GlobalMovieCard movie={movie} />
-                  </div>
-                ))}
-              </div>
-            </section>
+            {/* 3. Horror Movies */}
+            {renderMovieShelf("Horror Movies", "👻", horror, () => updateFilter('genre', '27'))}
+
+            {/* 4. Crime & Suspense Thrillers */}
+            {renderMovieShelf("Crime & Suspense", "🔍", crimeSuspense, () => updateFilter('genre', '80'))}
+
+            {/* 5. Action Movies */}
+            {renderMovieShelf("Action Movies", "💥", actionMovies, () => updateFilter('genre', '28'))}
+
+            {/* 6. Trending This Week */}
+            {renderMovieShelf("Trending This Week", "🌟", trending)}
+
+            {/* 7. Top Rated All Time */}
+            {renderMovieShelf("Top Rated All Time", "⭐", topRated)}
 
             <DecadeShelf decade={2010} />
             <DecadeShelf decade={2000} />
