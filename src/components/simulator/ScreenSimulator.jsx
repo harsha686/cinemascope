@@ -62,7 +62,7 @@ export default function ScreenSimulator({
     ? calcAspectCrop(SOURCE_RATIO, screenRatio, maxDisplayW, maxDisplayW / screenRatio)
     : calcAspectFit(SOURCE_RATIO, screenRatio, maxDisplayW, maxDisplayW / screenRatio);
 
-  const { screenW, screenH, mediaW, mediaH, offsetX, offsetY, percentVisible } = calc;
+  const { screenW, screenH, mediaW, mediaH, offsetX, offsetY, percentVisible, percentCropped = 0, cropSide = 'none', screenCoverage = 100 } = calc;
 
   // Physical or aspect ratio dimensions scale calculation
   const hasPhysical = Boolean(screenWidthM && Number(screenWidthM) > 0);
@@ -430,8 +430,15 @@ export default function ScreenSimulator({
             <div style={{ fontFamily: 'var(--font-serif)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>
               {mode === 'fit' ? 'IMAGE VISIBLE' : 'SOURCE CROPPED'}
             </div>
-            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: percentVisible > 90 ? 'var(--gold)' : '#f87171', letterSpacing: '0.05em' }}>
-              {percentVisible}%
+            <div style={{
+              fontFamily: 'var(--font-serif)',
+              fontSize: 20,
+              color: mode === 'fit'
+                ? 'var(--gold)'
+                : (percentCropped <= 0 ? 'var(--gold)' : percentCropped <= 10 ? 'var(--gold)' : '#f87171'),
+              letterSpacing: '0.05em'
+            }}>
+              {mode === 'fit' ? '100%' : `${percentCropped}%`}
             </div>
           </div>
         </div>
@@ -467,19 +474,23 @@ export default function ScreenSimulator({
         {mode === 'fit' && Math.abs(offsetY) > 1 && (
           <div>
             <span style={{ fontSize: 9, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Letterbox Bars</span>
-            <div style={{ fontSize: 11, color: '#f87171', marginTop: 2 }}>{Math.round(offsetY)}px each</div>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{Math.round(offsetY)}px each (top & bottom)</div>
           </div>
         )}
         {mode === 'fit' && Math.abs(offsetX) > 1 && (
           <div>
             <span style={{ fontSize: 9, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Pillarbox Bars</span>
-            <div style={{ fontSize: 11, color: '#f87171', marginTop: 2 }}>{Math.round(offsetX)}px each</div>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{Math.round(offsetX)}px each (left & right)</div>
           </div>
         )}
         {mode === 'crop' && (
           <div>
             <span style={{ fontSize: 9, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Edge Cropping</span>
-            <div style={{ fontSize: 11, color: '#f87171', marginTop: 2 }}>{100 - percentVisible > 0 ? `${(100 - percentVisible).toFixed(1)}% cropped` : 'None'}</div>
+            <div style={{ fontSize: 11, color: percentCropped > 0 ? '#f87171' : 'var(--gold)', marginTop: 2 }}>
+              {percentCropped > 0
+                ? `${percentCropped}% cropped (${cropSide === 'sides' ? 'sides' : 'top & bottom'})`
+                : 'None (Exact Match)'}
+            </div>
           </div>
         )}
       </div>

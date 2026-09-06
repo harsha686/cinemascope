@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   ShieldCheck,
@@ -42,7 +43,7 @@ export default function ProfessionalDetailsModal({
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen || !application) return null;
+  if (!isOpen || !application || typeof document === "undefined") return null;
 
   const displayName = application.fullName || reviewerName || "Verified Reviewer";
   const avatarLetter = displayName.charAt(0).toUpperCase();
@@ -66,48 +67,72 @@ export default function ProfessionalDetailsModal({
     }
   };
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 1100,
-        background: "rgba(0, 0, 0, 0.82)",
-        backdropFilter: "blur(6px)",
+        zIndex: 99999,
+        background: "rgba(0, 0, 0, 0.86)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
         display: "flex",
-        alignItems: "center",
+        alignItems: "flex-start",
         justifyContent: "center",
-        padding: "20px 16px",
+        padding: "36px 16px 48px",
+        overflowY: "auto",
+        WebkitOverflowScrolling: "touch",
+        animation: "modalBackdropFade 0.22s ease-out forwards",
       }}
       onClick={onClose}
     >
+      <style>{`
+        @keyframes modalBackdropFade {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes modalSmoothCardIn {
+          0% {
+            opacity: 0;
+            transform: translateY(22px) scale(0.97);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+      `}</style>
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
           background: "#121417",
-          border: "1px solid rgba(16, 185, 129, 0.3)",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 24px rgba(16, 185, 129, 0.15)",
-          borderRadius: 14,
+          border: "1px solid rgba(16, 185, 129, 0.35)",
+          boxShadow: "0 25px 60px -15px rgba(0, 0, 0, 0.95), 0 0 35px rgba(16, 185, 129, 0.2)",
+          borderRadius: 16,
           maxWidth: 680,
           width: "100%",
-          maxHeight: "90vh",
+          maxHeight: "min(86vh, 780px)",
+          margin: "auto 0",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
           color: "var(--text-primary)",
+          animation: "modalSmoothCardIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+          position: "relative",
         }}
       >
-        {/* Top Header Bar */}
+        {/* Top Header Bar (Fixed at top of modal) */}
         <div
           style={{
+            flexShrink: 0,
             padding: "16px 22px",
             borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            background: "linear-gradient(180deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.02) 100%)",
+            background: "linear-gradient(180deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.03) 100%)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -143,8 +168,10 @@ export default function ProfessionalDetailsModal({
         {/* Scrollable Modal Body */}
         <div
           style={{
+            flex: 1,
             padding: "22px",
             overflowY: "auto",
+            overscrollBehavior: "contain",
             display: "flex",
             flexDirection: "column",
             gap: 20,
@@ -448,12 +475,13 @@ export default function ProfessionalDetailsModal({
         {/* Modal Footer */}
         <div
           style={{
+            flexShrink: 0,
             padding: "14px 22px",
             borderTop: "1px solid rgba(255, 255, 255, 0.08)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            background: "rgba(0, 0, 0, 0.3)",
+            background: "rgba(0, 0, 0, 0.35)",
             flexWrap: "wrap",
             gap: 10,
           }}
@@ -477,6 +505,7 @@ export default function ProfessionalDetailsModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
