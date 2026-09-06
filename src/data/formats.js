@@ -149,13 +149,15 @@ export function calcAspectFit(sourceRatio, screenRatio, containerW, containerH) 
   const offsetX = (screenW - mediaW) / 2;
   const offsetY = (screenH - mediaH) / 2;
 
-  const letterboxH = offsetY; // bar height (0 if no letterbox)
-  const pillarboxW = offsetX; // bar width (0 if no pillarbox)
+  const letterboxH = offsetY > 0 ? offsetY : 0; // bar height (0 if no letterbox)
+  const pillarboxW = offsetX > 0 ? offsetX : 0; // bar width (0 if no pillarbox)
 
-  // Percentage of source image visible in this screen
-  const sourceArea = sourceRatio * 1;
-  const screenArea = screenRatio * 1;
-  const percentVisible = Math.min(1, screenArea / sourceArea) * 100;
+  // In fit mode, 100% of the source image is visible without any cropping
+  const percentVisible = 100;
+  const percentCropped = 0;
+
+  // Percentage of screen area filled by the image
+  const screenCoverage = Math.round(((mediaW * mediaH) / (screenW * screenH)) * 1000) / 10;
 
   return {
     screenW, screenH,
@@ -163,7 +165,9 @@ export function calcAspectFit(sourceRatio, screenRatio, containerW, containerH) 
     offsetX, offsetY,
     letterboxH,
     pillarboxW,
-    percentVisible: Math.round(percentVisible * 10) / 10,
+    percentVisible,
+    percentCropped,
+    screenCoverage,
   };
 }
 
@@ -175,14 +179,22 @@ export function calcAspectCrop(sourceRatio, screenRatio, containerW, containerH)
   const screenH = containerW / screenRatio;
 
   let mediaW, mediaH;
-  if (sourceRatio > screenRatio) {
-    // Source wider than screen: scale to fit height, crop sides
+  let cropSide = 'none';
+
+  if (Math.abs(sourceRatio - screenRatio) < 0.01) {
+    mediaW = screenW;
+    mediaH = screenH;
+    cropSide = 'none';
+  } else if (sourceRatio > screenRatio) {
+    // Source wider than screen: scale to fit height, crop sides (left/right)
     mediaH = screenH;
     mediaW = screenH * sourceRatio;
+    cropSide = 'sides';
   } else {
     // Source taller than screen: scale to fit width, crop top/bottom
     mediaW = screenW;
     mediaH = screenW / sourceRatio;
+    cropSide = 'top/bottom';
   }
 
   const offsetX = (screenW - mediaW) / 2;
@@ -193,7 +205,8 @@ export function calcAspectCrop(sourceRatio, screenRatio, containerW, containerH)
 
   const visibleW = Math.min(mediaW, screenW);
   const visibleH = Math.min(mediaH, screenH);
-  const percentVisible = Math.round((visibleW * visibleH) / (mediaW * mediaH) * 1000) / 10;
+  const percentVisible = Math.round(((visibleW * visibleH) / (mediaW * mediaH)) * 1000) / 10;
+  const percentCropped = Math.max(0, Math.round((100 - percentVisible) * 10) / 10);
 
   return {
     screenW, screenH,
@@ -201,5 +214,7 @@ export function calcAspectCrop(sourceRatio, screenRatio, containerW, containerH)
     offsetX, offsetY,
     cropX, cropY,
     percentVisible,
+    percentCropped,
+    cropSide,
   };
 }

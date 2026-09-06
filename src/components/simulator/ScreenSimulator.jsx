@@ -17,6 +17,7 @@ export default function ScreenSimulator({
   screenRatio = 2.39,
   screenRatioLabel = '2.39:1',
   screenFormatName = 'Scope',
+  screenWidthM,
   mode = 'fit',
   onModeChange,
   containerWidth,
@@ -55,13 +56,28 @@ export default function ScreenSimulator({
     return () => ro.disconnect();
   }, []);
 
-  const maxDisplayW = Math.min(containerW * 0.92, isExperience ? 1100 : 860);
+  const maxDisplayW = Math.min(containerW * 0.86, isExperience ? 1100 : 840);
   
   const calc = mode === 'crop'
     ? calcAspectCrop(SOURCE_RATIO, screenRatio, maxDisplayW, maxDisplayW / screenRatio)
     : calcAspectFit(SOURCE_RATIO, screenRatio, maxDisplayW, maxDisplayW / screenRatio);
 
   const { screenW, screenH, mediaW, mediaH, offsetX, offsetY, percentVisible } = calc;
+
+  // Physical or aspect ratio dimensions scale calculation
+  const hasPhysical = Boolean(screenWidthM && Number(screenWidthM) > 0);
+  const widthM = hasPhysical ? Number(screenWidthM) : null;
+  const heightM = hasPhysical ? Math.round((widthM / screenRatio) * 10) / 10 : null;
+  const widthFt = hasPhysical ? Math.round(widthM * 3.28084 * 10) / 10 : null;
+  const heightFt = hasPhysical ? Math.round(heightM * 3.28084 * 10) / 10 : null;
+
+  const widthScaleText = hasPhysical
+    ? `${widthM}m (${widthFt}ft) · ${screenRatioLabel || screenRatio + ':1'}`
+    : `${screenRatioLabel || screenRatio + ':1'} (${screenRatio}x)`;
+
+  const heightScaleText = hasPhysical
+    ? `${heightM}m (${heightFt}ft)`
+    : `1.00x`;
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -124,23 +140,186 @@ export default function ScreenSimulator({
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          height: stageHeight ? `${stageHeight}px` : 'auto',
-          minHeight: stageHeight ? `${stageHeight}px` : 'auto',
+          height: stageHeight ? `${stageHeight + 36}px` : 'auto',
+          minHeight: stageHeight ? `${stageHeight + 36}px` : 'auto',
+          paddingTop: 28,
+          paddingRight: 34,
+          boxSizing: 'content-box',
           transition: 'height 400ms ease',
         }}
       >
-        <div
-          className="screen-frame"
-          style={{
-            width: screenW,
-            height: screenH,
-            background: '#000',
-            position: 'relative',
-            overflow: 'hidden',
-            boxShadow: '0 0 0 1px rgba(201,168,76,0.3), 0 0 60px rgba(0,0,0,0.8), 0 0 80px rgba(201,168,76,0.06)',
-            transition: 'width 550ms cubic-bezier(0.25,0.46,0.45,0.94), height 550ms cubic-bezier(0.25,0.46,0.45,0.94)',
-          }}
-        >
+        <div style={{ position: 'relative', width: screenW, height: screenH }}>
+          {/* Horizontal Width Scale Ruler (Top) */}
+          <div
+            style={{
+              position: 'absolute',
+              top: -24,
+              left: 0,
+              width: screenW,
+              height: 20,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: 'none',
+              userSelect: 'none',
+            }}
+          >
+            <svg
+              width={screenW}
+              height={20}
+              style={{ position: 'absolute', left: 0, top: 0, overflow: 'visible' }}
+            >
+              {/* Main dimension line */}
+              <line
+                x1={0}
+                y1={10}
+                x2={screenW}
+                y2={10}
+                stroke="rgba(201,168,76,0.35)"
+                strokeWidth={1}
+              />
+              {/* Left boundary end cap */}
+              <line x1={0} y1={2} x2={0} y2={18} stroke="var(--gold)" strokeWidth={1.5} />
+              {/* Right boundary end cap */}
+              <line x1={screenW} y1={2} x2={screenW} y2={18} stroke="var(--gold)" strokeWidth={1.5} />
+
+              {/* Incremental ruler notches */}
+              {Array.from({ length: 21 }).map((_, i) => {
+                const x = (screenW / 20) * i;
+                const isMajor = i % 5 === 0;
+                return (
+                  <line
+                    key={`w-tick-${i}`}
+                    x1={x}
+                    y1={isMajor ? 3 : 7}
+                    x2={x}
+                    y2={isMajor ? 17 : 13}
+                    stroke={isMajor ? "var(--gold)" : "rgba(201,168,76,0.25)"}
+                    strokeWidth={1}
+                  />
+                );
+              })}
+            </svg>
+
+            {/* Centered Width Dimension Label Badge */}
+            <div
+              style={{
+                position: 'relative',
+                zIndex: 2,
+                background: '#120f0a',
+                border: '1px solid rgba(201,168,76,0.45)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
+                padding: '1px 8px',
+                borderRadius: 4,
+                fontSize: 10,
+                fontFamily: 'monospace',
+                color: 'var(--gold)',
+                letterSpacing: '0.06em',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                whiteSpace: 'nowrap',
+              }}
+              title={`Screen Width: ${widthScaleText}`}
+            >
+              <span style={{ fontSize: 9, opacity: 0.8 }}>⟵</span>
+              <span style={{ fontWeight: 700 }}>W: {widthScaleText}</span>
+              <span style={{ fontSize: 9, opacity: 0.8 }}>⟶</span>
+            </div>
+          </div>
+
+          {/* Vertical Height Scale Ruler (Right) */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: -32,
+              width: 26,
+              height: screenH,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: 'none',
+              userSelect: 'none',
+            }}
+          >
+            <svg
+              width={26}
+              height={screenH}
+              style={{ position: 'absolute', left: 0, top: 0, overflow: 'visible' }}
+            >
+              {/* Main dimension line */}
+              <line
+                x1={8}
+                y1={0}
+                x2={8}
+                y2={screenH}
+                stroke="rgba(201,168,76,0.35)"
+                strokeWidth={1}
+              />
+              {/* Top boundary end cap */}
+              <line x1={0} y1={0} x2={16} y2={0} stroke="var(--gold)" strokeWidth={1.5} />
+              {/* Bottom boundary end cap */}
+              <line x1={0} y1={screenH} x2={16} y2={screenH} stroke="var(--gold)" strokeWidth={1.5} />
+
+              {/* Incremental ruler notches */}
+              {Array.from({ length: 11 }).map((_, i) => {
+                const y = (screenH / 10) * i;
+                const isMajor = i % 5 === 0;
+                return (
+                  <line
+                    key={`h-tick-${i}`}
+                    x1={isMajor ? 1 : 5}
+                    y1={y}
+                    x2={isMajor ? 15 : 11}
+                    y2={y}
+                    stroke={isMajor ? "var(--gold)" : "rgba(201,168,76,0.25)"}
+                    strokeWidth={1}
+                  />
+                );
+              })}
+            </svg>
+
+            {/* Vertical Height Dimension Label Badge */}
+            <div
+              style={{
+                position: 'relative',
+                zIndex: 2,
+                transform: 'rotate(90deg)',
+                background: '#120f0a',
+                border: '1px solid rgba(201,168,76,0.45)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
+                padding: '1px 6px',
+                borderRadius: 4,
+                fontSize: 9,
+                fontFamily: 'monospace',
+                color: 'var(--gold)',
+                letterSpacing: '0.06em',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                whiteSpace: 'nowrap',
+              }}
+              title={`Screen Height: ${heightScaleText}`}
+            >
+              <span style={{ fontSize: 8, opacity: 0.8 }}>⟵</span>
+              <span style={{ fontWeight: 700 }}>H: {heightScaleText}</span>
+              <span style={{ fontSize: 8, opacity: 0.8 }}>⟶</span>
+            </div>
+          </div>
+
+          <div
+            className="screen-frame"
+            style={{
+              width: screenW,
+              height: screenH,
+              background: '#000',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 0 0 1px rgba(201,168,76,0.3), 0 0 60px rgba(0,0,0,0.8), 0 0 80px rgba(201,168,76,0.06)',
+              transition: 'width 550ms cubic-bezier(0.25,0.46,0.45,0.94), height 550ms cubic-bezier(0.25,0.46,0.45,0.94)',
+            }}
+          >
           {/* Media */}
           {useVideo && !videoError ? (
             <video
@@ -227,6 +406,7 @@ export default function ScreenSimulator({
           )}
         </div>
       </div>
+      </div>
 
       {/* Mode toggle & stats */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, minHeight: 46, gap: 12 }}>
@@ -277,6 +457,12 @@ export default function ScreenSimulator({
         <div style={{ minWidth: 90 }}>
           <span style={{ fontSize: 9, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Screen</span>
           <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{screenRatioLabel} · {screenFormatName}</div>
+        </div>
+        <div style={{ minWidth: 110 }}>
+          <span style={{ fontSize: 9, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Dimensions</span>
+          <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 2, fontFamily: 'monospace', fontWeight: 600 }}>
+            {hasPhysical ? `${widthM}m × ${heightM}m (${widthFt}ft × ${heightFt}ft)` : `${screenRatioLabel || screenRatio + ':1'} (${screenRatio}x × 1.00x)`}
+          </div>
         </div>
         {mode === 'fit' && Math.abs(offsetY) > 1 && (
           <div>

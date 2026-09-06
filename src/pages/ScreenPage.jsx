@@ -83,6 +83,7 @@ export default function ScreenPage() {
               screenRatio={displayRatio}
               screenRatioLabel={displayRatioLabel}
               screenFormatName={displayFormatName}
+              screenWidthM={screen?.screenWidthM}
               mode={simMode}
               onModeChange={setSimMode}
               isExperience={true}
@@ -177,6 +178,7 @@ export default function ScreenPage() {
               screenRatio={displayRatio}
               screenRatioLabel={displayRatioLabel}
               screenFormatName={displayFormatName}
+              screenWidthM={screen?.screenWidthM}
               mode={simMode}
               onModeChange={setSimMode}
             />
