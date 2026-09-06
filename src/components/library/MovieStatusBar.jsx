@@ -21,7 +21,7 @@ export default function MovieStatusBar({ tmdbId, movieMeta, compact, onStatusCha
 
   const loadStatus = async () => {
     try {
-      const currentStatus = await getMovieStatus(cleanTmdbId);
+      const currentStatus = await getMovieStatus(cleanTmdbId, activeUser?.id);
       setStatus(currentStatus);
     } catch (e) {
       console.error('Error loading movie status:', e);

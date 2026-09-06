@@ -6,7 +6,7 @@ import * as LibService from '../services/movieLibraryService';
 import { fetchFullTmdbMovieDetails, searchTmdbMovies } from '../services/tmdbService';
 import GlobalMovieCard from '../components/discovery/GlobalMovieCard';
 
-function AddMoviesModal({ collection, onClose, onCollectionUpdated }) {
+function AddMoviesModal({ collection, onClose, onCollectionUpdated, userId }) {
   const [query, setQuery] = useState('');
   const [libraryMovies, setLibraryMovies] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
@@ -14,12 +14,12 @@ function AddMoviesModal({ collection, onClose, onCollectionUpdated }) {
 
   useEffect(() => {
     loadLibraryMovies();
-  }, []);
+  }, [userId]);
 
   const loadLibraryMovies = async () => {
     setLoading(true);
     try {
-      const lib = await LibService.getLibrary();
+      const lib = await LibService.getLibrary(userId);
       const ids = Object.keys(lib);
       const movies = await Promise.all(
         ids.map(id => fetchFullTmdbMovieDetails(id).catch(() => null))
@@ -54,7 +54,7 @@ function AddMoviesModal({ collection, onClose, onCollectionUpdated }) {
     const isInCol = currentIds.includes(rawId);
 
     if (isInCol) {
-      await LibService.removeMovieFromCollection(collection.id, rawId);
+      await LibService.removeMovieFromCollection(collection.id, rawId, userId);
       onCollectionUpdated({
         ...collection,
         movie_ids: currentIds.filter(id => id !== rawId)
@@ -63,7 +63,7 @@ function AddMoviesModal({ collection, onClose, onCollectionUpdated }) {
       await LibService.addMovieToCollection(collection.id, rawId, {
         title: movie.title,
         posterUrl: movie.posterUrl
-      });
+      }, userId);
       onCollectionUpdated({
         ...collection,
         movie_ids: [...currentIds, rawId]
@@ -177,7 +177,7 @@ export default function CollectionPage() {
   useEffect(() => {
     if (!currentUser) return;
     const load = async () => {
-      const cols = await LibService.getCollections();
+      const cols = await LibService.getCollections(currentUser.id);
       const c = cols.find(col => col.id === collectionId);
       if (c) {
         setCollection(c);
@@ -256,20 +256,20 @@ export default function CollectionPage() {
 
   const handleSaveEdit = async () => {
     if (!editName.trim()) return;
-    await LibService.renameCollection(collection.id, editName, editDesc);
+    await LibService.renameCollection(collection.id, editName, editDesc, currentUser?.id);
     setCollection(prev => ({ ...prev, name: editName, description: editDesc }));
     setIsEditing(false);
   };
 
   const handleDeleteCollection = async () => {
     if (window.confirm(`Are you sure you want to delete the collection "${collection.name}"?`)) {
-      await LibService.deleteCollection(collection.id);
+      await LibService.deleteCollection(collection.id, currentUser?.id);
       navigate('/library');
     }
   };
 
   const handleRemoveMovie = async (tmdbId) => {
-    await LibService.removeMovieFromCollection(collection.id, tmdbId);
+    await LibService.removeMovieFromCollection(collection.id, tmdbId, currentUser?.id);
     setCollection(prev => ({ ...prev, movie_ids: (prev.movie_ids || []).filter(id => id !== tmdbId) }));
   };
 
@@ -318,14 +318,14 @@ export default function CollectionPage() {
             </div>
             
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button className="btn btn-primary btn-sm" onClick={() => setShowAddModal(true)}>
-                <Plus size={16} /> Add Movies
-              </button>
               <button className="btn btn-outline btn-sm" onClick={() => setIsEditing(true)}>
-                <Edit2 size={16} /> Edit Details
+                <Edit2 size={14} /> Edit
               </button>
-              <button className="btn btn-ghost btn-sm" onClick={handleDeleteCollection} style={{ color: 'var(--text-muted)' }}>
-                <Trash2 size={16} /> Delete
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowAddModal(true)}>
+                <Plus size={14} /> Add Movies
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={handleDeleteCollection} style={{ color: '#ef4444' }}>
+                <Trash2 size={14} /> Delete
               </button>
             </div>
           </div>
@@ -333,26 +333,12 @@ export default function CollectionPage() {
       </div>
 
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h2 style={{ fontFamily: 'var(--font-serif)', margin: 0, fontSize: '1.5rem' }}>Movies in this collection</h2>
-          {collection.movie_ids.length > 0 && (
-            <button className="btn btn-outline btn-sm" onClick={() => setShowAddModal(true)}>
-              <Plus size={14} /> Add Movies
-            </button>
-          )}
-        </div>
+        <h2 style={{ fontFamily: 'var(--font-serif)', marginBottom: '1.5rem' }}>Movies in Collection</h2>
         
         {collection.movie_ids.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '4rem 1rem', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-dashed)' }}>
-            <Folder size={48} style={{ margin: '0 auto 1rem', opacity: 0.5, color: 'var(--text-muted)' }} />
-            <h3 style={{ marginBottom: '0.5rem' }}>This collection is empty</h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Add movies from your watched list or search for any movie to include here.</p>
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-              <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
-                <Plus size={18} /> Add Movies to Collection
-              </button>
-              <Link to="/discover" className="btn btn-outline">Discover Movies</Link>
-            </div>
+          <div style={{ textAlign: 'center', padding: '3rem', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)' }}>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>No movies in this collection yet.</p>
+            <button className="btn btn-primary btn-sm" onClick={() => setShowAddModal(true)}>Add Movies</button>
           </div>
         ) : (
           <div style={{
@@ -383,6 +369,7 @@ export default function CollectionPage() {
       {showAddModal && (
         <AddMoviesModal
           collection={collection}
+          userId={currentUser?.id}
           onClose={() => setShowAddModal(false)}
           onCollectionUpdated={(updatedCol) => setCollection(updatedCol)}
         />

@@ -19,9 +19,13 @@ export default function WatchlistPage() {
 
   // Load watchlist
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      setWatchlistItems([]);
+      setLoading(false);
+      return;
+    }
     const load = async () => {
-      const items = await LibService.getWatchlistMovies();
+      const items = await LibService.getWatchlistMovies(currentUser.id);
       setWatchlistItems(items);
       setLoading(false);
     };
@@ -55,7 +59,7 @@ export default function WatchlistPage() {
   const handleWatched = async (tmdbId) => {
     const m = moviesData[tmdbId];
     await LibService.toggleWatched(tmdbId, currentUser?.id, m ? { title: m.title, posterUrl: m.posterUrl } : {});
-    await LibService.updateLibraryEntry(tmdbId, { in_watchlist: false });
+    await LibService.updateLibraryEntry(tmdbId, { in_watchlist: false }, currentUser?.id);
     setWatchlistItems(prev => prev.filter(i => i.tmdbId !== tmdbId));
   };
 

@@ -85,27 +85,8 @@ export default function Navbar() {
           ))}
         </div>
 
-        {/* Right Action Controls (City Dropdown + Auth Menu) */}
+        {/* Right Action Controls (Auth Menu) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-          
-          {/* City Quick Picker */}
-          <div className="city-pill-wrapper" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)', borderRadius: 4, flexShrink: 0 }}>
-            <MapPin size={12} color="var(--gold)" style={{ flexShrink: 0 }} />
-            <select
-              style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: 11, fontFamily: 'var(--font-serif)', cursor: 'pointer', outline: 'none', maxWidth: 110 }}
-              value={activeCity?.id}
-              onChange={e => {
-                const selected = allCities.find(c => c.id === e.target.value);
-                if (selected) dispatch({ type: 'SET_CITY', payload: selected });
-              }}
-            >
-              {allCities.map(c => (
-                <option key={c.id} value={c.id} style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
 
           {/* User Auth Section */}
           {currentUser ? (

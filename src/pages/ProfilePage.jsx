@@ -18,12 +18,17 @@ export default function ProfilePage() {
   const [collectionsCount, setCollectionsCount] = useState(0);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      setLibStats({ totalWatchlist: 0, totalWatched: 0, totalFavorites: 0, totalRated: 0, avgRating: 0 });
+      setDiaryStats({ totalEntries: 0, thisYearCount: 0, thisMonthCount: 0, rewatches: 0 });
+      setCollectionsCount(0);
+      return;
+    }
     const load = async () => {
       const [ls, ds, cols] = await Promise.all([
-        LibService.getLibraryStats(),
-        LibService.getDiaryStats(),
-        LibService.getCollections(),
+        LibService.getLibraryStats(currentUser.id),
+        LibService.getDiaryStats(currentUser.id),
+        LibService.getCollections(currentUser.id),
       ]);
       setLibStats(ls);
       setDiaryStats(ds);

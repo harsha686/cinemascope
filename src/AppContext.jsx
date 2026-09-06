@@ -261,8 +261,14 @@ function reducer(state, action) {
     }
 
     case 'UPDATE_THEATER': {
-      const updatedTheaters = state.theatersList.map(t => t.id === action.payload.id ? { ...t, ...action.payload } : t);
+      const exists = state.theatersList.some(t => t.id === action.payload.id);
+      const updatedTheaters = exists
+        ? state.theatersList.map(t => t.id === action.payload.id ? { ...t, ...action.payload } : t)
+        : [action.payload, ...state.theatersList];
       newState = { ...state, theatersList: updatedTheaters };
+      if (state.selectedTheater && state.selectedTheater.id === action.payload.id) {
+        newState.selectedTheater = { ...state.selectedTheater, ...action.payload };
+      }
       saveStorage('cinemascope_theaters', updatedTheaters);
       return newState;
     }

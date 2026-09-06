@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, X, Check } from 'lucide-react';
+import { useApp } from '../../AppContext';
 import { getCollections, addMovieToCollection, removeMovieFromCollection, createCollection } from '../../services/movieLibraryService';
 
 export default function CollectionPicker({ tmdbId, movieMeta, onClose }) {
+  const { state } = useApp();
+  const currentUser = state?.currentUser;
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newCollectionName, setNewCollectionName] = useState('');
@@ -10,12 +13,12 @@ export default function CollectionPicker({ tmdbId, movieMeta, onClose }) {
 
   useEffect(() => {
     loadCollections();
-  }, []);
+  }, [currentUser]);
 
   const loadCollections = async () => {
     setLoading(true);
     try {
-      const data = await getCollections();
+      const data = await getCollections(currentUser?.id);
       setCollections(data || []);
     } catch (err) {
       console.error(err);
@@ -28,9 +31,9 @@ export default function CollectionPicker({ tmdbId, movieMeta, onClose }) {
     try {
       const hasMovie = (collection.movie_ids || []).includes(tmdbId);
       if (hasMovie) {
-        await removeMovieFromCollection(collection.id, tmdbId);
+        await removeMovieFromCollection(collection.id, tmdbId, currentUser?.id);
       } else {
-        await addMovieToCollection(collection.id, tmdbId, movieMeta);
+        await addMovieToCollection(collection.id, tmdbId, movieMeta, currentUser?.id);
       }
       await loadCollections();
     } catch (err) {
@@ -44,10 +47,10 @@ export default function CollectionPicker({ tmdbId, movieMeta, onClose }) {
     
     setIsCreating(true);
     try {
-      const newCol = await createCollection(newCollectionName.trim());
+      const newCol = await createCollection(newCollectionName.trim(), '', currentUser?.id);
       if (newCol) {
         if (tmdbId) {
-          await addMovieToCollection(newCol.id, tmdbId, movieMeta);
+          await addMovieToCollection(newCol.id, tmdbId, movieMeta, currentUser?.id);
         }
         setNewCollectionName('');
         await loadCollections();

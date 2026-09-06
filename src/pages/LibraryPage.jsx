@@ -28,12 +28,18 @@ export default function LibraryPage() {
   const [newCollectionDesc, setNewCollectionDesc] = useState('');
 
   const loadData = useCallback(async () => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      setLibrary({});
+      setStats({ totalWatchlist: 0, totalWatched: 0, totalFavorites: 0, totalRated: 0, avgRating: 0 });
+      setCollections([]);
+      setDiaryStats({ totalEntries: 0 });
+      return;
+    }
     const [lib, s, cols, ds] = await Promise.all([
-      LibService.getLibrary(),
-      LibService.getLibraryStats(),
-      LibService.getCollections(),
-      LibService.getDiaryStats(),
+      LibService.getLibrary(currentUser.id),
+      LibService.getLibraryStats(currentUser.id),
+      LibService.getCollections(currentUser.id),
+      LibService.getDiaryStats(currentUser.id),
     ]);
     setLibrary(lib);
     setStats(s);
@@ -95,7 +101,7 @@ export default function LibraryPage() {
   const handleCreateCollection = async (e) => {
     e.preventDefault();
     if (!newCollectionName.trim()) return;
-    await LibService.createCollection(newCollectionName.trim(), newCollectionDesc);
+    await LibService.createCollection(newCollectionName.trim(), newCollectionDesc, currentUser?.id);
     setShowCollectionModal(false);
     setNewCollectionName('');
     setNewCollectionDesc('');

@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import { useApp } from '../../AppContext';
 import { addDiaryEntry } from '../../services/movieLibraryService';
 import PersonalRatingPicker from './PersonalRatingPicker';
 
 export default function DiaryEntryForm({ tmdbId, movieMeta, onClose, onSave }) {
+  const { state } = useApp();
+  const currentUser = state?.currentUser;
   const [dateWatched, setDateWatched] = useState(new Date().toISOString().split('T')[0]);
   const [rating, setRating] = useState(0);
   const [review, setReview] = useState('');
@@ -27,7 +30,7 @@ export default function DiaryEntryForm({ tmdbId, movieMeta, onClose, onSave }) {
         review_text: review,
         is_rewatch: isRewatch,
         tags
-      });
+      }, currentUser?.id);
       if (onSave) onSave();
       onClose();
     } catch (err) {

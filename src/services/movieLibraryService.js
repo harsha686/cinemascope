@@ -1,21 +1,102 @@
 import { getSupabaseClient, isSupabaseConfigured, supabaseService } from './supabase';
 
-const LIB_KEY = 'cinemascope_user_library';
-const DIARY_KEY = 'cinemascope_diary';
-const COLLECTIONS_KEY = 'cinemascope_collections';
+const BASE_LIB_KEY = 'cinemascope_user_library';
+const BASE_DIARY_KEY = 'cinemascope_diary';
+const BASE_COLLECTIONS_KEY = 'cinemascope_collections';
+
+/**
+ * Resolves active user ID from explicit argument, or current logged-in user in localStorage,
+ * or falls back to 'guest'.
+ */
+export function getActiveUserId(fallbackUserId) {
+  if (typeof fallbackUserId === 'string' && fallbackUserId.trim()) {
+    return fallbackUserId.trim();
+  }
+  if (fallbackUserId && typeof fallbackUserId === 'object' && fallbackUserId.id) {
+    return String(fallbackUserId.id).trim();
+  }
+  try {
+    const raw = localStorage.getItem('cinemascope_currentUser');
+    if (raw) {
+      const u = JSON.parse(raw);
+      if (u && u.id) return String(u.id).trim();
+    }
+  } catch (e) {
+    // ignore
+  }
+  return 'guest';
+}
+
+/**
+ * Migrates legacy unpartitioned library data to 'admin-1' if needed,
+ * so the initial creator doesn't lose their data, while other users get fresh, empty libraries.
+ */
+function migrateLegacyDataIfNeeded(targetUserId) {
+  try {
+    const legacyLib = localStorage.getItem(BASE_LIB_KEY);
+    if (legacyLib) {
+      const adminLibKey = `${BASE_LIB_KEY}_admin-1`;
+      if (!localStorage.getItem(adminLibKey)) {
+        localStorage.setItem(adminLibKey, legacyLib);
+      }
+      localStorage.removeItem(BASE_LIB_KEY);
+    }
+
+    const legacyDiary = localStorage.getItem(BASE_DIARY_KEY);
+    if (legacyDiary) {
+      const adminDiaryKey = `${BASE_DIARY_KEY}_admin-1`;
+      if (!localStorage.getItem(adminDiaryKey)) {
+        localStorage.setItem(adminDiaryKey, legacyDiary);
+      }
+      localStorage.removeItem(BASE_DIARY_KEY);
+    }
+
+    const legacyCollections = localStorage.getItem(BASE_COLLECTIONS_KEY);
+    if (legacyCollections) {
+      const adminColKey = `${BASE_COLLECTIONS_KEY}_admin-1`;
+      if (!localStorage.getItem(adminColKey)) {
+        localStorage.setItem(adminColKey, legacyCollections);
+      }
+      localStorage.removeItem(BASE_COLLECTIONS_KEY);
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+function getLibStorageKey(userId) {
+  const uid = getActiveUserId(userId);
+  migrateLegacyDataIfNeeded(uid);
+  return `${BASE_LIB_KEY}_${uid}`;
+}
+
+function getDiaryStorageKey(userId) {
+  const uid = getActiveUserId(userId);
+  migrateLegacyDataIfNeeded(uid);
+  return `${BASE_DIARY_KEY}_${uid}`;
+}
+
+function getCollectionsStorageKey(userId) {
+  const uid = getActiveUserId(userId);
+  migrateLegacyDataIfNeeded(uid);
+  return `${BASE_COLLECTIONS_KEY}_${uid}`;
+}
 
 // Library state management (localStorage + optional Supabase)
-export async function getLibrary() {
-  return JSON.parse(localStorage.getItem(LIB_KEY) || '{}');
+export async function getLibrary(userId) {
+  const key = getLibStorageKey(userId);
+  return JSON.parse(localStorage.getItem(key) || '{}');
 }
 
-export async function saveLibrary(lib) {
-  localStorage.setItem(LIB_KEY, JSON.stringify(lib));
+export async function saveLibrary(lib, userId) {
+  const key = getLibStorageKey(userId);
+  localStorage.setItem(key, JSON.stringify(lib));
 }
 
-export async function getMovieStatus(tmdbId) {
-  const lib = await getLibrary();
-  const entry = lib[tmdbId] || { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
+export async function getMovieStatus(tmdbId, userId) {
+  const cleanId = String(tmdbId || '').replace('tmdb-', '');
+  const lib = await getLibrary(userId);
+  const entry = lib[cleanId] || { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
   return {
     ...entry,
     inWatchlist: !!entry.watchlist,
@@ -26,171 +107,177 @@ export async function getMovieStatus(tmdbId) {
 }
 
 export async function toggleWatchlist(tmdbId, userIdOrMeta) {
-  const lib = await getLibrary();
-  if (!lib[tmdbId]) lib[tmdbId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
-  lib[tmdbId].watchlist = !lib[tmdbId].watchlist;
-  await saveLibrary(lib);
+  const cleanId = String(tmdbId || '').replace('tmdb-', '');
+  const userId = getActiveUserId(userIdOrMeta);
+  const lib = await getLibrary(userId);
+  if (!lib[cleanId]) lib[cleanId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
+  lib[cleanId].watchlist = !lib[cleanId].watchlist;
+  await saveLibrary(lib, userId);
   
-  const userId = typeof userIdOrMeta === 'string' ? userIdOrMeta : userIdOrMeta?.id;
-  if (isSupabaseConfigured() && userId) {
+  if (isSupabaseConfigured() && userId && userId !== 'guest') {
     supabaseService.upsertUserMovie({
-      id: `${userId}_${tmdbId}`,
+      id: `${userId}_${cleanId}`,
       user_id: userId,
-      tmdb_id: tmdbId,
-      in_watchlist: lib[tmdbId].watchlist,
-      is_watched: lib[tmdbId].watched,
-      is_favorite: lib[tmdbId].favorite,
-      personal_rating: lib[tmdbId].rating,
-      notes: lib[tmdbId].notes,
-      watch_count: lib[tmdbId].watchCount,
+      tmdb_id: cleanId,
+      in_watchlist: lib[cleanId].watchlist,
+      is_watched: lib[cleanId].watched,
+      is_favorite: lib[cleanId].favorite,
+      personal_rating: lib[cleanId].rating,
+      notes: lib[cleanId].notes,
+      watch_count: lib[cleanId].watchCount,
       updated_at: new Date().toISOString()
     }).catch(console.error);
   }
 
   return {
-    ...lib[tmdbId],
-    inWatchlist: !!lib[tmdbId].watchlist,
-    isWatched: !!lib[tmdbId].watched,
-    isFavorite: !!lib[tmdbId].favorite,
-    rating: lib[tmdbId].rating || 0
+    ...lib[cleanId],
+    inWatchlist: !!lib[cleanId].watchlist,
+    isWatched: !!lib[cleanId].watched,
+    isFavorite: !!lib[cleanId].favorite,
+    rating: lib[cleanId].rating || 0
   };
 }
 
 export async function toggleWatched(tmdbId, userIdOrMeta) {
-  const lib = await getLibrary();
-  if (!lib[tmdbId]) lib[tmdbId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
-  lib[tmdbId].watched = !lib[tmdbId].watched;
-  if (lib[tmdbId].watched) {
-    lib[tmdbId].watchCount = (lib[tmdbId].watchCount || 0) + 1;
+  const cleanId = String(tmdbId || '').replace('tmdb-', '');
+  const userId = getActiveUserId(userIdOrMeta);
+  const lib = await getLibrary(userId);
+  if (!lib[cleanId]) lib[cleanId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
+  lib[cleanId].watched = !lib[cleanId].watched;
+  if (lib[cleanId].watched) {
+    lib[cleanId].watchCount = (lib[cleanId].watchCount || 0) + 1;
   }
-  await saveLibrary(lib);
+  await saveLibrary(lib, userId);
 
-  const userId = typeof userIdOrMeta === 'string' ? userIdOrMeta : userIdOrMeta?.id;
-  if (isSupabaseConfigured() && userId) {
+  if (isSupabaseConfigured() && userId && userId !== 'guest') {
     supabaseService.upsertUserMovie({
-      id: `${userId}_${tmdbId}`,
+      id: `${userId}_${cleanId}`,
       user_id: userId,
-      tmdb_id: tmdbId,
-      in_watchlist: lib[tmdbId].watchlist,
-      is_watched: lib[tmdbId].watched,
-      is_favorite: lib[tmdbId].favorite,
-      personal_rating: lib[tmdbId].rating,
-      notes: lib[tmdbId].notes,
-      watch_count: lib[tmdbId].watchCount,
+      tmdb_id: cleanId,
+      in_watchlist: lib[cleanId].watchlist,
+      is_watched: lib[cleanId].watched,
+      is_favorite: lib[cleanId].favorite,
+      personal_rating: lib[cleanId].rating,
+      notes: lib[cleanId].notes,
+      watch_count: lib[cleanId].watchCount,
       updated_at: new Date().toISOString()
     }).catch(console.error);
   }
 
   return {
-    ...lib[tmdbId],
-    inWatchlist: !!lib[tmdbId].watchlist,
-    isWatched: !!lib[tmdbId].watched,
-    isFavorite: !!lib[tmdbId].favorite,
-    rating: lib[tmdbId].rating || 0
+    ...lib[cleanId],
+    inWatchlist: !!lib[cleanId].watchlist,
+    isWatched: !!lib[cleanId].watched,
+    isFavorite: !!lib[cleanId].favorite,
+    rating: lib[cleanId].rating || 0
   };
 }
 
 export async function toggleFavorite(tmdbId, userIdOrMeta) {
-  const lib = await getLibrary();
-  if (!lib[tmdbId]) lib[tmdbId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
-  lib[tmdbId].favorite = !lib[tmdbId].favorite;
-  await saveLibrary(lib);
+  const cleanId = String(tmdbId || '').replace('tmdb-', '');
+  const userId = getActiveUserId(userIdOrMeta);
+  const lib = await getLibrary(userId);
+  if (!lib[cleanId]) lib[cleanId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
+  lib[cleanId].favorite = !lib[cleanId].favorite;
+  await saveLibrary(lib, userId);
 
-  const userId = typeof userIdOrMeta === 'string' ? userIdOrMeta : userIdOrMeta?.id;
-  if (isSupabaseConfigured() && userId) {
+  if (isSupabaseConfigured() && userId && userId !== 'guest') {
     supabaseService.upsertUserMovie({
-      id: `${userId}_${tmdbId}`,
+      id: `${userId}_${cleanId}`,
       user_id: userId,
-      tmdb_id: tmdbId,
-      in_watchlist: lib[tmdbId].watchlist,
-      is_watched: lib[tmdbId].watched,
-      is_favorite: lib[tmdbId].favorite,
-      personal_rating: lib[tmdbId].rating,
-      notes: lib[tmdbId].notes,
-      watch_count: lib[tmdbId].watchCount,
+      tmdb_id: cleanId,
+      in_watchlist: lib[cleanId].watchlist,
+      is_watched: lib[cleanId].watched,
+      is_favorite: lib[cleanId].favorite,
+      personal_rating: lib[cleanId].rating,
+      notes: lib[cleanId].notes,
+      watch_count: lib[cleanId].watchCount,
       updated_at: new Date().toISOString()
     }).catch(console.error);
   }
 
   return {
-    ...lib[tmdbId],
-    inWatchlist: !!lib[tmdbId].watchlist,
-    isWatched: !!lib[tmdbId].watched,
-    isFavorite: !!lib[tmdbId].favorite,
-    rating: lib[tmdbId].rating || 0
+    ...lib[cleanId],
+    inWatchlist: !!lib[cleanId].watchlist,
+    isWatched: !!lib[cleanId].watched,
+    isFavorite: !!lib[cleanId].favorite,
+    rating: lib[cleanId].rating || 0
   };
 }
 
 export async function setPersonalRating(tmdbId, userIdOrMeta, rating) {
-  const lib = await getLibrary();
-  if (!lib[tmdbId]) lib[tmdbId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
-  lib[tmdbId].rating = rating;
-  await saveLibrary(lib);
+  const cleanId = String(tmdbId || '').replace('tmdb-', '');
+  const userId = getActiveUserId(userIdOrMeta);
+  const lib = await getLibrary(userId);
+  if (!lib[cleanId]) lib[cleanId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
+  lib[cleanId].rating = rating;
+  await saveLibrary(lib, userId);
 
-  const userId = typeof userIdOrMeta === 'string' ? userIdOrMeta : userIdOrMeta?.id;
-  if (isSupabaseConfigured() && userId) {
+  if (isSupabaseConfigured() && userId && userId !== 'guest') {
     supabaseService.upsertUserMovie({
-      id: `${userId}_${tmdbId}`,
+      id: `${userId}_${cleanId}`,
       user_id: userId,
-      tmdb_id: tmdbId,
-      in_watchlist: lib[tmdbId].watchlist,
-      is_watched: lib[tmdbId].watched,
-      is_favorite: lib[tmdbId].favorite,
-      personal_rating: lib[tmdbId].rating,
-      notes: lib[tmdbId].notes,
-      watch_count: lib[tmdbId].watchCount,
+      tmdb_id: cleanId,
+      in_watchlist: lib[cleanId].watchlist,
+      is_watched: lib[cleanId].watched,
+      is_favorite: lib[cleanId].favorite,
+      personal_rating: lib[cleanId].rating,
+      notes: lib[cleanId].notes,
+      watch_count: lib[cleanId].watchCount,
       updated_at: new Date().toISOString()
     }).catch(console.error);
   }
 
   return {
-    ...lib[tmdbId],
-    inWatchlist: !!lib[tmdbId].watchlist,
-    isWatched: !!lib[tmdbId].watched,
-    isFavorite: !!lib[tmdbId].favorite,
-    rating: lib[tmdbId].rating || 0
+    ...lib[cleanId],
+    inWatchlist: !!lib[cleanId].watchlist,
+    isWatched: !!lib[cleanId].watched,
+    isFavorite: !!lib[cleanId].favorite,
+    rating: lib[cleanId].rating || 0
   };
 }
 
 export async function setNotes(tmdbId, userId, notes) {
-  const lib = await getLibrary();
-  if (!lib[tmdbId]) lib[tmdbId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
-  lib[tmdbId].notes = notes;
-  await saveLibrary(lib);
+  const cleanId = String(tmdbId || '').replace('tmdb-', '');
+  const uid = getActiveUserId(userId);
+  const lib = await getLibrary(uid);
+  if (!lib[cleanId]) lib[cleanId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
+  lib[cleanId].notes = notes;
+  await saveLibrary(lib, uid);
 
-  if (isSupabaseConfigured() && userId) {
+  if (isSupabaseConfigured() && uid && uid !== 'guest') {
     supabaseService.upsertUserMovie({
-      id: `${userId}_${tmdbId}`,
-      user_id: userId,
-      tmdb_id: tmdbId,
-      in_watchlist: lib[tmdbId].watchlist,
-      is_watched: lib[tmdbId].watched,
-      is_favorite: lib[tmdbId].favorite,
-      personal_rating: lib[tmdbId].rating,
-      notes: lib[tmdbId].notes,
-      watch_count: lib[tmdbId].watchCount,
+      id: `${uid}_${cleanId}`,
+      user_id: uid,
+      tmdb_id: cleanId,
+      in_watchlist: lib[cleanId].watchlist,
+      is_watched: lib[cleanId].watched,
+      is_favorite: lib[cleanId].favorite,
+      personal_rating: lib[cleanId].rating,
+      notes: lib[cleanId].notes,
+      watch_count: lib[cleanId].watchCount,
       updated_at: new Date().toISOString()
     }).catch(console.error);
   }
 }
 
-export async function getWatchlistMovies() {
-  const lib = await getLibrary();
+export async function getWatchlistMovies(userId) {
+  const lib = await getLibrary(userId);
   return Object.keys(lib).filter(id => lib[id].watchlist).map(tmdbId => ({ tmdbId, ...lib[tmdbId] }));
 }
 
-export async function getWatchedMovies() {
-  const lib = await getLibrary();
+export async function getWatchedMovies(userId) {
+  const lib = await getLibrary(userId);
   return Object.keys(lib).filter(id => lib[id].watched).map(tmdbId => ({ tmdbId, ...lib[tmdbId] }));
 }
 
-export async function getFavoriteMovies() {
-  const lib = await getLibrary();
+export async function getFavoriteMovies(userId) {
+  const lib = await getLibrary(userId);
   return Object.keys(lib).filter(id => lib[id].favorite).map(tmdbId => ({ tmdbId, ...lib[tmdbId] }));
 }
 
-export async function getLibraryStats() {
-  const lib = await getLibrary();
+export async function getLibraryStats(userId) {
+  const lib = await getLibrary(userId);
   let totalWatchlist = 0, totalWatched = 0, totalFavorites = 0, totalRated = 0, sumRating = 0;
   for (const key in lib) {
     const movie = lib[key];
@@ -212,12 +299,12 @@ export async function getLibraryStats() {
 }
 
 // Diary
-export async function getDiary() {
-  const raw = JSON.parse(localStorage.getItem(DIARY_KEY) || '[]');
+export async function getDiary(userId) {
+  const key = getDiaryStorageKey(userId);
+  const raw = JSON.parse(localStorage.getItem(key) || '[]');
   const sanitized = raw.map(e => {
     let tmdb_id = e.tmdb_id || e.tmdbId;
     if (!tmdb_id && e['0'] !== undefined) {
-      // Auto-recover tmdb_id if saved from spread string
       const keys = Object.keys(e).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b));
       if (keys.length > 0) {
         tmdb_id = keys.map(k => e[k]).join('');
@@ -236,22 +323,19 @@ export async function getDiary() {
     };
   });
   
-  // Filter out any ghost entries that have no movie identifier and no title
   const valid = sanitized.filter(e => Boolean(e.tmdb_id || e.movie_title));
   if (valid.length !== raw.length) {
-    localStorage.setItem(DIARY_KEY, JSON.stringify(valid));
+    localStorage.setItem(key, JSON.stringify(valid));
   }
   return valid.sort((a, b) => new Date(b.watched_on || b.created_at) - new Date(a.watched_on || a.created_at));
 }
 
-export async function saveDiary(entries) {
-  localStorage.setItem(DIARY_KEY, JSON.stringify(entries));
+export async function saveDiary(entries, userId) {
+  const key = getDiaryStorageKey(userId);
+  localStorage.setItem(key, JSON.stringify(entries));
 }
 
-export async function addDiaryEntry(entryOrTmdbId, maybeData) {
-  const diary = await getDiary();
-  const id = `diary_${Date.now()}`;
-  
+export async function addDiaryEntry(entryOrTmdbId, maybeData, userIdOrMeta) {
   let entry = {};
   if (typeof entryOrTmdbId === 'string' && maybeData) {
     entry = {
@@ -262,9 +346,13 @@ export async function addDiaryEntry(entryOrTmdbId, maybeData) {
     entry = { ...entryOrTmdbId };
   }
 
+  const userId = getActiveUserId(userIdOrMeta || entry.user_id || entry.userId);
+  const diary = await getDiary(userId);
+  const id = `diary_${Date.now()}`;
+
   const normalizedEntry = {
     id,
-    user_id: entry.user_id || entry.userId || '',
+    user_id: userId,
     tmdb_id: entry.tmdb_id || entry.tmdbId || '',
     movie_title: entry.movie_title || entry.title || entry.movieMeta?.title || '',
     poster_url: entry.poster_url || entry.posterUrl || entry.movieMeta?.posterUrl || '',
@@ -277,26 +365,27 @@ export async function addDiaryEntry(entryOrTmdbId, maybeData) {
   };
 
   diary.push(normalizedEntry);
-  await saveDiary(diary);
+  await saveDiary(diary, userId);
 
-  if (isSupabaseConfigured() && normalizedEntry.user_id) {
+  if (isSupabaseConfigured() && normalizedEntry.user_id && normalizedEntry.user_id !== 'guest') {
     supabaseService.addDiaryEntry(normalizedEntry).catch(console.error);
   }
   return normalizedEntry;
 }
 
-export async function deleteDiaryEntry(entryId) {
-  let diary = await getDiary();
+export async function deleteDiaryEntry(entryId, userId) {
+  const uid = getActiveUserId(userId);
+  let diary = await getDiary(uid);
   diary = diary.filter(e => e.id !== entryId);
-  await saveDiary(diary);
+  await saveDiary(diary, uid);
 
   if (isSupabaseConfigured()) {
     supabaseService.deleteDiaryEntry(entryId).catch(console.error);
   }
 }
 
-export async function getDiaryStats() {
-  const diary = await getDiary();
+export async function getDiaryStats(userId) {
+  const diary = await getDiary(userId);
   let rewatches = 0, thisMonthCount = 0, thisYearCount = 0;
   const now = new Date();
   
@@ -314,18 +403,22 @@ export async function getDiaryStats() {
 }
 
 // Collections
-export async function getCollections() {
-  return JSON.parse(localStorage.getItem(COLLECTIONS_KEY) || '[]');
+export async function getCollections(userId) {
+  const key = getCollectionsStorageKey(userId);
+  return JSON.parse(localStorage.getItem(key) || '[]');
 }
 
-export async function saveCollections(cols) {
-  localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(cols));
+export async function saveCollections(cols, userId) {
+  const key = getCollectionsStorageKey(userId);
+  localStorage.setItem(key, JSON.stringify(cols));
 }
 
-export async function createCollection(name, description) {
-  const cols = await getCollections();
+export async function createCollection(name, description, userId) {
+  const uid = getActiveUserId(userId);
+  const cols = await getCollections(uid);
   const newCol = {
     id: `col_${Date.now()}`,
+    user_id: uid,
     name,
     description,
     movie_ids: [],
@@ -334,69 +427,76 @@ export async function createCollection(name, description) {
     visibility: 'private'
   };
   cols.push(newCol);
-  await saveCollections(cols);
+  await saveCollections(cols, uid);
   return newCol;
 }
 
-export async function deleteCollection(collectionId) {
-  let cols = await getCollections();
+export async function deleteCollection(collectionId, userId) {
+  const uid = getActiveUserId(userId);
+  let cols = await getCollections(uid);
   cols = cols.filter(c => c.id !== collectionId);
-  await saveCollections(cols);
+  await saveCollections(cols, uid);
 
   if (isSupabaseConfigured()) {
     supabaseService.deleteCollection(collectionId).catch(console.error);
   }
 }
 
-export async function renameCollection(collectionId, name, description) {
-  const cols = await getCollections();
+export async function renameCollection(collectionId, name, description, userId) {
+  const uid = getActiveUserId(userId);
+  const cols = await getCollections(uid);
   const col = cols.find(c => c.id === collectionId);
   if (col) {
     col.name = name;
     col.description = description;
     col.updated_at = new Date().toISOString();
-    await saveCollections(cols);
+    await saveCollections(cols, uid);
 
-    if (isSupabaseConfigured() && col.user_id) {
+    if (isSupabaseConfigured() && col.user_id && col.user_id !== 'guest') {
       supabaseService.upsertCollection(col).catch(console.error);
     }
   }
 }
 
-export async function addMovieToCollection(collectionId, tmdbId, movieMeta) {
-  const cols = await getCollections();
+export async function addMovieToCollection(collectionId, tmdbId, movieMeta, userId) {
+  const uid = getActiveUserId(userId);
+  const cleanId = String(tmdbId || '').replace('tmdb-', '');
+  const cols = await getCollections(uid);
   const col = cols.find(c => c.id === collectionId);
   if (col) {
     if (!col.movie_ids) col.movie_ids = [];
-    if (!col.movie_ids.includes(tmdbId)) {
-      col.movie_ids.push(tmdbId);
+    if (!col.movie_ids.includes(cleanId)) {
+      col.movie_ids.push(cleanId);
       col.updated_at = new Date().toISOString();
-      await saveCollections(cols);
+      await saveCollections(cols, uid);
 
-      if (isSupabaseConfigured() && col.user_id) {
+      if (isSupabaseConfigured() && col.user_id && col.user_id !== 'guest') {
         supabaseService.upsertCollection(col).catch(console.error);
       }
     }
   }
 }
 
-export async function removeMovieFromCollection(collectionId, tmdbId) {
-  const cols = await getCollections();
+export async function removeMovieFromCollection(collectionId, tmdbId, userId) {
+  const uid = getActiveUserId(userId);
+  const cleanId = String(tmdbId || '').replace('tmdb-', '');
+  const cols = await getCollections(uid);
   const col = cols.find(c => c.id === collectionId);
   if (col && col.movie_ids) {
-    col.movie_ids = col.movie_ids.filter(id => id !== tmdbId);
+    col.movie_ids = col.movie_ids.filter(id => id !== cleanId);
     col.updated_at = new Date().toISOString();
-    await saveCollections(cols);
+    await saveCollections(cols, uid);
 
-    if (isSupabaseConfigured() && col.user_id) {
+    if (isSupabaseConfigured() && col.user_id && col.user_id !== 'guest') {
       supabaseService.upsertCollection(col).catch(console.error);
     }
   }
 }
 
-export async function getCollectionsForMovie(tmdbId) {
-  const cols = await getCollections();
-  return cols.filter(c => c.movie_ids && c.movie_ids.includes(tmdbId));
+export async function getCollectionsForMovie(tmdbId, userId) {
+  const cleanId = String(tmdbId || '').replace('tmdb-', '');
+  const cols = await getCollections(userId);
+  return cols.filter(c => c.movie_ids && c.movie_ids.includes(cleanId));
 }
 
 // ── Alias / backward-compat exports used by generated pages ──────────────────
@@ -412,21 +512,21 @@ export const updateCollection = renameCollection;
 
 /**
  * Update a library entry's fields (watchlist, watched, favorite, etc.)
- * Accepts field names used by the DB schema (in_watchlist, is_watched, etc.)
- * OR the internal names (watchlist, watched, favorite).
  */
-export async function updateLibraryEntry(tmdbId, updates) {
-  const lib = await getLibrary();
-  if (!lib[tmdbId]) lib[tmdbId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
+export async function updateLibraryEntry(tmdbId, updates, userId) {
+  const cleanId = String(tmdbId || '').replace('tmdb-', '');
+  const uid = getActiveUserId(userId);
+  const lib = await getLibrary(uid);
+  if (!lib[cleanId]) lib[cleanId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
   // Map DB-style field names to internal names
-  if ('in_watchlist' in updates) lib[tmdbId].watchlist = updates.in_watchlist;
-  if ('is_watched' in updates) lib[tmdbId].watched = updates.is_watched;
-  if ('is_favorite' in updates) lib[tmdbId].favorite = updates.is_favorite;
-  if ('personal_rating' in updates) lib[tmdbId].rating = updates.personal_rating;
-  if ('notes' in updates) lib[tmdbId].notes = updates.notes;
-  if ('watchlist' in updates) lib[tmdbId].watchlist = updates.watchlist;
-  if ('watched' in updates) lib[tmdbId].watched = updates.watched;
-  if ('favorite' in updates) lib[tmdbId].favorite = updates.favorite;
-  await saveLibrary(lib);
+  if ('in_watchlist' in updates) lib[cleanId].watchlist = updates.in_watchlist;
+  if ('is_watched' in updates) lib[cleanId].watched = updates.is_watched;
+  if ('is_favorite' in updates) lib[cleanId].favorite = updates.is_favorite;
+  if ('personal_rating' in updates) lib[cleanId].rating = updates.personal_rating;
+  if ('notes' in updates) lib[cleanId].notes = updates.notes;
+  if ('watchlist' in updates) lib[cleanId].watchlist = updates.watchlist;
+  if ('watched' in updates) lib[cleanId].watched = updates.watched;
+  if ('favorite' in updates) lib[cleanId].favorite = updates.favorite;
+  await saveLibrary(lib, uid);
 }
 

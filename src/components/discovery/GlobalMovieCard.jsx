@@ -19,7 +19,7 @@ export default function GlobalMovieCard({ movie, onStatusChange }) {
 
   const loadStatus = async () => {
     try {
-      const currentStatus = await getMovieStatus(movie.tmdbId);
+      const currentStatus = await getMovieStatus(movie.tmdbId, activeUser?.id);
       setStatus(currentStatus);
     } catch (e) {
       console.error('Failed to load status', e);

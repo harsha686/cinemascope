@@ -17,11 +17,16 @@ export default function DiaryPage() {
   const [selectedYear, setSelectedYear] = useState('all');
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      setEntries([]);
+      setStats({ totalEntries: 0, rewatches: 0, thisMonthCount: 0, thisYearCount: 0 });
+      setLoading(false);
+      return;
+    }
     const load = async () => {
-      const d = await LibService.getDiary();
+      const d = await LibService.getDiary(currentUser.id);
       setEntries(d);
-      const s = await LibService.getDiaryStats();
+      const s = await LibService.getDiaryStats(currentUser.id);
       setStats(s);
       setLoading(false);
     };
@@ -46,7 +51,7 @@ export default function DiaryPage() {
 
   const handleDelete = async (entryId) => {
     if (!window.confirm('Delete this diary entry?')) return;
-    await LibService.deleteDiaryEntry(entryId);
+    await LibService.deleteDiaryEntry(entryId, currentUser?.id);
     setEntries(prev => prev.filter(e => e.id !== entryId));
   };
 
