@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, Monitor } from 'lucide-react';
 import { useApp } from '../AppContext';
@@ -8,9 +8,23 @@ import ComparisonTable from '../components/comparison/ComparisonTable';
 function ScreenPicker({ label, selectedTheater, selectedScreen, onSelect, theaters }) {
   const [theaterOpen, setTheaterOpen] = useState(false);
   const [screenOpen, setScreenOpen] = useState(false);
+  const pickerRef = useRef(null);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    if (!theaterOpen && !screenOpen) return;
+    const handleClickOutside = (e) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target)) {
+        setTheaterOpen(false);
+        setScreenOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [theaterOpen, screenOpen]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div ref={pickerRef} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ fontFamily: 'var(--font-serif)', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>
         {label}
       </div>
@@ -43,7 +57,11 @@ function ScreenPicker({ label, selectedTheater, selectedScreen, onSelect, theate
             {theaters.map(t => (
               <button
                 key={t.id}
-                onClick={() => { onSelect({ theater: t, screen: null }); setTheaterOpen(false); }}
+                onClick={() => {
+                  const firstScreen = t.screens?.[0] || null;
+                  onSelect({ theater: t, screen: firstScreen });
+                  setTheaterOpen(false);
+                }}
                 style={{
                   width: '100%', textAlign: 'left', padding: '10px 16px', background: 'none', border: 'none',
                   cursor: 'pointer', color: 'var(--text-primary)', fontSize: 13,
@@ -137,17 +155,43 @@ function ScreenPicker({ label, selectedTheater, selectedScreen, onSelect, theate
 
 export default function ComparePage() {
   const { allTheaters } = useApp();
-  const [selA, setSelA] = useState({ theater: null, screen: null });
-  const [selB, setSelB] = useState({ theater: null, screen: null });
 
   // Preselect defaults for demo
-  const defaultA = allTheaters.find(t => t.id === 'varun-inox');
-  const defaultB = allTheaters.find(t => t.id === 'kameswari-kinnera');
+  const defaultA = allTheaters.find(t => t.id === 'varun-inox') || allTheaters[0];
+  const defaultB = allTheaters.find(t => t.id === 'kameswari-kinnera') || allTheaters[1] || allTheaters[0];
+
+  const [selA, setSelA] = useState(() => ({
+    theater: defaultA || null,
+    screen: defaultA?.screens?.find(s => s.screenNumber === 4) || defaultA?.screens?.[0] || null,
+  }));
+  const [selB, setSelB] = useState(() => ({
+    theater: defaultB || null,
+    screen: defaultB?.screens?.[0] || null,
+  }));
+
+  const handleSelectA = ({ theater, screen }) => {
+    const chosenScreen = (screen && theater?.screens?.some(s => s.id === screen.id))
+      ? screen
+      : (theater?.screens?.[0] || null);
+    setSelA({ theater, screen: chosenScreen });
+  };
+
+  const handleSelectB = ({ theater, screen }) => {
+    const chosenScreen = (screen && theater?.screens?.some(s => s.id === screen.id))
+      ? screen
+      : (theater?.screens?.[0] || null);
+    setSelB({ theater, screen: chosenScreen });
+  };
 
   const theaterA = selA.theater || defaultA;
-  const screenA = selA.screen || defaultA?.screens?.find(s => s.screenNumber === 4);
+  const screenA = (selA.screen && theaterA?.screens?.some(s => s.id === selA.screen.id))
+    ? selA.screen
+    : (theaterA?.screens?.find(s => s.screenNumber === 4) || theaterA?.screens?.[0] || null);
+
   const theaterB = selB.theater || defaultB;
-  const screenB = selB.screen || defaultB?.screens?.[0];
+  const screenB = (selB.screen && theaterB?.screens?.some(s => s.id === selB.screen.id))
+    ? selB.screen
+    : (theaterB?.screens?.[0] || null);
 
   const canCompare = theaterA && screenA && theaterB && screenB;
 
@@ -179,7 +223,7 @@ export default function ComparePage() {
             label="Screen A"
             selectedTheater={theaterA}
             selectedScreen={screenA}
-            onSelect={setSelA}
+            onSelect={handleSelectA}
             theaters={allTheaters}
           />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 40 }}>
@@ -189,7 +233,7 @@ export default function ComparePage() {
             label="Screen B"
             selectedTheater={theaterB}
             selectedScreen={screenB}
-            onSelect={setSelB}
+            onSelect={handleSelectB}
             theaters={allTheaters}
           />
         </div>
