@@ -60,6 +60,8 @@ export default function CityPage() {
     } else {
       dispatch({ type: 'ADD_THEATER', payload: theaterObj });
     }
+    setTheaterToEdit(null);
+    setShowTheaterModal(false);
   };
 
   const filtered = useMemo(() => {
@@ -279,8 +281,12 @@ export default function CityPage() {
       {/* Admin Theater Form Modal */}
       {isAdmin && (
         <AdminTheaterFormModal
+          key={theaterToEdit ? `edit-${theaterToEdit.id}` : 'new-theater'}
           isOpen={showTheaterModal}
-          onClose={() => setShowTheaterModal(false)}
+          onClose={() => {
+            setShowTheaterModal(false);
+            setTheaterToEdit(null);
+          }}
           onSave={handleSaveTheater}
           theaterToEdit={theaterToEdit}
           allCities={allCities}

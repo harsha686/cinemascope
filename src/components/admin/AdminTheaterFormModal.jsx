@@ -90,8 +90,39 @@ export default function AdminTheaterFormModal({
   const [activeScreenIndex, setActiveScreenIndex] = useState(0);
   const [newFeatureInput, setNewFeatureInput] = useState('');
 
+  const formatScreenForForm = (s, idx) => ({
+    id: s.id || `screen-${idx + 1}-${Date.now()}`,
+    screenNumber: s.screenNumber || idx + 1,
+    name: s.name || `Screen ${idx + 1}`,
+    aspectRatio: s.aspectRatio || '2.39:1',
+    aspectRatioNumeric: s.aspectRatioNumeric || (s.aspectRatio === '1.85:1' ? 1.85 : 2.39),
+    formatName: s.formatName || (s.aspectRatio === '1.85:1' ? 'Flat' : 'Scope'),
+    screenType: s.screenType || 'Standard Widescreen',
+    screenWidthM: s.screenWidthM !== undefined ? s.screenWidthM : 12.5,
+    screenHeightM: s.screenHeightM !== undefined ? s.screenHeightM : 5.2,
+    capacity: s.capacity !== undefined ? s.capacity : 200,
+    projection: s.projection || 'Digital Laser',
+    projectorBrand: s.projectorBrand || 'Barco',
+    projectorModel: s.projectorModel || '',
+    resolution: s.resolution || '4096 × 2160 (4K)',
+    soundSystem: s.soundSystem || 'Dolby Atmos',
+    speakerCount: s.speakerCount !== undefined ? s.speakerCount : 48,
+    subwooferCount: s.subwooferCount !== undefined ? s.subwooferCount : 4,
+    dolbyAtmos: s.dolbyAtmos !== undefined ? Boolean(s.dolbyAtmos) : true,
+    dolbyAtmosProcessor: s.dolbyAtmosProcessor || 'Dolby CP950',
+    screenMaterial: s.screenMaterial || 'Silver Screen',
+    seatingType: Array.isArray(s.seatingType) ? s.seatingType : ['Standard'],
+    dataSource: s.dataSource || 'Admin Verified',
+    sourceConfidence: s.sourceConfidence || 'verified',
+    notes: s.notes || '',
+  });
+
   useEffect(() => {
     if (theaterToEdit) {
+      const screensMapped = theaterToEdit.screens && theaterToEdit.screens.length > 0
+        ? theaterToEdit.screens.map((s, i) => formatScreenForForm(s, i))
+        : [DEFAULT_SCREEN_TEMPLATE(1)];
+
       setFormData({
         name: theaterToEdit.name || '',
         cityId: theaterToEdit.cityId || defaultCityId,
@@ -103,11 +134,11 @@ export default function AdminTheaterFormModal({
         latitude: theaterToEdit.latitude !== undefined ? String(theaterToEdit.latitude) : '',
         longitude: theaterToEdit.longitude !== undefined ? String(theaterToEdit.longitude) : '',
         description: theaterToEdit.description || '',
-        features: theaterToEdit.features || [],
+        features: Array.isArray(theaterToEdit.features) ? theaterToEdit.features : [],
         dataSource: theaterToEdit.dataSource || 'Admin Added',
         sourceConfidence: theaterToEdit.sourceConfidence || 'verified',
         verified: theaterToEdit.verified !== undefined ? theaterToEdit.verified : true,
-        screens: theaterToEdit.screens && theaterToEdit.screens.length > 0 ? theaterToEdit.screens : [DEFAULT_SCREEN_TEMPLATE(1)],
+        screens: screensMapped,
       });
       setActiveScreenIndex(0);
     } else {
@@ -217,12 +248,14 @@ export default function AdminTheaterFormModal({
       id: s.id || `${theaterId}-screen${idx + 1}`,
       screenNumber: idx + 1,
       name: s.name || `Screen ${idx + 1}`,
+      aspectRatio: s.aspectRatio || '2.39:1',
       aspectRatioNumeric: s.aspectRatioNumeric || (s.aspectRatio === '1.85:1' ? 1.85 : 2.39),
-      screenWidthM: parseFloat(s.screenWidthM) || 12.0,
-      screenHeightM: parseFloat(s.screenHeightM) || 5.0,
-      capacity: parseInt(s.capacity, 10) || 150,
-      speakerCount: parseInt(s.speakerCount, 10) || 32,
-      subwooferCount: parseInt(s.subwooferCount, 10) || 2,
+      formatName: s.formatName || (s.aspectRatio === '1.85:1' ? 'Flat' : 'Scope'),
+      screenWidthM: s.screenWidthM !== '' ? parseFloat(s.screenWidthM) || 12.0 : 12.0,
+      screenHeightM: s.screenHeightM !== '' ? parseFloat(s.screenHeightM) || 5.0 : 5.0,
+      capacity: s.capacity !== '' ? parseInt(s.capacity, 10) || 150 : 150,
+      speakerCount: s.speakerCount !== '' ? parseInt(s.speakerCount, 10) || 32 : 32,
+      subwooferCount: s.subwooferCount !== '' ? parseInt(s.subwooferCount, 10) || 2 : 2,
     }));
 
     const finalTheater = {
@@ -235,8 +268,8 @@ export default function AdminTheaterFormModal({
       totalScreens: finalScreens.length,
       area: formData.area.trim() || formData.name.trim(),
       address: formData.address.trim() || `${formData.name.trim()}, ${formData.cityId}`,
-      latitude: formData.latitude ? parseFloat(formData.latitude) : 17.6868,
-      longitude: formData.longitude ? parseFloat(formData.longitude) : 83.2185,
+      latitude: formData.latitude !== '' ? parseFloat(formData.latitude) || 17.6868 : 17.6868,
+      longitude: formData.longitude !== '' ? parseFloat(formData.longitude) || 83.2185 : 83.2185,
       description: formData.description.trim(),
       features: formData.features,
       dataSource: formData.dataSource,
@@ -249,7 +282,7 @@ export default function AdminTheaterFormModal({
     onClose();
   };
 
-  const currentScreen = formData.screens[activeScreenIndex] || formData.screens[0];
+  const currentScreen = formData.screens[activeScreenIndex] || formData.screens[0] || DEFAULT_SCREEN_TEMPLATE(1);
 
   return (
     <div style={{
@@ -549,7 +582,7 @@ export default function AdminTheaterFormModal({
                     </label>
                     <input
                       className="input"
-                      value={currentScreen.name}
+                      value={currentScreen.name || ''}
                       onChange={e => updateScreenField(activeScreenIndex, 'name', e.target.value)}
                     />
                   </div>
@@ -560,7 +593,7 @@ export default function AdminTheaterFormModal({
                     </label>
                     <select
                       className="input"
-                      value={currentScreen.aspectRatio}
+                      value={currentScreen.aspectRatio || '2.39:1'}
                       onChange={e => updateScreenField(activeScreenIndex, 'aspectRatio', e.target.value)}
                     >
                       {ASPECT_RATIOS.map(ar => (
@@ -579,7 +612,7 @@ export default function AdminTheaterFormModal({
                       type="number"
                       step="0.1"
                       className="input"
-                      value={currentScreen.screenWidthM}
+                      value={currentScreen.screenWidthM ?? ''}
                       onChange={e => updateScreenField(activeScreenIndex, 'screenWidthM', e.target.value)}
                     />
                   </div>
@@ -592,7 +625,7 @@ export default function AdminTheaterFormModal({
                       type="number"
                       step="0.1"
                       className="input"
-                      value={currentScreen.screenHeightM}
+                      value={currentScreen.screenHeightM ?? ''}
                       onChange={e => updateScreenField(activeScreenIndex, 'screenHeightM', e.target.value)}
                     />
                   </div>
@@ -604,7 +637,7 @@ export default function AdminTheaterFormModal({
                     <input
                       type="number"
                       className="input"
-                      value={currentScreen.capacity}
+                      value={currentScreen.capacity ?? ''}
                       onChange={e => updateScreenField(activeScreenIndex, 'capacity', e.target.value)}
                     />
                   </div>
@@ -616,7 +649,7 @@ export default function AdminTheaterFormModal({
                     <input
                       className="input"
                       placeholder="e.g. Digital Laser, 4K RGB Laser, Xenon"
-                      value={currentScreen.projection}
+                      value={currentScreen.projection || ''}
                       onChange={e => updateScreenField(activeScreenIndex, 'projection', e.target.value)}
                     />
                   </div>
@@ -628,7 +661,7 @@ export default function AdminTheaterFormModal({
                     <input
                       className="input"
                       placeholder="e.g. Barco SP4K-15, Christie CP4420"
-                      value={currentScreen.projectorBrand}
+                      value={currentScreen.projectorBrand || ''}
                       onChange={e => updateScreenField(activeScreenIndex, 'projectorBrand', e.target.value)}
                     />
                   </div>
@@ -640,7 +673,7 @@ export default function AdminTheaterFormModal({
                     <input
                       className="input"
                       placeholder="e.g. 4096 × 2160 (4K), 2K"
-                      value={currentScreen.resolution}
+                      value={currentScreen.resolution || ''}
                       onChange={e => updateScreenField(activeScreenIndex, 'resolution', e.target.value)}
                     />
                   </div>
@@ -652,7 +685,7 @@ export default function AdminTheaterFormModal({
                     <input
                       className="input"
                       placeholder="e.g. Dolby Atmos, 7.1 Surround, Dolby 5.1"
-                      value={currentScreen.soundSystem}
+                      value={currentScreen.soundSystem || ''}
                       onChange={e => updateScreenField(activeScreenIndex, 'soundSystem', e.target.value)}
                     />
                   </div>
@@ -678,7 +711,7 @@ export default function AdminTheaterFormModal({
                     <input
                       type="number"
                       className="input"
-                      value={currentScreen.speakerCount}
+                      value={currentScreen.speakerCount ?? ''}
                       onChange={e => updateScreenField(activeScreenIndex, 'speakerCount', e.target.value)}
                     />
                   </div>
@@ -690,7 +723,7 @@ export default function AdminTheaterFormModal({
                     <input
                       className="input"
                       placeholder="e.g. Silver Screen, Matt White"
-                      value={currentScreen.screenMaterial}
+                      value={currentScreen.screenMaterial || ''}
                       onChange={e => updateScreenField(activeScreenIndex, 'screenMaterial', e.target.value)}
                     />
                   </div>
@@ -703,7 +736,7 @@ export default function AdminTheaterFormModal({
                   <input
                     className="input"
                     placeholder="Specific advice, sweet spot seating, or optical strengths..."
-                    value={currentScreen.notes}
+                    value={currentScreen.notes || ''}
                     onChange={e => updateScreenField(activeScreenIndex, 'notes', e.target.value)}
                   />
                 </div>

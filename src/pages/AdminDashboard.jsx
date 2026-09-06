@@ -93,6 +93,8 @@ export default function AdminDashboard() {
     } else {
       dispatch({ type: 'ADD_THEATER', payload: theaterObj });
     }
+    setEditingTheater(null);
+    setShowTheaterModal(false);
   };
 
   // If not admin, render secure login gate
@@ -1627,8 +1629,12 @@ function ProReviewersPanel({ dispatch, currentUser }) {
 
       {/* ADMIN THEATER FORM MODAL */}
       <AdminTheaterFormModal
+        key={editingTheater ? `edit-${editingTheater.id}` : 'new-theater'}
         isOpen={showTheaterModal}
-        onClose={() => setShowTheaterModal(false)}
+        onClose={() => {
+          setShowTheaterModal(false);
+          setEditingTheater(null);
+        }}
         onSave={handleSaveTheater}
         theaterToEdit={editingTheater}
         allCities={allCities}

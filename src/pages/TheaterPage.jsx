@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { MapPin, Monitor, ChevronRight, GitCompare } from 'lucide-react';
+import { MapPin, Monitor, ChevronRight, GitCompare, Edit3 } from 'lucide-react';
 import YoutubeIcon from '../components/shared/YoutubeIcon';
 import { useApp } from '../AppContext';
 import TheaterMap from '../components/city/TheaterMap';
+import AdminTheaterFormModal from '../components/admin/AdminTheaterFormModal';
 import { getFormat } from '../data/formats';
 
 function ScreenMiniCard({ screen, theaterId }) {
@@ -77,12 +78,21 @@ function ScreenMiniCard({ screen, theaterId }) {
 export default function TheaterPage() {
   const { theaterId } = useParams();
   const navigate = useNavigate();
-  const { getTheater, getCity, dispatch } = useApp();
+  const { getTheater, getCity, state, dispatch, allCities } = useApp();
+
+  const currentUser = state.currentUser;
+  const isAdmin = currentUser && currentUser.role === 'ADMIN';
 
   const theater = getTheater(theaterId);
   const city = theater ? getCity(theater.cityId) : null;
 
   const [activeTab, setActiveTab] = useState('screens');
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  const handleSaveTheater = (theaterObj) => {
+    dispatch({ type: 'UPDATE_THEATER', payload: theaterObj });
+    setShowEditModal(false);
+  };
 
   if (!theater) {
     return (
@@ -139,6 +149,16 @@ export default function TheaterPage() {
 
             {/* Quick actions */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {isAdmin && (
+                <button
+                  onClick={() => setShowEditModal(true)}
+                  className="btn btn-primary btn-sm"
+                  style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Edit3 size={13} />
+                  Edit Theater
+                </button>
+              )}
               <button
                 onClick={() => navigate('/compare')}
                 className="btn btn-outline btn-sm"
@@ -279,6 +299,19 @@ export default function TheaterPage() {
           </div>
         )}
       </div>
+
+      {/* Admin Theater Form Modal */}
+      {isAdmin && (
+        <AdminTheaterFormModal
+          key={theater ? `edit-${theater.id}` : 'new-theater'}
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onSave={handleSaveTheater}
+          theaterToEdit={theater}
+          allCities={allCities}
+          defaultCityId={theater.cityId}
+        />
+      )}
     </div>
   );
 }
