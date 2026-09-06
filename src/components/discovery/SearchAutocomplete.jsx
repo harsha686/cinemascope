@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { searchTmdbMulti } from '../../services/tmdbService';
 
 export default function SearchAutocomplete({ placeholder = 'Search movies, TV shows, web series...', onSelectMovie, onSelect, className = '' }) {
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -64,7 +66,13 @@ export default function SearchAutocomplete({ placeholder = 'Search movies, TV sh
   const handleSelect = (movie) => {
     setQuery('');
     setIsOpen(false);
-    if (callback) callback(movie);
+    if (callback) {
+      callback(movie);
+    } else {
+      const isTv = movie.mediaType === 'tv' || movie.isTv || String(movie.id).includes('-tv-');
+      const rawId = movie.tmdbId || (typeof movie.id === 'string' ? movie.id.replace(/^tmdb-(tv-)?/, '') : movie.id);
+      navigate(`/movie/${isTv ? `tmdb-tv-${rawId}` : `tmdb-${rawId}`}`);
+    }
   };
 
   return (

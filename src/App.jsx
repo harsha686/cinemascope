@@ -23,6 +23,8 @@ import WatchlistPage from './pages/WatchlistPage';
 import CollectionPage from './pages/CollectionPage';
 import ProReviewerApplyPage from './pages/ProReviewerApplyPage';
 import ProReviewerProfilePage from './pages/ProReviewerProfilePage';
+import WeekendPickPage from './pages/WeekendPickPage';
+import WeekendWinnersArchivePage from './pages/WeekendWinnersArchivePage';
 
 export default function App() {
   return (
@@ -33,6 +35,9 @@ export default function App() {
           <main style={{ flex: 1, paddingTop: 'var(--nav-height)' }}>
             <Routes>
               <Route path="/" element={<HomePage />} />
+              <Route path="/weekend" element={<WeekendPickPage />} />
+              <Route path="/weekend-pick" element={<WeekendPickPage />} />
+              <Route path="/weekend-winners" element={<WeekendWinnersArchivePage />} />
               <Route path="/discover" element={<DiscoverPage />} />
               <Route path="/movies" element={<MoviesPage />} />
               <Route path="/movie/:movieId" element={<MovieDetailPage />} />

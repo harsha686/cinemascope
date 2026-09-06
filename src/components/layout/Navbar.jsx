@@ -36,6 +36,7 @@ export default function Navbar() {
 
   const navLinks = [
     { to: '/', label: 'Home' },
+    { to: '/weekend', label: '🏆 Weekend Pick' },
     { to: '/discover', label: 'Discover' },
     { to: '/movies', label: 'Now Showing' },
     { to: `/city/${activeCity?.id || 'visakhapatnam'}`, label: 'Theaters' },

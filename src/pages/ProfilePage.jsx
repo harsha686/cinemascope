@@ -1,12 +1,13 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, Bookmark, Heart, BookOpen, Folder } from 'lucide-react';
+import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import ReviewCard from '../components/reviews/ReviewCard';
 import * as LibService from '../services/movieLibraryService';
 import ApplicationStatusBanner from '../components/pro/ApplicationStatusBanner';
 import ProfessionalRatingBadge from '../components/reviews/ProfessionalRatingBadge';
 import { getUserApplication } from '../services/proReviewerService';
+import { getUserVotingStats, getUserVotes } from '../services/weekendPickService';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -16,12 +17,16 @@ export default function ProfilePage() {
   const [libStats, setLibStats] = useState({ totalWatchlist: 0, totalWatched: 0, totalFavorites: 0, totalRated: 0, avgRating: 0 });
   const [diaryStats, setDiaryStats] = useState({ totalEntries: 0, thisYearCount: 0, thisMonthCount: 0, rewatches: 0 });
   const [collectionsCount, setCollectionsCount] = useState(0);
+  const [weekendVotingStats, setWeekendVotingStats] = useState({ totalVotes: 0, distinctRounds: 0, distinctGenres: 0, winnersVotedCount: 0 });
+  const [userPastVotes, setUserPastVotes] = useState([]);
 
   useEffect(() => {
     if (!currentUser) {
       setLibStats({ totalWatchlist: 0, totalWatched: 0, totalFavorites: 0, totalRated: 0, avgRating: 0 });
       setDiaryStats({ totalEntries: 0, thisYearCount: 0, thisMonthCount: 0, rewatches: 0 });
       setCollectionsCount(0);
+      setWeekendVotingStats({ totalVotes: 0, distinctRounds: 0, distinctGenres: 0, winnersVotedCount: 0 });
+      setUserPastVotes([]);
       return;
     }
     const load = async () => {
@@ -33,6 +38,8 @@ export default function ProfilePage() {
       setLibStats(ls);
       setDiaryStats(ds);
       setCollectionsCount(cols.length);
+      setWeekendVotingStats(getUserVotingStats(currentUser.id));
+      setUserPastVotes(getUserVotes(currentUser.id));
     };
     load();
   }, [currentUser]);
@@ -73,7 +80,7 @@ export default function ProfilePage() {
     { label: 'Movies Watched', value: libStats.totalWatched, icon: <Film size={18} color="var(--gold)" />, link: '/library/watched' },
     { label: 'Watchlist', value: libStats.totalWatchlist, icon: <Bookmark size={18} color="var(--gold)" />, link: '/watchlist' },
     { label: 'Favorites', value: libStats.totalFavorites, icon: <Heart size={18} color="var(--gold)" />, link: '/library/favorites' },
-    { label: 'Movies Rated', value: libStats.totalRated, icon: <Star size={18} color="var(--gold)" />, link: '/library' },
+    { label: 'Weekend Votes', value: weekendVotingStats.totalVotes, icon: <Trophy size={18} color="var(--gold)" />, link: '/weekend' },
     { label: 'Diary Entries', value: diaryStats.totalEntries, icon: <BookOpen size={18} color="var(--gold)" />, link: '/diary' },
     { label: 'Collections', value: collectionsCount, icon: <Folder size={18} color="var(--gold)" />, link: '/library/collections' },
     { label: 'Reviews Written', value: userReviews.length, icon: <MessageSquare size={18} color="var(--gold)" />, link: '/profile' },
@@ -183,6 +190,88 @@ export default function ProfilePage() {
               As a verified reviewer, your reviews on movie pages will appear in the dedicated <strong style={{ color: '#10b981' }}>Professional Reviews</strong> section with a ✓ badge.
             </div>
           )}
+        </div>
+
+        {/* Weekend Voting Activity */}
+        <div style={{ marginBottom: 40 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 14, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Trophy size={14} color="var(--gold)" /> Weekend Pick Voting Activity
+            </h2>
+            <Link to="/weekend" className="btn btn-outline btn-sm" style={{ padding: '4px 10px', fontSize: 11 }}>
+              Go to Weekend Voting →
+            </Link>
+          </div>
+
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-sm)',
+            padding: 20
+          }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 18 }}>
+              <div style={{ padding: '12px 14px', background: 'rgba(220,182,91,0.06)', borderRadius: 4, border: '1px solid rgba(220,182,91,0.2)' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Total Votes Cast</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-serif)', marginTop: 2 }}>
+                  {weekendVotingStats.totalVotes}
+                </div>
+              </div>
+              <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Rounds Participated</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-serif)', marginTop: 2 }}>
+                  {weekendVotingStats.distinctRounds}
+                </div>
+              </div>
+              <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Genres Voted</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-serif)', marginTop: 2 }}>
+                  {weekendVotingStats.distinctGenres}
+                </div>
+              </div>
+              <div style={{ padding: '12px 14px', background: 'rgba(16,185,129,0.06)', borderRadius: 4, border: '1px solid rgba(16,185,129,0.2)' }}>
+                <div style={{ fontSize: 11, color: '#10b981' }}>Winners Voted For</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: '#10b981', fontFamily: 'var(--font-serif)', marginTop: 2 }}>
+                  {weekendVotingStats.winnersVotedCount}
+                </div>
+              </div>
+            </div>
+
+            {userPastVotes.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-muted)', fontSize: 13 }}>
+                You haven't voted in any weekend rounds yet. Cast your vote this weekend to support your favorite movies &amp; series!
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
+                  Recent Votes
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {userPastVotes.slice(0, 5).map((v, i) => (
+                    <div key={i} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      background: 'rgba(0,0,0,0.25)',
+                      borderRadius: 4,
+                      border: '1px solid var(--border-subtle)',
+                      fontSize: 12
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span className="badge badge-gold" style={{ fontSize: 9 }}>{v.genreId?.toUpperCase()}</span>
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                          Candidate #{v.candidateId?.slice(-6) || v.candidateId}
+                        </span>
+                      </div>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+                        {new Date(v.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* User Reviews List */}

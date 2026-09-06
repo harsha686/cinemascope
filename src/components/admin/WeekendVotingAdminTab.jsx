@@ -1,0 +1,654 @@
+import React, { useState } from 'react';
+import {
+  Trophy,
+  Plus,
+  Trash2,
+  Edit3,
+  CheckCircle2,
+  AlertTriangle,
+  Play,
+  Square,
+  Archive,
+  Search,
+  Sparkles,
+  Users,
+  Eye,
+  RefreshCw,
+  Film,
+  Tv,
+} from 'lucide-react';
+import {
+  getAllRounds,
+  createRound,
+  updateRound,
+  deleteRound,
+  declareWinnersForRound,
+  getLiveAdminAnalytics,
+  calculateGenreResults,
+  GENRE_OPTIONS,
+  TIE_BREAKER_OPTIONS,
+} from '../../services/weekendPickService';
+import { searchTmdbMovies, fetchFullTmdbMovieDetails } from '../../services/tmdbService';
+
+export default function WeekendVotingAdminTab() {
+  const [rounds, setRounds] = useState(() => getAllRounds());
+  const [selectedRoundId, setSelectedRoundId] = useState(() => rounds[0]?.id || null);
+  const [activeGenreTab, setActiveGenreTab] = useState('action');
+
+  // Modal / Form state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAddCandidateModal, setShowAddCandidateModal] = useState(false);
+
+  // Candidate TMDB Search
+  const [candidateSearchQuery, setCandidateSearchQuery] = useState('');
+  const [candidateSearchResults, setCandidateSearchResults] = useState([]);
+  const [isSearchingTmdb, setIsSearchingTmdb] = useState(false);
+
+  const reloadData = () => {
+    const updated = getAllRounds();
+    setRounds(updated);
+    if (!selectedRoundId && updated[0]) {
+      setSelectedRoundId(updated[0].id);
+    }
+  };
+
+  const currentRound = rounds.find(r => r.id === selectedRoundId) || rounds[0];
+  const analytics = currentRound ? getLiveAdminAnalytics(currentRound.id) : null;
+  const genreResults = currentRound ? calculateGenreResults(currentRound.id, activeGenreTab) : null;
+
+  // New Round Form
+  const [newRoundForm, setNewRoundForm] = useState({
+    name: 'Weekend Pick — Next Weekend',
+    edition: 'Weekly Edition',
+    description: 'Vote for this weekend\'s top picks across multiple genres!',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    votingClosesAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    status: 'ACTIVE',
+    tieBreakerRule: 'highest_percentage',
+    showLiveResults: true,
+  });
+
+  const handleCreateRoundSubmit = (e) => {
+    e.preventDefault();
+    const activeGenresObj = {};
+    GENRE_OPTIONS.forEach(g => {
+      activeGenresObj[g.id] = {
+        genreId: g.id,
+        genreName: g.name,
+        candidates: [],
+      };
+    });
+
+    const created = createRound({
+      ...newRoundForm,
+      genreRounds: activeGenresObj,
+    });
+    reloadData();
+    setSelectedRoundId(created.id);
+    setShowCreateModal(false);
+  };
+
+  const handleStatusChange = (roundId, newStatus) => {
+    if (newStatus === 'WINNER_DECLARED') {
+      if (window.confirm('Calculate results and declare winners for all active genres in this round?')) {
+        declareWinnersForRound(roundId, currentRound.tieBreakerRule);
+        reloadData();
+      }
+      return;
+    }
+
+    updateRound(roundId, { status: newStatus });
+    reloadData();
+  };
+
+  const handleDeleteRound = (roundId) => {
+    if (window.confirm('Are you sure you want to delete this voting round and all its candidate data?')) {
+      deleteRound(roundId);
+      reloadData();
+    }
+  };
+
+  // Add Candidate handler
+  const handleAddCandidate = (movieData) => {
+    if (!currentRound) return;
+    const genreRound = currentRound.genreRounds?.[activeGenreTab] || {
+      genreId: activeGenreTab,
+      genreName: GENRE_OPTIONS.find(g => g.id === activeGenreTab)?.name || activeGenreTab,
+      candidates: [],
+    };
+
+    const newCandidate = {
+      id: `cand-${activeGenreTab}-${Date.now()}`,
+      titleId: String(movieData.tmdbId || movieData.id),
+      title: movieData.title || movieData.name,
+      type: movieData.isTv || movieData.type === 'SERIES' ? 'SERIES' : 'MOVIE',
+      releaseYear: movieData.releaseYear || (movieData.releaseDate ? movieData.releaseDate.split('-')[0] : 2024),
+      rating: movieData.voteAverage ? Math.round((movieData.voteAverage / 2) * 10) / 10 : 4.5,
+      language: movieData.language || 'English',
+      posterUrl: movieData.posterUrl || '',
+      backdropUrl: movieData.backdropUrl || '',
+      overview: movieData.overview || '',
+      initialVoteSeed: 0,
+    };
+
+    const updatedCandidates = [...(genreRound.candidates || []), newCandidate];
+    const updatedGenreRounds = {
+      ...(currentRound.genreRounds || {}),
+      [activeGenreTab]: {
+        ...genreRound,
+        candidates: updatedCandidates,
+      }
+    };
+
+    updateRound(currentRound.id, { genreRounds: updatedGenreRounds });
+    reloadData();
+    setShowAddCandidateModal(false);
+    setCandidateSearchQuery('');
+    setCandidateSearchResults([]);
+  };
+
+  const handleRemoveCandidate = (candId) => {
+    if (!currentRound) return;
+    const genreRound = currentRound.genreRounds?.[activeGenreTab];
+    if (!genreRound) return;
+
+    const updatedCandidates = genreRound.candidates.filter(c => c.id !== candId);
+    const updatedGenreRounds = {
+      ...currentRound.genreRounds,
+      [activeGenreTab]: {
+        ...genreRound,
+        candidates: updatedCandidates,
+      }
+    };
+
+    updateRound(currentRound.id, { genreRounds: updatedGenreRounds });
+    reloadData();
+  };
+
+  const handleSearchTmdbForCandidate = async (e) => {
+    e?.preventDefault();
+    if (!candidateSearchQuery.trim()) return;
+    setIsSearchingTmdb(true);
+    try {
+      const res = await searchTmdbMovies(candidateSearchQuery);
+      setCandidateSearchResults(res.results || []);
+    } catch (err) {
+      console.error(err);
+    }
+    setIsSearchingTmdb(false);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Top Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', margin: 0 }}>
+            Weekend Voting Manager
+          </h2>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>
+            Configure weekly voting rounds, select candidates across 8 genres, resolve ties, and declare community winners.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowCreateModal(true)}
+          className="btn btn-primary btn-sm"
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+        >
+          <Plus size={14} /> Create New Round
+        </button>
+      </div>
+
+      {/* Rounds Selector & Status Bar */}
+      <div style={{
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 4,
+        padding: 16,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+            Active Round:
+          </span>
+          <select
+            className="input"
+            style={{ width: 'auto', fontSize: 12, padding: '6px 12px' }}
+            value={currentRound?.id || ''}
+            onChange={e => setSelectedRoundId(e.target.value)}
+          >
+            {rounds.map(r => (
+              <option key={r.id} value={r.id}>
+                {r.name} [{r.status}]
+              </option>
+            ))}
+          </select>
+          {currentRound && (
+            <span className={`badge ${
+              currentRound.status === 'ACTIVE'
+                ? 'badge-verified'
+                : currentRound.status === 'WINNER_DECLARED'
+                ? 'badge-gold'
+                : 'badge-dim'
+            }`} style={{ fontSize: 10 }}>
+              {currentRound.status}
+            </span>
+          )}
+        </div>
+
+        {/* Round lifecycle action buttons */}
+        {currentRound && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {currentRound.status !== 'ACTIVE' && (
+              <button
+                type="button"
+                onClick={() => handleStatusChange(currentRound.id, 'ACTIVE')}
+                className="btn btn-outline btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#4ade80' }}
+              >
+                <Play size={12} /> Open Voting
+              </button>
+            )}
+
+            {currentRound.status === 'ACTIVE' && (
+              <button
+                type="button"
+                onClick={() => handleStatusChange(currentRound.id, 'CLOSED')}
+                className="btn btn-outline btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#fbbf24' }}
+              >
+                <Square size={12} /> Close Voting
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => handleStatusChange(currentRound.id, 'WINNER_DECLARED')}
+              className="btn btn-primary btn-sm"
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}
+            >
+              <Trophy size={12} /> Declare Winners
+            </button>
+
+            {currentRound.status !== 'ARCHIVED' && (
+              <button
+                type="button"
+                onClick={() => handleStatusChange(currentRound.id, 'ARCHIVED')}
+                className="btn btn-ghost btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}
+              >
+                <Archive size={12} /> Archive
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => handleDeleteRound(currentRound.id)}
+              className="btn btn-ghost btn-sm"
+              style={{ color: '#f87171', padding: '4px 8px' }}
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Live Analytics Bar */}
+      {analytics && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+          <div style={{ padding: 14, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
+            <div style={{ fontSize: 10, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              Total Valid Votes
+            </div>
+            <div style={{ fontSize: 22, fontFamily: 'var(--font-serif)', color: 'var(--gold)', fontWeight: 700, marginTop: 4 }}>
+              {analytics.totalVotes.toLocaleString()}
+            </div>
+          </div>
+
+          <div style={{ padding: 14, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
+            <div style={{ fontSize: 10, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              Unique Voters
+            </div>
+            <div style={{ fontSize: 22, fontFamily: 'var(--font-serif)', color: '#60a5fa', fontWeight: 700, marginTop: 4 }}>
+              {analytics.uniqueVoters.toLocaleString()}
+            </div>
+          </div>
+
+          <div style={{ padding: 14, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
+            <div style={{ fontSize: 10, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              Anti-Fraud Status
+            </div>
+            <div style={{ fontSize: 14, fontFamily: 'var(--font-serif)', color: analytics.suspiciousVotesCount > 0 ? '#f87171' : '#4ade80', fontWeight: 700, marginTop: 8 }}>
+              {analytics.suspiciousVotesCount === 0 ? '✓ No Anomalies' : `⚠️ ${analytics.suspiciousVotesCount} Flags Detected`}
+            </div>
+          </div>
+
+          <div style={{ padding: 14, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
+            <div style={{ fontSize: 10, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              Tie-Breaker Rule
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8, textTransform: 'capitalize' }}>
+              {currentRound?.tieBreakerRule?.replace(/_/g, ' ')}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Genre Candidate Manager */}
+      {currentRound && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 4, padding: 20 }}>
+          {/* Genre Tabs */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 12, flexWrap: 'wrap', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
+              {GENRE_OPTIONS.map(g => {
+                const isSelected = activeGenreTab === g.id;
+                const candidateCount = currentRound.genreRounds?.[g.id]?.candidates?.length || 0;
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => setActiveGenreTab(g.id)}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: 20,
+                      fontSize: 11,
+                      fontFamily: 'var(--font-serif)',
+                      background: isSelected ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${isSelected ? 'var(--gold)' : 'var(--border-subtle)'}`,
+                      color: isSelected ? 'var(--gold)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 5,
+                    }}
+                  >
+                    <span>{g.emoji}</span>
+                    <span>{g.name}</span>
+                    <span style={{ fontSize: 9, opacity: 0.7 }}>({candidateCount})</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowAddCandidateModal(true)}
+              className="btn btn-outline btn-sm"
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}
+            >
+              <Plus size={13} /> Add Candidate in {GENRE_OPTIONS.find(g => g.id === activeGenreTab)?.name}
+            </button>
+          </div>
+
+          {/* Candidate Table / Cards */}
+          {genreResults?.candidates?.length === 0 ? (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+              <Film size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
+              <p>No candidates added in this genre yet.</p>
+              <button
+                type="button"
+                onClick={() => setShowAddCandidateModal(true)}
+                className="btn btn-primary btn-sm"
+                style={{ marginTop: 8 }}
+              >
+                + Add First Candidate
+              </button>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: 10 }}>
+                    <th style={{ padding: '10px 14px', textAlign: 'left' }}>Candidate</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'left' }}>Type</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'left' }}>Year / Rating</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'left' }}>Total Votes</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'left' }}>Vote Share</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {genreResults?.candidates?.map((cand, idx) => (
+                    <tr key={cand.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                      <td style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {cand.posterUrl && (
+                          <img
+                            src={cand.posterUrl}
+                            alt={cand.title}
+                            style={{ width: 32, height: 48, objectFit: 'cover', borderRadius: 2 }}
+                          />
+                        )}
+                        <div>
+                          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {idx === 0 && <span style={{ color: 'var(--gold)', marginRight: 4 }}>🏆</span>}
+                            {cand.title}
+                          </div>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>ID: {cand.titleId}</div>
+                        </div>
+                      </td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <span className="badge badge-dim" style={{ fontSize: 9 }}>
+                          {cand.type === 'SERIES' ? 'TV Series' : 'Movie'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>
+                        {cand.releaseYear} · ★ {cand.rating || 4.7}
+                      </td>
+                      <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--gold)' }}>
+                        {cand.totalVotes.toLocaleString()}
+                      </td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ width: 80, height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                            <div style={{ width: `${cand.votePercentage}%`, height: '100%', background: idx === 0 ? 'var(--gold)' : 'var(--text-muted)' }} />
+                          </div>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{cand.votePercentage}%</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCandidate(cand.id)}
+                          className="btn btn-ghost btn-sm"
+                          style={{ color: '#f87171', padding: '4px 6px' }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* CREATE ROUND MODAL */}
+      {showCreateModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 2500,
+          background: 'rgba(0,0,0,0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 16,
+        }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 4, maxWidth: 540, width: '100%', padding: 24 }}>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--gold)', marginBottom: 16 }}>
+              Create Weekend Voting Round
+            </h3>
+            <form onSubmit={handleCreateRoundSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Round Name *</label>
+                <input
+                  required
+                  className="input"
+                  value={newRoundForm.name}
+                  onChange={e => setNewRoundForm({ ...newRoundForm, name: e.target.value })}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Edition Label</label>
+                  <input
+                    className="input"
+                    value={newRoundForm.edition}
+                    onChange={e => setNewRoundForm({ ...newRoundForm, edition: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Tie-Breaker Rule</label>
+                  <select
+                    className="input"
+                    value={newRoundForm.tieBreakerRule}
+                    onChange={e => setNewRoundForm({ ...newRoundForm, tieBreakerRule: e.target.value })}
+                  >
+                    {TIE_BREAKER_OPTIONS.map(tb => (
+                      <option key={tb.id} value={tb.id}>{tb.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Start Date</label>
+                  <input
+                    type="date"
+                    className="input"
+                    value={newRoundForm.startDate}
+                    onChange={e => setNewRoundForm({ ...newRoundForm, startDate: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Voting Closes Date</label>
+                  <input
+                    type="date"
+                    className="input"
+                    value={newRoundForm.votingClosesAt}
+                    onChange={e => setNewRoundForm({ ...newRoundForm, votingClosesAt: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Description</label>
+                <textarea
+                  className="input"
+                  rows={2}
+                  value={newRoundForm.description}
+                  onChange={e => setNewRoundForm({ ...newRoundForm, description: e.target.value })}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
+                <button type="button" onClick={() => setShowCreateModal(false)} className="btn btn-ghost btn-sm">Cancel</button>
+                <button type="submit" className="btn btn-primary btn-sm">Create Round</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADD CANDIDATE MODAL */}
+      {showAddCandidateModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 2500,
+          background: 'rgba(0,0,0,0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 16,
+        }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 4, maxWidth: 580, width: '100%', maxHeight: '85vh', overflowY: 'auto', padding: 24 }}>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--gold)', marginBottom: 8 }}>
+              Add Candidate in {GENRE_OPTIONS.find(g => g.id === activeGenreTab)?.name}
+            </h3>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
+              Search TMDB to select an official movie or TV series candidate.
+            </p>
+
+            {/* Search form */}
+            <form onSubmit={handleSearchTmdbForCandidate} style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <input
+                className="input"
+                placeholder="Search movie or TV series title..."
+                value={candidateSearchQuery}
+                onChange={e => setCandidateSearchQuery(e.target.value)}
+                autoFocus
+              />
+              <button type="submit" disabled={isSearchingTmdb} className="btn btn-primary btn-sm">
+                {isSearchingTmdb ? 'Searching...' : 'Search'}
+              </button>
+            </form>
+
+            {/* Results */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 360, overflowY: 'auto' }}>
+              {candidateSearchResults.map(m => (
+                <div
+                  key={m.id || m.tmdbId}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: 8,
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 4,
+                    gap: 12,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {m.posterUrl && (
+                      <img
+                        src={m.posterUrl}
+                        alt={m.title}
+                        style={{ width: 36, height: 52, objectFit: 'cover', borderRadius: 2 }}
+                      />
+                    )}
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{m.title}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        {m.releaseYear || m.releaseDate?.split('-')[0]} · {m.language} · ★ {m.voteAverage || 0}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddCandidate(m)}
+                    className="btn btn-outline btn-sm"
+                    style={{ fontSize: 11 }}
+                  >
+                    + Add
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+              <button type="button" onClick={() => setShowAddCandidateModal(false)} className="btn btn-ghost btn-sm">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

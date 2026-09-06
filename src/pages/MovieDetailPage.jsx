@@ -10,6 +10,8 @@ import ProfessionalRatingBadge from '../components/reviews/ProfessionalRatingBad
 import ReviewComposer from '../components/reviews/ReviewComposer';
 import MovieStatusBar from '../components/library/MovieStatusBar';
 import OttStreamingInfo from '../components/movies/OttStreamingInfo';
+import WeekendWinnerBadge from '../components/weekend/WeekendWinnerBadge';
+import { getMovieWinningHistory } from '../services/weekendPickService';
 import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
 
 export default function MovieDetailPage() {
@@ -30,14 +32,17 @@ export default function MovieDetailPage() {
     dispatch,
   } = useApp();
 
-  const isTmdbMovie = movieId?.startsWith('tmdb-');
-  const tmdbId = isTmdbMovie ? movieId.replace('tmdb-', '') : null;
+  const isTmdbTv = movieId?.startsWith('tmdb-tv-') || movieId?.startsWith('tv-');
+  const isTmdbMovie = movieId?.startsWith('tmdb-') || movieId?.startsWith('tv-');
+  const tmdbId = isTmdbTv 
+    ? (movieId.startsWith('tmdb-tv-') ? movieId.replace('tmdb-tv-', 'tv-') : (movieId.startsWith('tv-') ? movieId : `tv-${movieId}`))
+    : (isTmdbMovie ? movieId.replace('tmdb-', '') : null);
 
   const [tmdbMovie, setTmdbMovie] = useState(null);
   const [tmdbLoading, setTmdbLoading] = useState(false);
   const [tmdbError, setTmdbError] = useState(null);
 
-  // Fetch TMDB data when ID starts with "tmdb-"
+  // Fetch TMDB data when ID starts with "tmdb-" or "tv-"
   useEffect(() => {
     if (!isTmdbMovie || !tmdbId) return;
     setTmdbLoading(true);
@@ -76,6 +81,13 @@ export default function MovieDetailPage() {
     const sum = userReviewsList.reduce((acc, r) => acc + (r.rating || 0), 0);
     return { average: Math.round((sum / userReviewsList.length) * 10) / 10, count: userReviewsList.length };
   }, [userReviewsList]);
+
+  const winningHistory = useMemo(() => {
+    const list = getMovieWinningHistory(movieId);
+    if (list && list.length > 0) return list;
+    if (movie?.title) return getMovieWinningHistory(movie.title);
+    return [];
+  }, [movieId, movie?.title]);
 
   // Check if this is an old / archive / catalog movie
   const isOldMovie = useMemo(() => {
@@ -225,7 +237,11 @@ export default function MovieDetailPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
             <Link to="/" style={{ fontSize: 11, color: 'var(--text-muted)' }}>Home</Link>
             <span style={{ color: 'var(--border)', fontSize: 10 }}>/</span>
-            <Link to="/movies" style={{ fontSize: 11, color: 'var(--text-muted)' }}>Movies</Link>
+            {movie.isTv ? (
+              <Link to="/discover?type=tv" style={{ fontSize: 11, color: 'var(--text-muted)' }}>TV Series</Link>
+            ) : (
+              <Link to="/movies" style={{ fontSize: 11, color: 'var(--text-muted)' }}>Movies</Link>
+            )}
             <span style={{ color: 'var(--border)', fontSize: 10 }}>/</span>
             <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{movie.title}</span>
           </div>
@@ -244,7 +260,7 @@ export default function MovieDetailPage() {
             }}>
               <img
                 src={movie.posterUrl}
-                alt={`${movie.title} official movie poster`}
+                alt={`${movie.title} official poster`}
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 onError={(e) => { e.target.src = '/demo-frame.jpg'; }}
               />
@@ -259,18 +275,32 @@ export default function MovieDetailPage() {
                 padding: '2px 6px',
                 borderRadius: 2,
               }}>
-                {movie.posterSourceType || 'OFFICIAL'} POSTER
+                {movie.isTv ? 'OFFICIAL SERIES POSTER' : (movie.posterSourceType || 'OFFICIAL') + ' POSTER'}
               </div>
             </div>
 
             {/* Movie Info */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                {(movie.status === 'CURRENTLY_SHOWING' || movie.status === 'COMING_SOON') && (
-                  <span className="badge badge-verified">
-                    {movie.status === 'CURRENTLY_SHOWING' ? 'Now Showing' : 'Coming Soon'}
-                  </span>
+                {winningHistory.length > 0 && (
+                  <WeekendWinnerBadge
+                    genreName={winningHistory[0].genreName}
+                    roundName={winningHistory[0].roundName}
+                    size="sm"
+                  />
                 )}
+                {movie.isTv ? (
+                  <span className="badge" style={{ background: 'linear-gradient(135deg, #9333ea, #6b21a8)', color: '#ffffff', fontWeight: 700 }}>
+                    SERIES
+                  </span>
+                ) : (
+                  (movie.status === 'CURRENTLY_SHOWING' || movie.status === 'COMING_SOON') && (
+                    <span className="badge badge-verified">
+                      {movie.status === 'CURRENTLY_SHOWING' ? 'Now Showing' : 'Coming Soon'}
+                    </span>
+                  )
+                )}
+                {movie.network && <span className="badge badge-dim">{movie.network}</span>}
                 <span className="badge badge-gold">{movie.language}</span>
                 {movie.certificate && <span className="badge badge-dim">{movie.certificate}</span>}
                 {(movie.ottPlatform || movie.ottReleaseDate || (movie.ottPlatforms && movie.ottPlatforms.length > 0)) && (
@@ -525,8 +555,8 @@ export default function MovieDetailPage() {
             }}>
               {[
                 { id: 'reviews', label: 'What People Think', icon: <MessageSquare size={14} />, count: allReviews.length },
-                { id: 'about', label: 'About Movie', icon: <Film size={14} /> },
-                { id: 'cast', label: 'Cast & Filmmakers', icon: <Users size={14} />, count: (movie.cast?.length || 0) + (movie.director ? 1 : 0) },
+                { id: 'about', label: movie.isTv ? 'About Series' : 'About Movie', icon: movie.isTv ? <Tv size={14} /> : <Film size={14} /> },
+                { id: 'cast', label: movie.isTv ? 'Cast & Creators' : 'Cast & Filmmakers', icon: <Users size={14} />, count: (movie.cast?.length || 0) + (movie.director ? 1 : 0) },
                 { id: 'all', label: 'All Info', icon: <Layers size={14} /> },
               ].map(tab => {
                 const isActive = activeSectionTab === tab.id;
@@ -573,6 +603,57 @@ export default function MovieDetailPage() {
             {/* ABOUT THE MOVIE */}
             {(activeSectionTab === 'about' || activeSectionTab === 'all') && (
               <div id="about-section" style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+                {winningHistory.length > 0 && (
+                  <div style={{
+                    padding: '20px 24px',
+                    borderRadius: 10,
+                    background: 'linear-gradient(135deg, rgba(220,182,91,0.12), rgba(220,182,91,0.02))',
+                    border: '1px solid rgba(220,182,91,0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 12
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 20 }}>🏆</span>
+                        <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700, color: 'var(--gold)' }}>
+                          Community Weekend Winner Honors
+                        </span>
+                      </div>
+                      <Link to="/weekend-winners" style={{ fontSize: 12, color: 'var(--gold)', textDecoration: 'underline' }}>
+                        View all winners archive →
+                      </Link>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {winningHistory.map((win, idx) => (
+                        <div key={idx} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: 10,
+                          padding: '10px 14px',
+                          background: 'rgba(0,0,0,0.35)',
+                          borderRadius: 6,
+                          border: '1px solid rgba(220,182,91,0.15)'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span className="badge badge-gold" style={{ fontSize: 11 }}>
+                              {win.genreName} Winner
+                            </span>
+                            <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>
+                              {win.roundName}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                            {win.votesCount?.toLocaleString()} votes ({win.voteShare || win.votePercentage || 0}%)
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: 16 }}>
                     About the Movie

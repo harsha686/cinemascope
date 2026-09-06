@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShieldAlert, Film, MessageSquare, Users, MapPin, Plus, Search, Edit3, Trash2, CheckCircle2, EyeOff, Sparkles, AlertCircle, ArrowLeft, ExternalLink, Check, Image as ImageIcon, Database, RefreshCw, ShieldCheck, Building2 } from 'lucide-react';
+import { ShieldAlert, Film, MessageSquare, Users, MapPin, Plus, Search, Edit3, Trash2, CheckCircle2, EyeOff, Sparkles, AlertCircle, ArrowLeft, ExternalLink, Check, Image as ImageIcon, Database, RefreshCw, ShieldCheck, Building2, Trophy } from 'lucide-react';
 import { useApp } from '../AppContext';
 import TMDBImportHelper from '../components/admin/TMDBImportHelper';
 import XPosterDiscoveryModal from '../components/admin/XPosterDiscoveryModal';
 import AdminTheaterFormModal from '../components/admin/AdminTheaterFormModal';
+import WeekendVotingAdminTab from '../components/admin/WeekendVotingAdminTab';
 import { isSupabaseConfigured, setCustomSupabaseCredentials, supabaseService } from '../services/supabase';
 import { getApplications, updateApplicationStatus } from '../services/proReviewerService';
 
@@ -376,6 +377,7 @@ export default function AdminDashboard() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {[
               { id: 'movies', label: 'Movies Catalog', icon: Film, count: state.movies.length },
+              { id: 'weekend-picks', label: 'Weekend Picks', icon: Trophy, count: 'Live' },
               { id: 'theaters', label: 'Theaters', icon: Building2, count: allTheaters.length },
               { id: 'reviews', label: 'Review Moderation', icon: MessageSquare, count: state.reviews.length },
               { id: 'users', label: 'Users', icon: Users, count: state.users.length },
@@ -994,6 +996,11 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* WEEKEND PICKS TAB */}
+            {activeTab === 'weekend-picks' && (
+              <WeekendVotingAdminTab />
             )}
 
           </div>

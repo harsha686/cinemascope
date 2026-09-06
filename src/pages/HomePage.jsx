@@ -7,6 +7,7 @@ import FormatSelector from '../components/simulator/FormatSelector';
 import ScreenSimulator from '../components/simulator/ScreenSimulator';
 import MovieCard from '../components/movies/MovieCard';
 import StarRating from '../components/reviews/StarRating';
+import WeekendRecommendationHero from '../components/weekend/WeekendRecommendationHero';
 import { ASPECT_RATIOS } from '../data/formats';
 
 const STEPS = [
@@ -217,8 +218,13 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* ========== WEEKEND COMMUNITY RECOMMENDATION HERO ========== */}
+        <div className="container">
+          <WeekendRecommendationHero />
+        </div>
+
         {/* ========== CURRENT MOVIES SECTION ========== */}
-        <section style={{ padding: '60px 24px 80px', borderTop: '1px solid var(--border-subtle)' }}>
+        <section style={{ padding: '40px 24px 80px', borderTop: '1px solid var(--border-subtle)' }}>
           <div className="container">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32, flexWrap: 'wrap', gap: 16 }}>
               <div>
