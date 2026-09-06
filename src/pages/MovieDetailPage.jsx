@@ -77,15 +77,53 @@ export default function MovieDetailPage() {
     return { average: Math.round((sum / userReviewsList.length) * 10) / 10, count: userReviewsList.length };
   }, [userReviewsList]);
 
+  // Check if this is an old / archive / catalog movie
+  const isOldMovie = useMemo(() => {
+    if (!movie) return false;
+    if (movie.status === 'ARCHIVED') return true;
+
+    const now = new Date();
+
+    // Past digital / OTT release (e.g. Apr 28, 2022)
+    const ottDateStr = movie.ottReleaseDate || (movie.ottRelease && movie.ottRelease.date);
+    if (ottDateStr) {
+      const ottDate = new Date(ottDateStr);
+      if (!isNaN(ottDate.getTime()) && ottDate < now) {
+        if (movie.status !== 'CURRENTLY_SHOWING' || !movie.theaters || movie.theaters.length === 0) {
+          return true;
+        }
+      }
+    }
+
+    // Past theatrical release (older than 60 days)
+    if (movie.releaseDate) {
+      const relDate = new Date(movie.releaseDate);
+      if (!isNaN(relDate.getTime())) {
+        const daysSinceRelease = (now.getTime() - relDate.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSinceRelease > 60 && (movie.status !== 'CURRENTLY_SHOWING' || !movie.theaters || movie.theaters.length === 0)) {
+          return true;
+        }
+      }
+    }
+
+    // TMDB movies (global catalog / archive) without active local theater assignment
+    if (isTmdbMovie) {
+      return true;
+    }
+
+    return false;
+  }, [movie, isTmdbMovie]);
+
   // Theaters showing this movie in the current city
   const localTheaters = useMemo(() => {
-    if (!currentCity || !movie || isTmdbMovie) return [];
+    if (!currentCity || !movie || isTmdbMovie || isOldMovie) return [];
+    if (movie.status !== 'CURRENTLY_SHOWING') return [];
     const cityTheaters = getCityTheaters(currentCity.id);
-    if (movie.theaters && movie.theaters.length > 0) {
+    if (movie.theaters && Array.isArray(movie.theaters) && movie.theaters.length > 0) {
       return cityTheaters.filter(t => movie.theaters.includes(t.id));
     }
-    return cityTheaters;
-  }, [getCityTheaters, currentCity, movie, isTmdbMovie]);
+    return [];
+  }, [getCityTheaters, currentCity, movie, isTmdbMovie, isOldMovie]);
 
   // Active review list based on tab
   const activeReviews = useMemo(() => {
@@ -228,7 +266,11 @@ export default function MovieDetailPage() {
             {/* Movie Info */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span className="badge badge-verified">{movie.status === 'CURRENTLY_SHOWING' ? 'Now Showing' : movie.status === 'COMING_SOON' ? 'Coming Soon' : 'Archived'}</span>
+                {(movie.status === 'CURRENTLY_SHOWING' || movie.status === 'COMING_SOON') && (
+                  <span className="badge badge-verified">
+                    {movie.status === 'CURRENTLY_SHOWING' ? 'Now Showing' : 'Coming Soon'}
+                  </span>
+                )}
                 <span className="badge badge-gold">{movie.language}</span>
                 {movie.certificate && <span className="badge badge-dim">{movie.certificate}</span>}
                 {(movie.ottPlatform || movie.ottReleaseDate || (movie.ottPlatforms && movie.ottPlatforms.length > 0)) && (
@@ -785,50 +827,49 @@ export default function MovieDetailPage() {
               </div>
             )}
 
-            {/* WHERE TO WATCH (THEATERS IN CURRENT CITY) */}
-            <div style={{ padding: 24, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <MapPin size={16} color="var(--gold)" />
-                <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 13, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
-                  Where to Watch
-                </h3>
-              </div>
+            {/* WHERE TO WATCH (THEATERS IN CURRENT CITY) - Only for active current movies screening locally */}
+            {!isOldMovie && movie.status === 'CURRENTLY_SHOWING' && localTheaters.length > 0 && (
+              <div style={{ padding: 24, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <MapPin size={16} color="var(--gold)" />
+                  <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 13, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
+                    Where to Watch
+                  </h3>
+                </div>
 
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>
-                {movie.theaters && movie.theaters.length > 0
-                  ? <>Confirmed screening at <strong style={{ color: 'var(--text-primary)' }}>{currentCity?.name}</strong>:</>
-                  : <>All theaters in <strong style={{ color: 'var(--text-primary)' }}>{currentCity?.name}</strong>:</>
-                }
-              </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>
+                  Confirmed screening at <strong style={{ color: 'var(--text-primary)' }}>{currentCity?.name}</strong>:
+                </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {localTheaters.map(t => (
-                  <Link
-                    key={t.id}
-                    to={`/theater/${t.id}`}
-                    style={{
-                      padding: '10px 12px',
-                      background: 'rgba(255,255,255,0.03)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: 3,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      textDecoration: 'none',
-                      transition: 'border-color 150ms ease',
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--gold-dim)'}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
-                  >
-                    <div>
-                      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 12, color: 'var(--text-primary)' }}>{t.name}</div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{t.totalScreens} screens • {t.area}</div>
-                    </div>
-                    <ChevronRight size={13} color="var(--gold)" />
-                  </Link>
-                ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {localTheaters.map(t => (
+                    <Link
+                      key={t.id}
+                      to={`/theater/${t.id}`}
+                      style={{
+                        padding: '10px 12px',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 3,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        textDecoration: 'none',
+                        transition: 'border-color 150ms ease',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--gold-dim)'}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
+                    >
+                      <div>
+                        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 12, color: 'var(--text-primary)' }}>{t.name}</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{t.totalScreens} screens • {t.area}</div>
+                      </div>
+                      <ChevronRight size={13} color="var(--gold)" />
+                    </Link>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
           </div>
 
