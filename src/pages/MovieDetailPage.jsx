@@ -64,6 +64,11 @@ export default function MovieDetailPage() {
   const allReviews = useMemo(() => getMovieReviews(movieId), [getMovieReviews, movieId]);
   const userReviewsList = useMemo(() => getMovieUserReviews(movieId), [getMovieUserReviews, movieId]);
   const proReviewsList = useMemo(() => getMovieProfessionalReviews(movieId), [getMovieProfessionalReviews, movieId]);
+  const userRatingInfo = useMemo(() => {
+    if (!userReviewsList || userReviewsList.length === 0) return { average: 0, count: 0 };
+    const sum = userReviewsList.reduce((acc, r) => acc + (r.rating || 0), 0);
+    return { average: Math.round((sum / userReviewsList.length) * 10) / 10, count: userReviewsList.length };
+  }, [userReviewsList]);
 
   // Theaters showing this movie in the current city
   const localTheaters = useMemo(() => {
@@ -254,27 +259,82 @@ export default function MovieDetailPage() {
               )}
 
               {/* Score & Counts */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginTop: 4 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginTop: 4 }}>
+                {/* User / Audience Rating */}
+                <div
+                  onClick={() => {
+                    setReviewTab('audience');
+                    const elem = document.getElementById('reviews-section');
+                    if (elem) elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+                  title="Jump to audience reviews"
+                >
                   <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--gold)', lineHeight: 1 }}>
-                    {ratingInfo.average > 0 ? ratingInfo.average.toFixed(1) : 'N/A'}
+                    {userRatingInfo.average > 0 ? userRatingInfo.average.toFixed(1) : (ratingInfo.average > 0 ? ratingInfo.average.toFixed(1) : 'N/A')}
                   </span>
                   <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>/ 5</span>
                   <span style={{ fontSize: 18, color: 'var(--gold)', letterSpacing: -1 }}>
-                    {'★'.repeat(Math.round(ratingInfo.average))}{'☆'.repeat(5 - Math.round(ratingInfo.average))}
+                    {'★'.repeat(Math.round(userRatingInfo.average || ratingInfo.average || 0))}{'☆'.repeat(5 - Math.round(userRatingInfo.average || ratingInfo.average || 0))}
                   </span>
                 </div>
                 <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
                 <span
                   onClick={() => {
+                    setReviewTab('audience');
                     const elem = document.getElementById('reviews-section');
                     if (elem) elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
                   style={{ fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}
-                  title="Jump to reviews"
+                  title="Jump to audience reviews"
                 >
-                  <strong style={{ color: 'var(--text-primary)' }}>{ratingInfo.count}</strong> user reviews
+                  <strong style={{ color: 'var(--text-primary)' }}>{userRatingInfo.count || ratingInfo.count}</strong> user reviews
                 </span>
+
+                {/* Professional Critic Rating */}
+                <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
+                <div
+                  onClick={() => {
+                    setReviewTab('professional');
+                    const elem = document.getElementById('reviews-section');
+                    if (elem) elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    cursor: 'pointer',
+                    padding: '3px 10px',
+                    borderRadius: 4,
+                    background: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(5,150,105,0.06))',
+                    border: '1px solid rgba(16,185,129,0.3)',
+                    transition: 'border-color 0.15s ease',
+                  }}
+                  title="Jump to professional critic reviews"
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(16,185,129,0.6)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(16,185,129,0.3)'}
+                >
+                  <ShieldCheck size={16} color="#10b981" />
+                  {proRatingInfo.count > 0 ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 20, fontWeight: 800, color: '#10b981', lineHeight: 1 }}>
+                        {proRatingInfo.average.toFixed(1)}
+                      </span>
+                      <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>/ 5</span>
+                      <span style={{ fontSize: 14, color: '#10b981', letterSpacing: -1 }}>
+                        {'★'.repeat(Math.round(proRatingInfo.average))}{'☆'.repeat(5 - Math.round(proRatingInfo.average))}
+                      </span>
+                      <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                        · <strong style={{ color: '#10b981' }}>{proRatingInfo.count}</strong> critic{proRatingInfo.count !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#10b981' }}>
+                      <span style={{ fontWeight: 600 }}>Critics</span>
+                      <span style={{ color: 'var(--text-muted)' }}>· No reviews yet</span>
+                    </div>
+                  )}
+                </div>
                 {movie.runtime && (
                   <>
                     <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
@@ -418,10 +478,10 @@ export default function MovieDetailPage() {
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
                     👥 Community Rating
                   </div>
-                  {ratingInfo.count > 0 ? (
+                  {userRatingInfo.count > 0 ? (
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                      <span style={{ fontSize: 24, fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-serif)' }}>★ {ratingInfo.average}</span>
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>/ 5 · {ratingInfo.count} review{ratingInfo.count !== 1 ? 's' : ''}</span>
+                      <span style={{ fontSize: 24, fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-serif)' }}>★ {userRatingInfo.average}</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>/ 5 · {userRatingInfo.count} review{userRatingInfo.count !== 1 ? 's' : ''}</span>
                     </div>
                   ) : (
                     <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>No reviews yet</div>
