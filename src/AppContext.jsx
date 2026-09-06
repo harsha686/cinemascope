@@ -34,6 +34,10 @@ const sanitizedCities = (Array.isArray(loadedCities) ? loadedCities : theaterDB.
 // Ensure cleaned list is updated in storage
 saveStorage('cinemascope_cities', sanitizedCities);
 
+const loadedTheaters = loadStorage('cinemascope_theaters', theaterDB.theaters);
+const sanitizedTheaters = Array.isArray(loadedTheaters) && loadedTheaters.length > 0 ? loadedTheaters : theaterDB.theaters;
+saveStorage('cinemascope_theaters', sanitizedTheaters);
+
 const rawUsers = loadStorage('cinemascope_users', initialUsers);
 const sanitizedUsers = (Array.isArray(rawUsers) ? rawUsers : initialUsers).map(u => {
   if (u.role === 'ADMIN' || u.id === 'admin-1' || u.email === 'admin@cinema.com') {
@@ -84,6 +88,7 @@ const initialState = {
   reports: loadStorage('cinemascope_reports', []),
   helpfulVotes: loadStorage('cinemascope_helpful_votes', []),
   citiesList: sanitizedCities,
+  theatersList: sanitizedTheaters,
   currentUser: sanitizedCurrentUser, // null or User object
   professionalApplications: loadStorage('cinemascope_pro_applications', DEFAULT_PRO_APPLICATIONS),
 };
@@ -247,6 +252,32 @@ function reducer(state, action) {
       return newState;
     }
 
+    // --- THEATER ACTIONS (ADMIN) ---
+    case 'ADD_THEATER': {
+      const newTheaters = [action.payload, ...state.theatersList.filter(t => t.id !== action.payload.id)];
+      newState = { ...state, theatersList: newTheaters };
+      saveStorage('cinemascope_theaters', newTheaters);
+      return newState;
+    }
+
+    case 'UPDATE_THEATER': {
+      const updatedTheaters = state.theatersList.map(t => t.id === action.payload.id ? { ...t, ...action.payload } : t);
+      newState = { ...state, theatersList: updatedTheaters };
+      saveStorage('cinemascope_theaters', updatedTheaters);
+      return newState;
+    }
+
+    case 'DELETE_THEATER': {
+      const remainingTheaters = state.theatersList.filter(t => t.id !== action.payload);
+      newState = { ...state, theatersList: remainingTheaters };
+      if (state.selectedTheater && state.selectedTheater.id === action.payload) {
+        newState.selectedTheater = null;
+        newState.selectedScreen = null;
+      }
+      saveStorage('cinemascope_theaters', remainingTheaters);
+      return newState;
+    }
+
     // --- PRO REVIEWER APPLICATION ACTIONS ---
     case 'SET_PRO_APPLICATIONS':
       newState = { ...state, professionalApplications: action.payload };
@@ -295,6 +326,10 @@ export function AppProvider({ children }) {
   useEffect(() => {
     saveStorage('cinemascope_users', state.users);
   }, [state.users]);
+
+  useEffect(() => {
+    saveStorage('cinemascope_theaters', state.theatersList);
+  }, [state.theatersList]);
 
   // Sync from Supabase on load if configured
   useEffect(() => {
@@ -432,25 +467,25 @@ export function AppProvider({ children }) {
 
   // Derived data helpers for Theaters
   const getCityTheaters = useCallback((cityId) => {
-    return theaterDB.theaters.filter(t => t.cityId === cityId);
-  }, []);
+    return state.theatersList.filter(t => t.cityId === cityId);
+  }, [state.theatersList]);
 
   const getTheater = useCallback((theaterId) => {
-    return theaterDB.theaters.find(t => t.id === theaterId) || null;
-  }, []);
+    return state.theatersList.find(t => t.id === theaterId) || null;
+  }, [state.theatersList]);
 
   const getScreen = useCallback((theaterId, screenId) => {
-    const theater = theaterDB.theaters.find(t => t.id === theaterId);
+    const theater = state.theatersList.find(t => t.id === theaterId);
     if (!theater) return null;
-    return theater.screens.find(s => s.id === screenId) || null;
-  }, []);
+    return (theater.screens || []).find(s => s.id === screenId) || null;
+  }, [state.theatersList]);
 
   const getCity = useCallback((cityId) => {
     return state.citiesList.find(c => c.id === cityId) || theaterDB.cities.find(c => c.id === cityId) || null;
   }, [state.citiesList]);
 
   const allCities = state.citiesList;
-  const allTheaters = theaterDB.theaters;
+  const allTheaters = state.theatersList;
 
   // Pro reviewer helpers
   const getUserApplication = useCallback((userId) => {

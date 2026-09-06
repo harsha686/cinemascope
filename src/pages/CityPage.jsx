@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Search, Filter, Map, Grid, LayoutList } from 'lucide-react';
+import { Search, Filter, Map, Grid, LayoutList, Plus } from 'lucide-react';
 import YoutubeIcon from '../components/shared/YoutubeIcon';
 import { useApp } from '../AppContext';
 import TheaterCard from '../components/city/TheaterCard';
 import TheaterMap from '../components/city/TheaterMap';
+import AdminTheaterFormModal from '../components/admin/AdminTheaterFormModal';
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -20,7 +21,10 @@ const FILTERS = [
 export default function CityPage() {
   const { cityId } = useParams();
   const navigate = useNavigate();
-  const { getCity, getCityTheaters } = useApp();
+  const { getCity, getCityTheaters, state, dispatch, allCities } = useApp();
+
+  const currentUser = state.currentUser;
+  const isAdmin = currentUser && currentUser.role === 'ADMIN';
 
   const city = getCity(cityId);
   const theaters = getCityTheaters(cityId);
@@ -29,6 +33,34 @@ export default function CityPage() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [view, setView] = useState('grid'); // grid | list | map
   const [selectedTheaterId, setSelectedTheaterId] = useState(null);
+
+  // Admin Theater Form State
+  const [showTheaterModal, setShowTheaterModal] = useState(false);
+  const [theaterToEdit, setTheaterToEdit] = useState(null);
+
+  const handleOpenAddTheater = () => {
+    setTheaterToEdit(null);
+    setShowTheaterModal(true);
+  };
+
+  const handleOpenEditTheater = (theater) => {
+    setTheaterToEdit(theater);
+    setShowTheaterModal(true);
+  };
+
+  const handleDeleteTheater = (theater) => {
+    if (window.confirm(`Are you sure you want to delete "${theater.name}"?`)) {
+      dispatch({ type: 'DELETE_THEATER', payload: theater.id });
+    }
+  };
+
+  const handleSaveTheater = (theaterObj) => {
+    if (theaterToEdit) {
+      dispatch({ type: 'UPDATE_THEATER', payload: theaterObj });
+    } else {
+      dispatch({ type: 'ADD_THEATER', payload: theaterObj });
+    }
+  };
 
   const filtered = useMemo(() => {
     return theaters.filter(t => {
@@ -106,13 +138,26 @@ export default function CityPage() {
             </div>
           </div>
 
-          {/* Data notice */}
-          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <a href="https://youtube.com/@theatrebabu9796" target="_blank" rel="noopener noreferrer"
-              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--gold)', textDecoration: 'none', fontFamily: 'var(--font-serif)', letterSpacing: '0.08em' }}>
-              <YoutubeIcon size={12} /> TheatreBabu
-            </a>
-            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>· Theater data sourced from YouTube reviews · Not officially verified</span>
+          {/* Data notice & Admin Action */}
+          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <a href="https://youtube.com/@theatrebabu9796" target="_blank" rel="noopener noreferrer"
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--gold)', textDecoration: 'none', fontFamily: 'var(--font-serif)', letterSpacing: '0.08em' }}>
+                <YoutubeIcon size={12} /> TheatreBabu
+              </a>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>· Theater data sourced from YouTube reviews · Not officially verified</span>
+            </div>
+
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={handleOpenAddTheater}
+                className="btn btn-primary btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, padding: '6px 14px' }}
+              >
+                <Plus size={14} /> Add Theater in {city.name}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -217,12 +262,31 @@ export default function CityPage() {
               border: view === 'list' ? '1px solid var(--border-subtle)' : 'none',
             }}>
               {filtered.map(t => (
-                <TheaterCard key={t.id} theater={t} compact={view === 'list'} />
+                <TheaterCard
+                  key={t.id}
+                  theater={t}
+                  compact={view === 'list'}
+                  isAdmin={isAdmin}
+                  onEdit={handleOpenEditTheater}
+                  onDelete={handleDeleteTheater}
+                />
               ))}
             </div>
           )
         )}
       </div>
+
+      {/* Admin Theater Form Modal */}
+      {isAdmin && (
+        <AdminTheaterFormModal
+          isOpen={showTheaterModal}
+          onClose={() => setShowTheaterModal(false)}
+          onSave={handleSaveTheater}
+          theaterToEdit={theaterToEdit}
+          allCities={allCities}
+          defaultCityId={city.id}
+        />
+      )}
     </div>
   );
 }

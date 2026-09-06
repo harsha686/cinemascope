@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Monitor, MapPin, Layers, ChevronRight, Star } from 'lucide-react';
+import { Monitor, MapPin, Layers, ChevronRight, Star, Edit3, Trash2 } from 'lucide-react';
 
 function FeatureBadge({ label }) {
   const colors = {
@@ -34,7 +34,7 @@ function FeatureBadge({ label }) {
   );
 }
 
-export default function TheaterCard({ theater, compact = false }) {
+export default function TheaterCard({ theater, compact = false, onEdit, onDelete, isAdmin = false }) {
   const navigate = useNavigate();
   if (!theater) return null;
 
@@ -52,7 +52,7 @@ export default function TheaterCard({ theater, compact = false }) {
     <div
       className="card"
       onClick={() => navigate(`/theater/${theater.id}`)}
-      style={{ cursor: 'pointer', padding: compact ? 16 : 24, display: 'flex', flexDirection: 'column', gap: compact ? 10 : 16, borderRadius: 2 }}
+      style={{ cursor: 'pointer', padding: compact ? 16 : 24, display: 'flex', flexDirection: 'column', gap: compact ? 10 : 16, borderRadius: 2, position: 'relative' }}
     >
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
@@ -74,11 +74,68 @@ export default function TheaterCard({ theater, compact = false }) {
             {theater.name}
           </h3>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text-muted)' }}>
             <Monitor size={11} />
             <span>{theater.totalScreens} screen{theater.totalScreens > 1 ? 's' : ''}</span>
           </div>
+
+          {/* Admin Quick Action Buttons */}
+          {isAdmin && (
+            <div
+              style={{ display: 'flex', gap: 4, marginTop: 2 }}
+              onClick={e => e.stopPropagation()}
+            >
+              {onEdit && (
+                <button
+                  type="button"
+                  title="Edit Theater Specifications"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(theater);
+                  }}
+                  style={{
+                    padding: '3px 7px',
+                    fontSize: 10,
+                    background: 'rgba(201,168,76,0.12)',
+                    border: '1px solid var(--gold-dim)',
+                    color: 'var(--gold)',
+                    borderRadius: 3,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 3,
+                  }}
+                >
+                  <Edit3 size={10} /> Edit
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  type="button"
+                  title="Delete Theater"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(theater);
+                  }}
+                  style={{
+                    padding: '3px 7px',
+                    fontSize: 10,
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    color: '#f87171',
+                    borderRadius: 3,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 3,
+                  }}
+                >
+                  <Trash2 size={10} />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShieldAlert, Film, MessageSquare, Users, MapPin, Plus, Search, Edit3, Trash2, CheckCircle2, EyeOff, Sparkles, AlertCircle, ArrowLeft, ExternalLink, Check, Image as ImageIcon, Database, RefreshCw, ShieldCheck } from 'lucide-react';
+import { ShieldAlert, Film, MessageSquare, Users, MapPin, Plus, Search, Edit3, Trash2, CheckCircle2, EyeOff, Sparkles, AlertCircle, ArrowLeft, ExternalLink, Check, Image as ImageIcon, Database, RefreshCw, ShieldCheck, Building2 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import TMDBImportHelper from '../components/admin/TMDBImportHelper';
 import XPosterDiscoveryModal from '../components/admin/XPosterDiscoveryModal';
+import AdminTheaterFormModal from '../components/admin/AdminTheaterFormModal';
 import { isSupabaseConfigured, setCustomSupabaseCredentials, supabaseService } from '../services/supabase';
 import { getApplications, updateApplicationStatus } from '../services/proReviewerService';
 
@@ -63,6 +64,36 @@ export default function AdminDashboard() {
   const [sbKey, setSbKey] = useState(localStorage.getItem('cinemascope_supabase_key') || import.meta.env.VITE_SUPABASE_ANON_KEY || '');
   const [sbStatusMsg, setSbStatusMsg] = useState('');
   const [sbLoading, setSbLoading] = useState(false);
+
+  // Theater Management State
+  const [theaterSearch, setTheaterSearch] = useState('');
+  const [theaterCityFilter, setTheaterCityFilter] = useState('all');
+  const [showTheaterModal, setShowTheaterModal] = useState(false);
+  const [editingTheater, setEditingTheater] = useState(null);
+
+  const handleOpenAddTheater = () => {
+    setEditingTheater(null);
+    setShowTheaterModal(true);
+  };
+
+  const handleOpenEditTheater = (theater) => {
+    setEditingTheater(theater);
+    setShowTheaterModal(true);
+  };
+
+  const handleDeleteTheater = (theaterId, theaterName) => {
+    if (window.confirm(`Are you sure you want to delete "${theaterName}"?`)) {
+      dispatch({ type: 'DELETE_THEATER', payload: theaterId });
+    }
+  };
+
+  const handleSaveTheater = (theaterObj) => {
+    if (editingTheater) {
+      dispatch({ type: 'UPDATE_THEATER', payload: theaterObj });
+    } else {
+      dispatch({ type: 'ADD_THEATER', payload: theaterObj });
+    }
+  };
 
   // If not admin, render secure login gate
   if (!isAdmin) {
@@ -323,6 +354,9 @@ export default function AdminDashboard() {
         </div>
 
         <div style={{ display: 'flex', gap: 12 }}>
+          <button type="button" onClick={handleOpenAddTheater} className="btn btn-outline btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Building2 size={14} /> Add Theater
+          </button>
           <button type="button" onClick={handleOpenAddMovie} className="btn btn-primary btn-sm">
             <Plus size={14} /> Add New Movie
           </button>
@@ -340,6 +374,7 @@ export default function AdminDashboard() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {[
               { id: 'movies', label: 'Movies Catalog', icon: Film, count: state.movies.length },
+              { id: 'theaters', label: 'Theaters', icon: Building2, count: allTheaters.length },
               { id: 'reviews', label: 'Review Moderation', icon: MessageSquare, count: state.reviews.length },
               { id: 'users', label: 'Users', icon: Users, count: state.users.length },
               { id: 'cities', label: 'Cities', icon: MapPin, count: allCities.length },
@@ -492,6 +527,163 @@ export default function AdminDashboard() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            )}
+
+            {/* THEATERS TAB */}
+            {activeTab === 'theaters' && (
+              <div>
+                {/* Header & Controls */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+                  <div>
+                    <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-primary)' }}>Theaters & Screens Directory</h3>
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Manage theaters, auditoriums, aspect ratios, sound processors, and formats</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleOpenAddTheater}
+                    className="btn btn-primary btn-sm"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <Plus size={14} /> Add New Theater
+                  </button>
+                </div>
+
+                {/* Filter & Search Bar */}
+                <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+                  <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+                    <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+                    <input
+                      className="input"
+                      style={{ paddingLeft: 36, fontSize: 12 }}
+                      placeholder="Search theaters by name, chain, or area..."
+                      value={theaterSearch}
+                      onChange={e => setTheaterSearch(e.target.value)}
+                    />
+                  </div>
+
+                  <select
+                    className="input"
+                    style={{ width: 'auto', fontSize: 12 }}
+                    value={theaterCityFilter}
+                    onChange={e => setTheaterCityFilter(e.target.value)}
+                  >
+                    <option value="all">All Cities ({allTheaters.length})</option>
+                    {allCities.map(c => {
+                      const count = allTheaters.filter(t => t.cityId === c.id).length;
+                      return (
+                        <option key={c.id} value={c.id}>
+                          {c.name} ({count})
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                {/* Theaters Table */}
+                {(() => {
+                  const filteredTheaters = allTheaters.filter(t => {
+                    const q = theaterSearch.toLowerCase();
+                    const matchesSearch = !q ||
+                      t.name.toLowerCase().includes(q) ||
+                      (t.chain && t.chain.toLowerCase().includes(q)) ||
+                      (t.area && t.area.toLowerCase().includes(q));
+                    const matchesCity = theaterCityFilter === 'all' || t.cityId === theaterCityFilter;
+                    return matchesSearch && matchesCity;
+                  });
+
+                  if (filteredTheaters.length === 0) {
+                    return (
+                      <div style={{ padding: 48, textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
+                        <Building2 size={32} color="var(--text-muted)" style={{ margin: '0 auto 12px' }} />
+                        <h4 style={{ fontFamily: 'var(--font-serif)', color: 'var(--text-secondary)', marginBottom: 6 }}>No theaters found</h4>
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>Try adjusting your search query or city filter</p>
+                        <button type="button" onClick={handleOpenAddTheater} className="btn btn-primary btn-sm">
+                          <Plus size={13} /> Add Theater Now
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div style={{ border: '1px solid var(--border-subtle)', overflowX: 'auto', background: 'var(--bg-card)', borderRadius: 4 }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
+                        <thead>
+                          <tr style={{ background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontFamily: 'var(--font-serif)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                            <th style={{ padding: '12px 16px' }}>Theater</th>
+                            <th style={{ padding: '12px 16px' }}>City & Area</th>
+                            <th style={{ padding: '12px 16px' }}>Chain</th>
+                            <th style={{ padding: '12px 16px' }}>Screens</th>
+                            <th style={{ padding: '12px 16px' }}>Highlights</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredTheaters.map(t => {
+                            const cityObj = allCities.find(c => c.id === t.cityId);
+                            return (
+                              <tr key={t.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                                <td style={{ padding: '12px 16px' }}>
+                                  <Link
+                                    to={`/theater/${t.id}`}
+                                    style={{ fontFamily: 'var(--font-serif)', color: 'var(--gold)', fontWeight: 600, textDecoration: 'none' }}
+                                  >
+                                    {t.name}
+                                  </Link>
+                                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>ID: {t.id}</div>
+                                </td>
+                                <td style={{ padding: '12px 16px' }}>
+                                  <div style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{cityObj ? cityObj.name : t.cityId}</div>
+                                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{t.area || 'Town Center'}</div>
+                                </td>
+                                <td style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontSize: 12 }}>
+                                  {t.chain || 'Independent'}
+                                </td>
+                                <td style={{ padding: '12px 16px' }}>
+                                  <span className="badge badge-dim" style={{ fontSize: 10 }}>
+                                    {t.screens?.length || t.totalScreens || 1} Screen{(t.screens?.length || t.totalScreens || 1) !== 1 ? 's' : ''}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '12px 16px' }}>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 220 }}>
+                                    {(t.features || []).slice(0, 3).map(f => (
+                                      <span key={f} style={{ fontSize: 9, padding: '1px 6px', background: 'rgba(255,255,255,0.04)', borderRadius: 2, color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}>
+                                        {f}
+                                      </span>
+                                    ))}
+                                    {(t.features || []).length > 3 && (
+                                      <span style={{ fontSize: 9, color: 'var(--text-muted)', alignSelf: 'center' }}>+{(t.features || []).length - 3}</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenEditTheater(t)}
+                                      className="btn btn-ghost btn-sm"
+                                      style={{ padding: '4px 8px', fontSize: 11, color: 'var(--gold)' }}
+                                    >
+                                      <Edit3 size={12} /> Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteTheater(t.id, t.name)}
+                                      className="btn btn-ghost btn-sm"
+                                      style={{ padding: '4px 8px', fontSize: 11, color: '#f87171' }}
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -1432,6 +1624,16 @@ function ProReviewersPanel({ dispatch, currentUser }) {
           })}
         </div>
       )}
+
+      {/* ADMIN THEATER FORM MODAL */}
+      <AdminTheaterFormModal
+        isOpen={showTheaterModal}
+        onClose={() => setShowTheaterModal(false)}
+        onSave={handleSaveTheater}
+        theaterToEdit={editingTheater}
+        allCities={allCities}
+        defaultCityId={allCities[0]?.id || 'visakhapatnam'}
+      />
     </div>
   );
 }
