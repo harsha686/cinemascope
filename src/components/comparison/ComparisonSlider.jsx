@@ -69,6 +69,7 @@ export default function ComparisonSlider({ screenA, screenB }) {
             screenRatioLabel={screenA?.aspectRatio || '2.39:1'}
             screenFormatName={screenA?.formatName || 'Scope'}
             screenWidthM={screenA?.screenWidthM}
+            screenHeightM={screenA?.screenHeightM}
             mode={mode}
             onModeChange={setMode}
             containerWidth={colW}
@@ -81,6 +82,7 @@ export default function ComparisonSlider({ screenA, screenB }) {
             screenRatioLabel={screenB?.aspectRatio || '1.85:1'}
             screenFormatName={screenB?.formatName || 'Flat'}
             screenWidthM={screenB?.screenWidthM}
+            screenHeightM={screenB?.screenHeightM}
             mode={mode}
             onModeChange={setMode}
             containerWidth={colW}

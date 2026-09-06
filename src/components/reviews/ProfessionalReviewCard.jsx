@@ -145,36 +145,6 @@ export default function ProfessionalReviewCard({ review, onEdit, onDelete }) {
                   {[effectiveApp.professionalTitle, effectiveApp.organization].filter(Boolean).join(" · ")}
                 </span>
               )}
-              <button
-                type="button"
-                onClick={() => setShowDetailsModal(true)}
-                title="View full credentials, published work & application data"
-                style={{
-                  fontSize: 10,
-                  color: "#10b981",
-                  background: "rgba(16, 185, 129, 0.08)",
-                  border: "1px solid rgba(16, 185, 129, 0.3)",
-                  borderRadius: 12,
-                  padding: "2px 8px",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  fontWeight: 600,
-                  letterSpacing: "0.01em",
-                  transition: "all 0.15s ease",
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.background = "rgba(16, 185, 129, 0.2)";
-                  e.currentTarget.style.borderColor = "#10b981";
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = "rgba(16, 185, 129, 0.08)";
-                  e.currentTarget.style.borderColor = "rgba(16, 185, 129, 0.3)";
-                }}
-              >
-                <ShieldCheck size={11} /> View Credentials
-              </button>
             </div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
               {formatDate(review.createdAt)}{review.updatedAt !== review.createdAt ? " · Edited" : ""}

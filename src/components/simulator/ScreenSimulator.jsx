@@ -18,6 +18,7 @@ export default function ScreenSimulator({
   screenRatioLabel = '2.39:1',
   screenFormatName = 'Scope',
   screenWidthM,
+  screenHeightM,
   mode = 'fit',
   onModeChange,
   containerWidth,
@@ -64,20 +65,17 @@ export default function ScreenSimulator({
 
   const { screenW, screenH, mediaW, mediaH, offsetX, offsetY, percentVisible, percentCropped = 0, cropSide = 'none', screenCoverage = 100 } = calc;
 
-  // Physical or aspect ratio dimensions scale calculation
+  // Physical or aspect ratio dimensions strictly in feet
   const hasPhysical = Boolean(screenWidthM && Number(screenWidthM) > 0);
-  const widthM = hasPhysical ? Number(screenWidthM) : null;
-  const heightM = hasPhysical ? Math.round((widthM / screenRatio) * 10) / 10 : null;
-  const widthFt = hasPhysical ? Math.round(widthM * 3.28084 * 10) / 10 : null;
-  const heightFt = hasPhysical ? Math.round(heightM * 3.28084 * 10) / 10 : null;
+  const widthFt = hasPhysical
+    ? Math.round(Number(screenWidthM) * 3.28084)
+    : Math.round(20 * screenRatio);
+  const heightFt = hasPhysical
+    ? (screenHeightM ? Math.round(Number(screenHeightM) * 3.28084) : Math.round((Number(screenWidthM) / screenRatio) * 3.28084))
+    : 20;
 
-  const widthScaleText = hasPhysical
-    ? `${widthM}m (${widthFt}ft) · ${screenRatioLabel || screenRatio + ':1'}`
-    : `${screenRatioLabel || screenRatio + ':1'} (${screenRatio}x)`;
-
-  const heightScaleText = hasPhysical
-    ? `${heightM}m (${heightFt}ft)`
-    : `1.00x`;
+  const widthScaleText = `${widthFt} ft`;
+  const heightScaleText = `${heightFt} ft`;
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -115,6 +113,8 @@ export default function ScreenSimulator({
     top: offsetY,
     width: mediaW,
     height: mediaH,
+    maxWidth: 'none',
+    maxHeight: 'none',
     objectFit: 'cover',
     transition: 'all 550ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
   };
@@ -468,7 +468,7 @@ export default function ScreenSimulator({
         <div style={{ minWidth: 110 }}>
           <span style={{ fontSize: 9, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Dimensions</span>
           <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 2, fontFamily: 'monospace', fontWeight: 600 }}>
-            {hasPhysical ? `${widthM}m × ${heightM}m (${widthFt}ft × ${heightFt}ft)` : `${screenRatioLabel || screenRatio + ':1'} (${screenRatio}x × 1.00x)`}
+            {widthFt} ft × {heightFt} ft
           </div>
         </div>
         {mode === 'fit' && Math.abs(offsetY) > 1 && (
