@@ -1,10 +1,52 @@
-﻿const PRO_APPLICATIONS_KEY = "cinemascope_pro_applications";
+const PRO_APPLICATIONS_KEY = "cinemascope_pro_applications";
+
+export const DEFAULT_PRO_APPLICATIONS = [
+  {
+    id: "pra-default-1",
+    userId: "admin-1",
+    status: "APPROVED",
+    submittedAt: "2024-06-01T10:00:00.000Z",
+    reviewedAt: "2024-06-02T12:00:00.000Z",
+    reviewedBy: "CinemaScope Editorial Board",
+    adminNote: "Verified film critic credential for The Hindu newspaper.",
+    fullName: "Harshavardhan",
+    country: "India",
+    bio: "Passionate cinephile and dedicated film critic with deep roots in Indian regional and world cinema.",
+    profession: "Film Critic",
+    professionalTitle: "film critic",
+    organization: "the Hindu",
+    yearsExperience: "5-10 years",
+    professionalBio: "Senior film critic writing in-depth reviews, cinema essays, and technical film analysis for The Hindu. Focused on direction craft, cinematography, screenwriting, and theatrical audio-visual presentation.",
+    specializations: ["Film Criticism", "Direction", "Cinematography", "Screenwriting", "Regional Cinema"],
+    criticismBackground: "Over 8 years of professional film criticism across print and digital media, analyzing visual storytelling, directorial style, screenplay structure, sound engineering, and technical theatrical standards.",
+    publishedReviewsUrls: "https://www.thehindu.com/entertainment/movies/\nhttps://www.thehindu.com/reviews/cinema-analysis",
+    portfolioUrl: "https://thehindu.com/authors/harshavardhan",
+    linkedinUrl: "https://linkedin.com/in/harshavardhan-cinema",
+    websiteUrl: "https://thehindu.com",
+    socialLinks: "https://twitter.com/harshavardhan_film\nhttps://letterboxd.com/harshavardhan",
+    viewingProofUrl: "https://thehindu.com/press-credentials/harsha",
+    viewingProofNote: "Accredited press credentials for theatrical press screenings and national film festivals.",
+  }
+];
 
 export function getApplications() {
   try {
-    return JSON.parse(localStorage.getItem(PRO_APPLICATIONS_KEY) || "[]");
+    const raw = localStorage.getItem(PRO_APPLICATIONS_KEY);
+    if (!raw) {
+      localStorage.setItem(PRO_APPLICATIONS_KEY, JSON.stringify(DEFAULT_PRO_APPLICATIONS));
+      return DEFAULT_PRO_APPLICATIONS;
+    }
+    const apps = JSON.parse(raw);
+    if (Array.isArray(apps)) {
+      // If admin-1 is not in storage, ensure the default seed is included
+      if (!apps.some(a => a.userId === "admin-1")) {
+        return [...apps, ...DEFAULT_PRO_APPLICATIONS];
+      }
+      return apps;
+    }
+    return DEFAULT_PRO_APPLICATIONS;
   } catch (e) {
-    return [];
+    return DEFAULT_PRO_APPLICATIONS;
   }
 }
 
