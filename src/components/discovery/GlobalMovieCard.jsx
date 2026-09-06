@@ -54,6 +54,8 @@ export default function GlobalMovieCard({ movie, onStatusChange }) {
       className="global-movie-card"
       style={{
         width: '180px',
+        maxWidth: '100%',
+        flexShrink: 0,
         position: 'relative',
         backgroundColor: 'var(--bg-card)',
         borderRadius: 'var(--radius-sm)',

@@ -226,7 +226,7 @@ export default function ComparePage() {
             onSelect={handleSelectA}
             theaters={allTheaters}
           />
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 40 }}>
+          <div className="compare-vs-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 40 }}>
             <div style={{ fontFamily: 'var(--font-serif)', fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.2em' }}>VS</div>
           </div>
           <ScreenPicker
@@ -265,6 +265,7 @@ export default function ComparePage() {
       <style>{`
         @media (max-width: 640px) {
           .compare-pickers { grid-template-columns: 1fr !important; }
+          .compare-vs-wrapper { padding: 8px 0 !important; }
         }
       `}</style>
     </div>

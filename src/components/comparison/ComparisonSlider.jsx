@@ -22,7 +22,8 @@ export default function ComparisonSlider({ screenA, screenB }) {
   const ratioB = screenB?.aspectRatioNumeric || 1.85;
 
   // Calculate equal column width and unified stage height so both sides align with 100% precision
-  const colW = containerW ? Math.max(280, (containerW - 16) / 2) : 400;
+  const isSingleCol = containerW && containerW < 640;
+  const colW = containerW ? (isSingleCol ? containerW : Math.max(280, (containerW - 16) / 2)) : 400;
   const maxDisplayW = Math.min(colW * 0.86, 840);
   // The screen with the smaller ratio has the larger height (e.g. 1.85 is taller than 2.39)
   const commonStageHeight = Math.ceil(maxDisplayW / Math.min(ratioA, ratioB));

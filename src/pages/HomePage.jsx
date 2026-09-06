@@ -318,7 +318,7 @@ export default function HomePage() {
                 </Link>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 20 }}>
                 {recentReviews.map(rev => {
                   const targetM = state.movies.find(m => m.id === rev.movieId);
                   return (

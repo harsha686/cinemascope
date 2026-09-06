@@ -41,9 +41,10 @@ export default function ComparisonTable({ theaterA, screenA, theaterB, screenB }
   const moreSpeakers = (screenA.speakerCount || 0) > (screenB.speakerCount || 0) ? 'a' : (screenA.speakerCount || 0) < (screenB.speakerCount || 0) ? 'b' : null;
 
   return (
-    <div style={{ border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
-      {/* Header */}
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    <div style={{ border: '1px solid var(--border-subtle)', overflow: 'hidden', borderRadius: 'var(--radius-sm)' }}>
+      {/* Header & Table Wrapper */}
+      <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <table style={{ width: '100%', minWidth: 500, borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid var(--border)' }}>
             <th style={{ padding: '12px 16px', fontFamily: 'var(--font-serif)', fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', textAlign: 'left', width: '25%' }}>
@@ -74,6 +75,7 @@ export default function ComparisonTable({ theaterA, screenA, theaterB, screenB }
           <Row label="Screen Type" valA={screenA.screenMaterial === 'Not publicly verified' ? null : screenA.screenMaterial} valB={screenB.screenMaterial === 'Not publicly verified' ? null : screenB.screenMaterial} />
         </tbody>
       </table>
+      </div>
 
       {/* Smart notes */}
       <div style={{ padding: '12px 16px', background: 'rgba(0,0,0,0.3)', borderTop: '1px solid var(--border-subtle)', display: 'flex', flexWrap: 'wrap', gap: 8 }}>

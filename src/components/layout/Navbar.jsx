@@ -53,7 +53,7 @@ export default function Navbar() {
       <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%' }}>
         
         {/* Logo */}
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', flexShrink: 0 }}>
           <Film size={20} color="var(--gold)" />
           <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, letterSpacing: '0.18em', color: 'var(--text-primary)', textTransform: 'uppercase', fontWeight: 600 }}>
             Cinema<span style={{ color: 'var(--gold)' }}>Scope</span>
@@ -61,7 +61,7 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop Navigation Links */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 28 }} className="desktop-nav">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(14px, 1.8vw, 28px)' }} className="desktop-nav">
           {navLinks.map(link => (
             <Link
               key={link.to}
@@ -75,6 +75,7 @@ export default function Navbar() {
                 color: location.pathname === link.to ? 'var(--gold)' : 'var(--text-secondary)',
                 transition: 'color var(--transition-base)',
                 textDecoration: 'none',
+                whiteSpace: 'nowrap',
               }}
               onMouseEnter={e => { if (location.pathname !== link.to) e.target.style.color = 'var(--text-primary)'; }}
               onMouseLeave={e => { if (location.pathname !== link.to) e.target.style.color = 'var(--text-secondary)'; }}
@@ -85,13 +86,13 @@ export default function Navbar() {
         </div>
 
         {/* Right Action Controls (City Dropdown + Auth Menu) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           
           {/* City Quick Picker */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
-            <MapPin size={12} color="var(--gold)" />
+          <div className="city-pill-wrapper" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)', borderRadius: 4, flexShrink: 0 }}>
+            <MapPin size={12} color="var(--gold)" style={{ flexShrink: 0 }} />
             <select
-              style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: 11, fontFamily: 'var(--font-serif)', cursor: 'pointer', outline: 'none' }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: 11, fontFamily: 'var(--font-serif)', cursor: 'pointer', outline: 'none', maxWidth: 110 }}
               value={activeCity?.id}
               onChange={e => {
                 const selected = allCities.find(c => c.id === e.target.value);
@@ -108,7 +109,7 @@ export default function Navbar() {
 
           {/* User Auth Section */}
           {currentUser ? (
-            <div ref={dropdownRef} style={{ position: 'relative' }}>
+            <div ref={dropdownRef} style={{ position: 'relative', flexShrink: 0 }}>
               <button
                 type="button"
                 onClick={() => setUserDropdown(!userDropdown)}
@@ -139,7 +140,7 @@ export default function Navbar() {
                 }}>
                   {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'U'}
                 </div>
-                <span style={{ fontSize: 12, fontFamily: 'var(--font-serif)', fontWeight: 500 }}>
+                <span className="navbar-username" style={{ fontSize: 12, fontFamily: 'var(--font-serif)', fontWeight: 500 }}>
                   {currentUser.displayName}
                 </span>
               </button>
@@ -206,11 +207,11 @@ export default function Navbar() {
               )}
             </div>
           ) : (
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Link to="/login" className="btn btn-ghost btn-sm" style={{ fontSize: 11 }}>
+            <div className="desktop-auth-btns" style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+              <Link to="/login" className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '6px 14px' }}>
                 Log In
               </Link>
-              <Link to="/signup" className="btn btn-primary btn-sm" style={{ fontSize: 11 }}>
+              <Link to="/signup" className="btn btn-primary btn-sm" style={{ fontSize: 11, padding: '6px 14px' }}>
                 Sign Up
               </Link>
             </div>
@@ -220,10 +221,21 @@ export default function Navbar() {
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-            style={{ color: 'var(--text-primary)', display: 'none', background: 'none', border: 'none', cursor: 'pointer' }}
+            style={{
+              color: 'var(--text-primary)',
+              display: 'none',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '6px',
+              borderRadius: 4,
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
             className="mobile-menu-btn"
           >
-            {menuOpen ? <X size={20} /> : <Menu size={20} />}
+            {menuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
         </div>
 
@@ -236,61 +248,194 @@ export default function Navbar() {
           top: 'var(--nav-height)',
           left: 0,
           right: 0,
-          background: 'rgba(10,8,6,0.98)',
-          borderBottom: '1px solid var(--border-subtle)',
-          padding: '16px 24px 24px',
+          background: 'rgba(12,10,8,0.98)',
+          borderBottom: '1px solid var(--border)',
+          padding: '16px 20px 24px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 4,
-          backdropFilter: 'blur(14px)',
+          gap: 6,
+          backdropFilter: 'blur(16px)',
+          boxShadow: '0 12px 32px rgba(0,0,0,0.85)',
+          maxHeight: 'calc(100vh - var(--nav-height))',
+          overflowY: 'auto',
+          zIndex: 1000,
         }}>
+          {/* Mobile City Selector Pill */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '10px 14px',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 6,
+            marginBottom: 8,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <MapPin size={15} color="var(--gold)" />
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'var(--font-serif)', letterSpacing: '0.05em' }}>City</span>
+            </div>
+            <select
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: 4,
+                color: 'var(--gold)',
+                fontSize: 12,
+                fontFamily: 'var(--font-serif)',
+                padding: '6px 12px',
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+              value={activeCity?.id}
+              onChange={e => {
+                const selected = allCities.find(c => c.id === e.target.value);
+                if (selected) {
+                  dispatch({ type: 'SET_CITY', payload: selected });
+                  setMenuOpen(false);
+                }
+              }}
+            >
+              {allCities.map(c => (
+                <option key={c.id} value={c.id} style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Links */}
           {navLinks.map(link => (
             <Link
               key={link.to}
               to={link.to}
+              onClick={() => setMenuOpen(false)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '12px 0',
+                padding: '12px 6px',
                 fontFamily: 'var(--font-serif)',
                 fontSize: 13,
-                letterSpacing: '0.15em',
+                letterSpacing: '0.12em',
                 textTransform: 'uppercase',
                 color: location.pathname === link.to ? 'var(--gold)' : 'var(--text-primary)',
                 borderBottom: '1px solid var(--border-subtle)',
                 textDecoration: 'none',
               }}
             >
-              {link.label}
-              <ChevronRight size={14} color="var(--text-muted)" />
+              <span style={{ fontWeight: location.pathname === link.to ? 600 : 400 }}>{link.label}</span>
+              <ChevronRight size={14} color={location.pathname === link.to ? 'var(--gold)' : 'var(--text-muted)'} />
             </Link>
           ))}
+
           {currentUser?.role === 'ADMIN' && (
             <Link
               to="/admin"
+              onClick={() => setMenuOpen(false)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '12px 0',
+                padding: '12px 6px',
                 fontFamily: 'var(--font-serif)',
                 fontSize: 13,
                 color: 'var(--gold)',
                 textDecoration: 'none',
+                borderBottom: '1px solid var(--border-subtle)',
               }}
             >
-              Admin Dashboard
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ShieldAlert size={14} /> Admin Dashboard
+              </span>
               <ChevronRight size={14} color="var(--gold)" />
             </Link>
+          )}
+
+          {/* User Section in Drawer */}
+          {currentUser ? (
+            <div style={{ marginTop: 12, paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 4px' }}>
+                <div style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  background: 'var(--gold)',
+                  color: 'var(--bg-primary)',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'U'}
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{currentUser.displayName}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{currentUser.email}</div>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
+                <Link
+                  to="/profile"
+                  onClick={() => setMenuOpen(false)}
+                  className="btn btn-ghost btn-sm"
+                  style={{ justifyContent: 'center', fontSize: 11 }}
+                >
+                  <User size={13} /> Profile
+                </Link>
+                <Link
+                  to="/library"
+                  onClick={() => setMenuOpen(false)}
+                  className="btn btn-ghost btn-sm"
+                  style={{ justifyContent: 'center', fontSize: 11 }}
+                >
+                  <Film size={13} /> Library
+                </Link>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  handleLogout();
+                  setMenuOpen(false);
+                }}
+                className="btn btn-ghost btn-sm"
+                style={{ justifyContent: 'center', color: '#f87171', borderColor: 'rgba(239,68,68,0.3)', marginTop: 4 }}
+              >
+                <LogOut size={13} /> Log Out
+              </button>
+            </div>
+          ) : (
+            <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <Link
+                to="/login"
+                onClick={() => setMenuOpen(false)}
+                className="btn btn-ghost btn-sm"
+                style={{ justifyContent: 'center', padding: '10px 0' }}
+              >
+                Log In
+              </Link>
+              <Link
+                to="/signup"
+                onClick={() => setMenuOpen(false)}
+                className="btn btn-primary btn-sm"
+                style={{ justifyContent: 'center', padding: '10px 0' }}
+              >
+                Sign Up
+              </Link>
+            </div>
           )}
         </div>
       )}
 
       <style>{`
-        @media (max-width: 768px) {
+        @media (max-width: 1024px) {
           .desktop-nav { display: none !important; }
-          .mobile-menu-btn { display: block !important; }
+          .mobile-menu-btn { display: flex !important; }
+        }
+        @media (max-width: 640px) {
+          .desktop-auth-btns { display: none !important; }
+          .navbar-username { display: none !important; }
         }
       `}</style>
     </nav>

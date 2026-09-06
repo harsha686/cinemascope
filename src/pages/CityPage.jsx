@@ -211,7 +211,7 @@ export default function CityPage() {
           ) : (
             <div style={{
               display: 'grid',
-              gridTemplateColumns: view === 'list' ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))',
+              gridTemplateColumns: view === 'list' ? '1fr' : 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))',
               gap: view === 'list' ? 2 : 12,
               background: view === 'list' ? 'var(--border-subtle)' : 'transparent',
               border: view === 'list' ? '1px solid var(--border-subtle)' : 'none',

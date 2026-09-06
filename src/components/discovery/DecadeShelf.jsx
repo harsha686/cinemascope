@@ -48,6 +48,8 @@ export default function DecadeShelf({ decade, label }) {
       <div style={{ position: 'relative' }}>
         <button 
           onClick={() => scroll('left')}
+          className="shelf-nav-btn"
+          aria-label="Scroll left"
           style={{
             position: 'absolute', left: '-20px', top: '50%', transform: 'translateY(-50%)',
             zIndex: 10, background: 'rgba(0,0,0,0.6)', border: 'none', color: 'white',
@@ -61,7 +63,7 @@ export default function DecadeShelf({ decade, label }) {
         <div 
           ref={scrollRef}
           style={{
-            display: 'flex', gap: '16px', overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: '16px'
+            display: 'flex', gap: '16px', overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: '16px', WebkitOverflowScrolling: 'touch'
           }}
           className="hide-scrollbar"
         >
@@ -80,6 +82,8 @@ export default function DecadeShelf({ decade, label }) {
 
         <button 
           onClick={() => scroll('right')}
+          className="shelf-nav-btn"
+          aria-label="Scroll right"
           style={{
             position: 'absolute', right: '-20px', top: '50%', transform: 'translateY(-50%)',
             zIndex: 10, background: 'rgba(0,0,0,0.6)', border: 'none', color: 'white',
@@ -90,6 +94,12 @@ export default function DecadeShelf({ decade, label }) {
           <ChevronRight />
         </button>
       </div>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .shelf-nav-btn { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 }
