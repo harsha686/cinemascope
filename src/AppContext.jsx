@@ -4,6 +4,7 @@ import initialMovies from './data/movies.json';
 import initialReviews from './data/reviews.json';
 import initialUsers from './data/users.json';
 import { supabaseService, isSupabaseConfigured } from './services/supabase';
+import { DEFAULT_PRO_APPLICATIONS, getUserApplication as getProAppFromService } from './services/proReviewerService';
 
 const AppContext = createContext(null);
 
@@ -84,7 +85,7 @@ const initialState = {
   helpfulVotes: loadStorage('cinemascope_helpful_votes', []),
   citiesList: sanitizedCities,
   currentUser: sanitizedCurrentUser, // null or User object
-  professionalApplications: loadStorage('cinemascope_pro_applications', []),
+  professionalApplications: loadStorage('cinemascope_pro_applications', DEFAULT_PRO_APPLICATIONS),
 };
 
 function reducer(state, action) {
@@ -333,7 +334,28 @@ export function AppProvider({ children }) {
         }
 
         if (remoteReviews && remoteReviews.length > 0) {
-          dispatch({ type: 'SET_REVIEWS', payload: remoteReviews });
+          // Merge remote reviews with local reviews so local reviews and reviewTypes are never lost on refresh
+          const currentLocal = loadStorage('cinemascope_reviews', []);
+          const mergedMap = new Map();
+          // First add remote reviews
+          remoteReviews.forEach(rem => {
+            mergedMap.set(rem.id, rem);
+          });
+          // Overlay / preserve local reviews
+          currentLocal.forEach(loc => {
+            if (mergedMap.has(loc.id)) {
+              const existing = mergedMap.get(loc.id);
+              mergedMap.set(loc.id, {
+                ...existing,
+                ...loc,
+                reviewType: loc.reviewType || existing.reviewType,
+              });
+            } else {
+              mergedMap.set(loc.id, loc);
+            }
+          });
+          const mergedList = Array.from(mergedMap.values());
+          dispatch({ type: 'SET_REVIEWS', payload: mergedList });
         }
       } catch (e) {
         console.warn('Supabase remote sync skipped:', e);
@@ -432,41 +454,51 @@ export function AppProvider({ children }) {
 
   // Pro reviewer helpers
   const getUserApplication = useCallback((userId) => {
-    return state.professionalApplications.find(a => a.userId === userId) || null;
+    const fromState = state.professionalApplications.find(a => a.userId === userId);
+    if (fromState) return fromState;
+    return getProAppFromService(userId);
   }, [state.professionalApplications]);
 
   const isVerifiedPro = useCallback((userId) => {
-    const app = state.professionalApplications.find(a => a.userId === userId);
+    const app = getUserApplication(userId);
     return !!(app && app.status === 'APPROVED');
-  }, [state.professionalApplications]);
+  }, [getUserApplication]);
 
   // Separate review lists by type
+  const isProfessionalReview = useCallback((r) => {
+    if (!r) return false;
+    if (r.reviewType === 'PROFESSIONAL') return true;
+    if (r.reviewType === 'USER') return false;
+    // Fallback: If reviewType is not explicitly tagged, check if the author is a verified pro
+    return isVerifiedPro(r.userId);
+  }, [isVerifiedPro]);
+
   const getMovieUserReviews = useCallback((movieId) => {
     return state.reviews.filter(r =>
       isMovieMatch(r, movieId) &&
       r.status === 'PUBLISHED' &&
-      (!r.reviewType || r.reviewType === 'USER')
+      !isProfessionalReview(r)
     );
-  }, [state.reviews, isMovieMatch]);
+  }, [state.reviews, isMovieMatch, isProfessionalReview]);
 
   const getMovieProfessionalReviews = useCallback((movieId) => {
     return state.reviews.filter(r =>
       isMovieMatch(r, movieId) &&
       r.status === 'PUBLISHED' &&
-      r.reviewType === 'PROFESSIONAL'
+      isProfessionalReview(r)
     );
-  }, [state.reviews, isMovieMatch]);
+  }, [state.reviews, isMovieMatch, isProfessionalReview]);
 
   const getProfessionalRating = useCallback((movieId) => {
     const proRevs = state.reviews.filter(r =>
       isMovieMatch(r, movieId) &&
       r.status === 'PUBLISHED' &&
-      r.reviewType === 'PROFESSIONAL'
+      isProfessionalReview(r)
     );
     if (proRevs.length === 0) return { average: 0, count: 0 };
     const sum = proRevs.reduce((acc, r) => acc + (r.rating || 0), 0);
     return { average: Math.round((sum / proRevs.length) * 10) / 10, count: proRevs.length };
-  }, [state.reviews, isMovieMatch]);
+  }, [state.reviews, isMovieMatch, isProfessionalReview]);
 
   return (
     <AppContext.Provider value={{

@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck, Clock, AlertCircle, XCircle, RefreshCw } from "lucide-react";
 
@@ -86,6 +86,30 @@ export default function ApplicationStatusBanner({ application }) {
       {application.adminNote && (
         <div style={{ fontSize: 12, color: "var(--text-primary)", background: "rgba(255,255,255,0.04)", padding: "8px 12px", borderRadius: 6, borderLeft: `2px solid ${cfg.color}`, marginTop: 4 }}>
           <strong>Admin note:</strong> {application.adminNote}
+        </div>
+      )}
+      {application.status === "APPROVED" && (
+        <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={() => navigate(`/reviewer/${application.userId}`)}
+            style={{
+              alignSelf: "flex-start",
+              fontSize: 12,
+              color: "#10b981",
+              background: "rgba(16, 185, 129, 0.1)",
+              border: "1px solid rgba(16, 185, 129, 0.35)",
+              borderRadius: 16,
+              padding: "5px 14px",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              fontWeight: 600,
+            }}
+          >
+            <ShieldCheck size={13} /> View Public Credentials &amp; Profile
+          </button>
         </div>
       )}
       {(application.status === "REJECTED" || application.status === "REVOKED") && (

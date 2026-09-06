@@ -91,7 +91,7 @@ function ParamStarPicker({ param, value, onChange }) {
 }
 
 export default function ReviewComposer({ movie, existingReview = null, onClose, onSuccess, reviewType = 'USER' }) {
-  const { state, dispatch } = useApp();
+  const { state, dispatch, isVerifiedPro } = useApp();
   const currentUser = state.currentUser;
 
   const [params, setParams] = useState(
@@ -135,15 +135,25 @@ export default function ReviewComposer({ movie, existingReview = null, onClose, 
     try {
       const targetMovieId = movie.id || (movie.tmdbId ? `tmdb-${movie.tmdbId}` : null);
       const rawTmdbId = movie.tmdbId || (targetMovieId ? String(targetMovieId).replace('tmdb-', '') : null);
+      const isUserPro = currentUser && isVerifiedPro ? isVerifiedPro(currentUser.id) : false;
+      const effectiveReviewType = reviewType || (existingReview?.reviewType) || (isUserPro ? 'PROFESSIONAL' : 'USER');
 
       const payload = {
         rating: overallRating,
         parameterRatings: params,
         reviewText: note.trim(),
+        reviewType: effectiveReviewType,
       };
 
       if (existingReview) {
-        dispatch({ type: 'UPDATE_REVIEW', payload: { id: existingReview.id, movieId: targetMovieId, ...payload } });
+        dispatch({
+          type: 'UPDATE_REVIEW',
+          payload: {
+            id: existingReview.id,
+            movieId: targetMovieId,
+            ...payload,
+          },
+        });
       } else {
         dispatch({
           type: 'ADD_REVIEW',
@@ -153,13 +163,12 @@ export default function ReviewComposer({ movie, existingReview = null, onClose, 
             tmdbId: rawTmdbId,
             userId: currentUser.id,
             userDisplayName: currentUser.displayName || 'Cinema Enthusiast',
-            reviewType: reviewType || 'USER',
-            ...payload,
             status: 'PUBLISHED',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             likesCount: 0,
             reportCount: 0,
+            ...payload,
           },
         });
       }

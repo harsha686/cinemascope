@@ -116,6 +116,7 @@ export const supabaseService = {
       rating: r.rating,
       parameterRatings: r.parameter_ratings || {},
       reviewText: r.review_text,
+      reviewType: r.review_type || r.reviewType || (r.is_pro ? 'PROFESSIONAL' : undefined),
       status: r.status,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
@@ -127,7 +128,7 @@ export const supabaseService = {
   async saveReview(review) {
     const supabase = getSupabaseClient();
     if (!supabase) return false;
-    const { error } = await supabase.from('reviews').upsert({
+    const payload = {
       id: review.id,
       movie_id: review.movieId,
       user_id: review.userId,
@@ -139,9 +140,23 @@ export const supabaseService = {
       likes_count: review.likesCount || 0,
       report_count: review.reportCount || 0,
       updated_at: new Date().toISOString(),
-    });
-    if (error) console.error('Supabase saveReview error:', error);
-    return !error;
+    };
+    if (review.reviewType) {
+      payload.review_type = review.reviewType;
+    }
+    const { error } = await supabase.from('reviews').upsert(payload);
+    if (error) {
+      // If review_type column does not exist on remote schema, retry without it
+      if (error.message && error.message.includes('review_type')) {
+        delete payload.review_type;
+        const { error: retryErr } = await supabase.from('reviews').upsert(payload);
+        if (retryErr) console.warn('Supabase saveReview retry error:', retryErr);
+        return !retryErr;
+      }
+      console.warn('Supabase saveReview error:', error);
+      return false;
+    }
+    return true;
   },
 
   async deleteReview(id) {

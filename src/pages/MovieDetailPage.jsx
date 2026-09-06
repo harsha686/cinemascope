@@ -56,8 +56,14 @@ export default function MovieDetailPage() {
   const [showComposer, setShowComposer] = useState(false);
   const [editingReview, setEditingReview] = useState(null);
   const [reviewTab, setReviewTab] = useState('all'); // 'all' | 'audience' | 'professional'
-  const [submitAsPro, setSubmitAsPro] = useState(false);
+  const [submitAsPro, setSubmitAsPro] = useState(currentUserIsPro);
   const [activeSectionTab, setActiveSectionTab] = useState('reviews'); // 'reviews' | 'about' | 'cast' | 'all'
+
+  useEffect(() => {
+    if (currentUserIsPro) {
+      setSubmitAsPro(true);
+    }
+  }, [currentUserIsPro]);
 
   const ratingInfo = useMemo(() => getMovieRating(movieId), [getMovieRating, movieId]);
   const proRatingInfo = useMemo(() => getProfessionalRating(movieId), [getProfessionalRating, movieId]);
@@ -129,6 +135,7 @@ export default function MovieDetailPage() {
 
   const handleEditClick = (rev) => {
     setEditingReview(rev);
+    setSubmitAsPro(rev.reviewType === 'PROFESSIONAL' || (currentUserIsPro && rev.reviewType !== 'USER'));
     setShowComposer(true);
   };
 
@@ -140,8 +147,10 @@ export default function MovieDetailPage() {
     setActiveSectionTab('reviews');
     if (userExistingReview) {
       setEditingReview(userExistingReview);
+      setSubmitAsPro(userExistingReview.reviewType === 'PROFESSIONAL' || (currentUserIsPro && userExistingReview.reviewType !== 'USER'));
     } else {
       setEditingReview(null);
+      setSubmitAsPro(currentUserIsPro);
     }
     setShowComposer(true);
     setTimeout(() => {
@@ -644,11 +653,11 @@ export default function MovieDetailPage() {
                     </div>
                   )}
                   <ReviewComposer
-                    movie={movie}
+                    movie={movie || { id: movieId, title: adminMovie?.title || movieId }}
                     existingReview={editingReview}
                     reviewType={submitAsPro && currentUserIsPro ? 'PROFESSIONAL' : 'USER'}
-                    onClose={() => { setShowComposer(false); setSubmitAsPro(false); }}
-                    onSuccess={() => { setShowComposer(false); setSubmitAsPro(false); }}
+                    onClose={() => { setShowComposer(false); }}
+                    onSuccess={() => { setShowComposer(false); }}
                   />
                 </div>
               )}

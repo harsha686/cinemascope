@@ -1,5 +1,20 @@
 [
   {
+    "id": "rev-pro-admin-1",
+    "movieId": "kalki-2898-ad",
+    "userId": "admin-1",
+    "userDisplayName": "Harshavardhan (Admin)",
+    "rating": 4.9,
+    "parameterRatings": { "direction": 5, "story": 5, "acting": 5, "screenplay": 5, "music": 4, "dop": 5, "vfx": 5 },
+    "reviewText": "A groundbreaking achievement for Indian sci-fi cinema. Nag Ashwin delivers a spellbinding fusion of Mahabharata lore with dystopian cyberpunk aesthetics. The grand technical execution and visual fidelity demand to be witnessed on the biggest screen possible.",
+    "status": "PUBLISHED",
+    "reviewType": "PROFESSIONAL",
+    "createdAt": "2026-09-06T00:00:00.000Z",
+    "updatedAt": "2026-09-06T00:00:00.000Z",
+    "likesCount": 2,
+    "reportCount": 0
+  },
+  {
     "id": "rev-1",
     "movieId": "kalki-2898-ad",
     "userId": "user-1",

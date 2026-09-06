@@ -1,7 +1,8 @@
-﻿import React, { useState } from "react";
-import { Heart, Flag, Edit3, Trash2, Check, ShieldCheck, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import React, { useState } from "react";
+import { Heart, Flag, Edit3, Trash2, Check, ShieldCheck, ChevronDown, ChevronUp, ExternalLink, Info } from "lucide-react";
 import { useApp } from "../../AppContext";
 import ProfessionalRatingBadge from "./ProfessionalRatingBadge";
+import ProfessionalDetailsModal from "../pro/ProfessionalDetailsModal";
 
 const REVIEW_PARAMS = [
   { key: "direction",  label: "Direction",   emoji: "🎬" },
@@ -35,6 +36,7 @@ export default function ProfessionalReviewCard({ review, onEdit, onDelete }) {
   const { state, dispatch, getUserApplication } = useApp();
   const [reported, setReported] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [reportReason, setReportReason] = useState("Spam or Advertising");
   const [showParams, setShowParams] = useState(false);
 
@@ -47,6 +49,13 @@ export default function ProfessionalReviewCard({ review, onEdit, onDelete }) {
 
   // Get reviewer application info for profession badge
   const reviewerApp = getUserApplication ? getUserApplication(review.userId) : null;
+  const effectiveApp = reviewerApp || {
+    userId: review.userId,
+    fullName: review.userDisplayName || "Verified Professional Reviewer",
+    profession: "Film Critic",
+    professionalTitle: "Verified Film Critic",
+    status: "APPROVED",
+  };
 
   const formatDate = (iso) => {
     if (!iso) return "";
@@ -80,29 +89,94 @@ export default function ProfessionalReviewCard({ review, onEdit, onDelete }) {
     }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {/* Avatar */}
-          <div style={{
-            width: 38, height: 38, borderRadius: "50%",
-            background: "rgba(16,185,129,0.15)", border: "2px solid rgba(16,185,129,0.35)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#10b981", fontWeight: 700, fontSize: 15, flexShrink: 0,
-          }}>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setShowDetailsModal(true)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowDetailsModal(true); } }}
+            title="Click to view verified professional details & credentials"
+            style={{
+              width: 40, height: 40, borderRadius: "50%",
+              background: "linear-gradient(135deg, rgba(16,185,129,0.22), rgba(5,150,105,0.12))",
+              border: "2px solid rgba(16,185,129,0.45)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: "#10b981", fontWeight: 700, fontSize: 16, flexShrink: 0,
+              cursor: "pointer", transition: "all 0.15s ease",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.05)"; e.currentTarget.style.borderColor = "#10b981"; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.borderColor = "rgba(16,185,129,0.45)"; }}
+          >
             {(review.userDisplayName || "A").charAt(0).toUpperCase()}
           </div>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>
+              <button
+                type="button"
+                onClick={() => setShowDetailsModal(true)}
+                title="Click to view verified professional details & credentials"
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "var(--text-primary)",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "color 0.15s ease",
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = "#10b981"}
+                onMouseLeave={e => e.currentTarget.style.color = "var(--text-primary)"}
+              >
                 {review.userDisplayName || "Anonymous"}
-              </span>
-              <ProfessionalRatingBadge size="sm" />
+              </button>
+              <ProfessionalRatingBadge
+                size="sm"
+                interactive
+                onClick={() => setShowDetailsModal(true)}
+                title="Click to view verified professional details & credentials"
+              />
             </div>
-            {reviewerApp && (
-              <div style={{ fontSize: 11, color: "#10b981", marginTop: 2, opacity: 0.85 }}>
-                {[reviewerApp.professionalTitle, reviewerApp.organization].filter(Boolean).join(" · ")}
-              </div>
-            )}
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
+              {effectiveApp && (effectiveApp.professionalTitle || effectiveApp.organization) && (
+                <span style={{ fontSize: 11, color: "#10b981", opacity: 0.9 }}>
+                  {[effectiveApp.professionalTitle, effectiveApp.organization].filter(Boolean).join(" · ")}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowDetailsModal(true)}
+                title="View full credentials, published work & application data"
+                style={{
+                  fontSize: 10,
+                  color: "#10b981",
+                  background: "rgba(16, 185, 129, 0.08)",
+                  border: "1px solid rgba(16, 185, 129, 0.3)",
+                  borderRadius: 12,
+                  padding: "2px 8px",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontWeight: 600,
+                  letterSpacing: "0.01em",
+                  transition: "all 0.15s ease",
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = "rgba(16, 185, 129, 0.2)";
+                  e.currentTarget.style.borderColor = "#10b981";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = "rgba(16, 185, 129, 0.08)";
+                  e.currentTarget.style.borderColor = "rgba(16, 185, 129, 0.3)";
+                }}
+              >
+                <ShieldCheck size={11} /> View Credentials
+              </button>
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
               {formatDate(review.createdAt)}{review.updatedAt !== review.createdAt ? " · Edited" : ""}
             </div>
           </div>
@@ -221,6 +295,15 @@ export default function ProfessionalReviewCard({ review, onEdit, onDelete }) {
           </div>
         </div>
       )}
+
+      {/* Professional details modal */}
+      <ProfessionalDetailsModal
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        application={effectiveApp}
+        reviewerName={review.userDisplayName}
+        userId={review.userId}
+      />
     </div>
   );
 }

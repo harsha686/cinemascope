@@ -21,10 +21,17 @@ export default function ScreenSimulator({
   onModeChange,
   containerWidth,
   isExperience = false,
+  stageHeight,
 }) {
   const containerRef = useRef(null);
   const videoRef = useRef(null);
   const [containerW, setContainerW] = useState(containerWidth || 800);
+
+  useEffect(() => {
+    if (containerWidth) {
+      setContainerW(containerWidth);
+    }
+  }, [containerWidth]);
   const [useVideo, setUseVideo] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
@@ -111,8 +118,17 @@ export default function ScreenSimulator({
         </div>
       </div>
 
-      {/* Screen frame */}
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
+      {/* Screen frame stage */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: stageHeight ? `${stageHeight}px` : 'auto',
+          minHeight: stageHeight ? `${stageHeight}px` : 'auto',
+          transition: 'height 400ms ease',
+        }}
+      >
         <div
           className="screen-frame"
           style={{
@@ -213,9 +229,9 @@ export default function ScreenSimulator({
       </div>
 
       {/* Mode toggle & stats */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, flexWrap: 'wrap', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, minHeight: 46, gap: 12 }}>
         {/* Mode toggle */}
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {['fit', 'crop'].map(m => (
             <button
               key={m}
@@ -242,12 +258,23 @@ export default function ScreenSimulator({
       </div>
 
       {/* Source ratio info */}
-      <div style={{ marginTop: 8, padding: '8px 12px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-subtle)', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        <div>
+      <div style={{
+        marginTop: 10,
+        padding: '10px 14px',
+        background: 'rgba(0,0,0,0.4)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-sm)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 20,
+        flexWrap: 'wrap',
+        minHeight: 56,
+      }}>
+        <div style={{ minWidth: 120 }}>
           <span style={{ fontSize: 9, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Demo Source</span>
           <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Big Buck Bunny (CC) · 1.78:1 (16:9)</div>
         </div>
-        <div>
+        <div style={{ minWidth: 90 }}>
           <span style={{ fontSize: 9, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Screen</span>
           <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{screenRatioLabel} · {screenFormatName}</div>
         </div>
@@ -261,6 +288,12 @@ export default function ScreenSimulator({
           <div>
             <span style={{ fontSize: 9, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Pillarbox Bars</span>
             <div style={{ fontSize: 11, color: '#f87171', marginTop: 2 }}>{Math.round(offsetX)}px each</div>
+          </div>
+        )}
+        {mode === 'crop' && (
+          <div>
+            <span style={{ fontSize: 9, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Edge Cropping</span>
+            <div style={{ fontSize: 11, color: '#f87171', marginTop: 2 }}>{100 - percentVisible > 0 ? `${(100 - percentVisible).toFixed(1)}% cropped` : 'None'}</div>
           </div>
         )}
       </div>

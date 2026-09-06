@@ -99,7 +99,14 @@ export default function ProfilePage() {
                       <ShieldAlert size={10} /> ADMIN
                     </span>
                   )}
-                  {isPro && <ProfessionalRatingBadge size="sm" />}
+                  {isPro && (
+                    <ProfessionalRatingBadge
+                      size="sm"
+                      interactive
+                      onClick={() => navigate(`/reviewer/${currentUser.id}`)}
+                      title="Click to view your public verified professional profile"
+                    />
+                  )}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                   Member since {formatDate(currentUser.createdAt)} · <span style={{ color: 'var(--text-secondary)' }}>{currentUser.email}</span>
