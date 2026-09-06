@@ -1430,6 +1430,20 @@ export default function AdminDashboard() {
           onSelectPoster={handleSelectPosterFromX}
         />
       )}
+
+      {/* ADMIN THEATER FORM MODAL */}
+      <AdminTheaterFormModal
+        key={editingTheater ? `edit-${editingTheater.id}` : 'new-theater'}
+        isOpen={showTheaterModal}
+        onClose={() => {
+          setShowTheaterModal(false);
+          setEditingTheater(null);
+        }}
+        onSave={handleSaveTheater}
+        theaterToEdit={editingTheater}
+        allCities={allCities}
+        defaultCityId={allCities[0]?.id || 'visakhapatnam'}
+      />
     </div>
   );
 }
@@ -1626,20 +1640,6 @@ function ProReviewersPanel({ dispatch, currentUser }) {
           })}
         </div>
       )}
-
-      {/* ADMIN THEATER FORM MODAL */}
-      <AdminTheaterFormModal
-        key={editingTheater ? `edit-${editingTheater.id}` : 'new-theater'}
-        isOpen={showTheaterModal}
-        onClose={() => {
-          setShowTheaterModal(false);
-          setEditingTheater(null);
-        }}
-        onSave={handleSaveTheater}
-        theaterToEdit={editingTheater}
-        allCities={allCities}
-        defaultCityId={allCities[0]?.id || 'visakhapatnam'}
-      />
     </div>
   );
 }

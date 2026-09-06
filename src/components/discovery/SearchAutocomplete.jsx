@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
-import { searchTmdbMovies } from '../../services/tmdbService';
+import { searchTmdbMulti } from '../../services/tmdbService';
 
-export default function SearchAutocomplete({ placeholder = 'Search movies...', onSelectMovie, onSelect, className = '' }) {
+export default function SearchAutocomplete({ placeholder = 'Search movies, TV shows, web series...', onSelectMovie, onSelect, className = '' }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -50,7 +50,7 @@ export default function SearchAutocomplete({ placeholder = 'Search movies...', o
     setIsLoading(true);
     setIsOpen(true);
     try {
-      const data = await searchTmdbMovies(query);
+      const data = await searchTmdbMulti(query);
       const list = Array.isArray(data) ? data : (data?.results || []);
       setResults(list.slice(0, 8));
     } catch (error) {
@@ -138,7 +138,16 @@ export default function SearchAutocomplete({ placeholder = 'Search movies...', o
                   <div style={{ fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '14px' }}>
                     {movie.title}
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', gap: '8px', marginTop: '3px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
+                    {(movie.mediaType === 'tv' || movie.isTv) ? (
+                      <span style={{ background: 'rgba(147, 51, 234, 0.25)', color: '#c084fc', border: '1px solid rgba(147, 51, 234, 0.5)', padding: '1px 5px', borderRadius: '3px', fontSize: '9px', fontWeight: 700, letterSpacing: '0.05em' }}>
+                        SERIES
+                      </span>
+                    ) : (
+                      <span style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'var(--gold)', border: '1px solid var(--gold-dim)', padding: '1px 5px', borderRadius: '3px', fontSize: '9px', fontWeight: 700, letterSpacing: '0.05em' }}>
+                        MOVIE
+                      </span>
+                    )}
                     {movie.releaseYear && <span>{movie.releaseYear}</span>}
                     {movie.language && <span style={{ textTransform: 'uppercase', background: 'rgba(255,255,255,0.06)', padding: '0 4px', borderRadius: '2px', fontSize: '10px' }}>{movie.language}</span>}
                     {movie.voteAverage > 0 && (

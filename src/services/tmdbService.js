@@ -186,122 +186,139 @@ export async function discoverRecentIndianMovies(page = 1) {
  * GET /3/movie/{movie_id}?append_to_response=credits,images,external_ids
  */
 export async function fetchFullTmdbMovieDetails(tmdbId) {
-  const data = await tmdbFetch(`/movie/${tmdbId}?append_to_response=credits,images,external_ids,watch/providers,release_dates`);
-
-  // Extract Director(s)
-  const directors = (data.credits?.crew || [])
-    .filter(c => c.job === 'Director')
-    .map(c => c.name);
-  const directorStr = directors.length > 0 ? directors.join(', ') : 'Unknown Director';
-
-  // Extract Top Cast
-  const castList = (data.credits?.cast || [])
-    .slice(0, 6)
-    .map(c => c.name);
-
-  // Extract Genres
-  const genreList = (data.genres || []).map(g => g.name);
-
-  // Extract Multiple Posters from images endpoint
-  const postersList = (data.images?.posters || []).slice(0, 10).map((p, idx) => ({
-    id: `tmdb-img-${idx}`,
-    file_path: p.file_path,
-    posterUrl: getTmdbImageUrl(p.file_path, 'w500'),
-    width: p.width,
-    height: p.height,
-    vote_average: p.vote_average,
-    language: p.iso_639_1 || 'All',
-  }));
-
-  // Language mapping
-  const langMap = {
-    te: 'Telugu',
-    hi: 'Hindi',
-    en: 'English',
-    ta: 'Tamil',
-    kn: 'Kannada',
-    ml: 'Malayalam',
-  };
-  const langName = langMap[data.original_language] || data.original_language?.toUpperCase() || 'Telugu';
-
-  // Extract OTT Streaming Providers & Watch Links
-  // Prioritize India (IN), fallback to US or first available country
-  const watchResults = data['watch/providers']?.results || {};
-  const regionWatch = watchResults.IN || watchResults.US || Object.values(watchResults)[0] || null;
-
-  const mapProvider = (p, type) => ({
-    id: p.provider_id,
-    name: p.provider_name,
-    logoUrl: p.logo_path ? getTmdbImageUrl(p.logo_path, 'w154') : '',
-    type, // 'stream', 'rent', 'buy'
-    priority: p.display_priority || 99,
-  });
-
-  const streamProviders = (regionWatch?.flatrate || []).map(p => mapProvider(p, 'stream'));
-  const rentProviders = (regionWatch?.rent || []).map(p => mapProvider(p, 'rent'));
-  const buyProviders = (regionWatch?.buy || []).map(p => mapProvider(p, 'buy'));
-
-  // Unified list of unique platforms (flatrate/stream first)
-  const platformMap = new Map();
-  [...streamProviders, ...rentProviders, ...buyProviders].forEach(p => {
-    if (!platformMap.has(p.name)) {
-      platformMap.set(p.name, p);
-    }
-  });
-  const ottPlatforms = Array.from(platformMap.values());
-
-  // Extract OTT / Digital Release Date from release_dates (type 4 = Digital)
-  const allReleaseDates = data.release_dates?.results || [];
-  const inReleases = allReleaseDates.find(r => r.iso_3166_1 === 'IN')?.release_dates || [];
-  const digitalIN = inReleases.find(rd => rd.type === 4 && rd.release_date);
-
-  let rawOttDate = digitalIN?.release_date || null;
-  if (!rawOttDate) {
-    // Look across all countries for digital release
-    const allDigital = allReleaseDates
-      .flatMap(r => r.release_dates || [])
-      .filter(rd => rd.type === 4 && rd.release_date)
-      .sort((a, b) => new Date(a.release_date) - new Date(b.release_date));
-    if (allDigital.length > 0) {
-      rawOttDate = allDigital[0].release_date;
-    }
+  const strId = String(tmdbId);
+  if (strId.startsWith('tv-') || strId.startsWith('tmdb-tv-')) {
+    return fetchFullTmdbTvDetails(strId.replace(/^tmdb-/, '').replace(/^tv-/, ''));
   }
 
-  const ottReleaseDate = rawOttDate ? rawOttDate.split('T')[0] : '';
-  const primaryPlatform = streamProviders[0]?.name || ottPlatforms[0]?.name || '';
+  const cleanId = strId.replace(/^tmdb-/, '');
+  try {
+    const data = await tmdbFetch(`/movie/${cleanId}?append_to_response=credits,images,external_ids,watch/providers,release_dates`);
 
-  return {
-    id: `tmdb-${data.id}`,
-    tmdbId: data.id,
-    title: data.title || data.original_title,
-    originalTitle: data.original_title || data.title,
-    overview: data.overview || '',
-    releaseDate: data.release_date || '',
-    runtime: formatRuntime(data.runtime),
-    runtimeMinutes: data.runtime || 150,
-    genres: genreList,
-    language: langName,
-    director: directorStr,
-    cast: castList,
-    certificate: 'U/A',
-    posterUrl: data.poster_path ? getTmdbImageUrl(data.poster_path, 'w500') : '',
-    backdropUrl: data.backdrop_path ? getTmdbImageUrl(data.backdrop_path, 'original') : '',
-    posterPath: data.poster_path,
-    backdropPath: data.backdrop_path,
-    imdbId: data.external_ids?.imdb_id || '',
-    voteAverage: data.vote_average ? Math.round((data.vote_average / 2) * 10) / 10 : 0,
-    voteAverage10: data.vote_average ? Math.round(data.vote_average * 10) / 10 : 0,
-    voteCount: data.vote_count || 0,
-    postersList: postersList.length > 0 ? postersList : (data.poster_path ? [{ id: 'tmdb-img-0', posterUrl: getTmdbImageUrl(data.poster_path, 'w500') }] : []),
-    // OTT & Streaming Fields
-    ottReleaseDate,
-    ottPlatforms,
-    ottPlatform: primaryPlatform,
-    ottWatchUrl: regionWatch?.link || '',
-    ottStreamProviders: streamProviders,
-    ottRentProviders: rentProviders,
-    ottBuyProviders: buyProviders,
-  };
+    // Extract Director(s)
+    const directors = (data.credits?.crew || [])
+      .filter(c => c.job === 'Director')
+      .map(c => c.name);
+    const directorStr = directors.length > 0 ? directors.join(', ') : 'Unknown Director';
+
+    // Extract Top Cast
+    const castList = (data.credits?.cast || [])
+      .slice(0, 6)
+      .map(c => c.name);
+
+    // Extract Genres
+    const genreList = (data.genres || []).map(g => g.name);
+
+    // Extract Multiple Posters from images endpoint
+    const postersList = (data.images?.posters || []).slice(0, 10).map((p, idx) => ({
+      id: `tmdb-img-${idx}`,
+      file_path: p.file_path,
+      posterUrl: getTmdbImageUrl(p.file_path, 'w500'),
+      width: p.width,
+      height: p.height,
+      vote_average: p.vote_average,
+      language: p.iso_639_1 || 'All',
+    }));
+
+    // Language mapping
+    const langMap = {
+      te: 'Telugu',
+      hi: 'Hindi',
+      en: 'English',
+      ta: 'Tamil',
+      kn: 'Kannada',
+      ml: 'Malayalam',
+    };
+    const langName = langMap[data.original_language] || data.original_language?.toUpperCase() || 'Telugu';
+
+    // Extract OTT Streaming Providers & Watch Links
+    // Prioritize India (IN), fallback to US or first available country
+    const watchResults = data['watch/providers']?.results || {};
+    const regionWatch = watchResults.IN || watchResults.US || Object.values(watchResults)[0] || null;
+
+    const mapProvider = (p, type) => ({
+      id: p.provider_id,
+      name: p.provider_name,
+      logoUrl: p.logo_path ? getTmdbImageUrl(p.logo_path, 'w154') : '',
+      type, // 'stream', 'rent', 'buy'
+      priority: p.display_priority || 99,
+    });
+
+    const streamProviders = (regionWatch?.flatrate || []).map(p => mapProvider(p, 'stream'));
+    const rentProviders = (regionWatch?.rent || []).map(p => mapProvider(p, 'rent'));
+    const buyProviders = (regionWatch?.buy || []).map(p => mapProvider(p, 'buy'));
+
+    // Combined unique platforms
+    const platformMap = new Map();
+    [...streamProviders, ...rentProviders, ...buyProviders].forEach(p => {
+      if (!platformMap.has(p.name)) {
+        platformMap.set(p.name, p);
+      }
+    });
+    const ottPlatforms = Array.from(platformMap.values());
+
+    // Extract OTT / Digital Release Date from release_dates (type 4 = Digital)
+    const allReleaseDates = data.release_dates?.results || [];
+    const inReleases = allReleaseDates.find(r => r.iso_3166_1 === 'IN')?.release_dates || [];
+    const digitalIN = inReleases.find(rd => rd.type === 4 && rd.release_date);
+
+    let rawOttDate = digitalIN?.release_date || null;
+    if (!rawOttDate) {
+      // Look across all countries for digital release
+      const allDigital = allReleaseDates
+        .flatMap(r => r.release_dates || [])
+        .filter(rd => rd.type === 4 && rd.release_date)
+        .sort((a, b) => new Date(a.release_date) - new Date(b.release_date));
+      if (allDigital.length > 0) {
+        rawOttDate = allDigital[0].release_date;
+      }
+    }
+
+    const ottReleaseDate = rawOttDate ? rawOttDate.split('T')[0] : '';
+    const primaryPlatform = streamProviders[0]?.name || ottPlatforms[0]?.name || '';
+
+    return {
+      id: `tmdb-${data.id}`,
+      tmdbId: data.id,
+      isTv: false,
+      mediaType: 'movie',
+      title: data.title || data.original_title,
+      originalTitle: data.original_title || data.title,
+      overview: data.overview || '',
+      releaseDate: data.release_date || '',
+      runtime: formatRuntime(data.runtime),
+      runtimeMinutes: data.runtime || 150,
+      genres: genreList,
+      language: langName,
+      director: directorStr,
+      cast: castList,
+      certificate: 'U/A',
+      posterUrl: data.poster_path ? getTmdbImageUrl(data.poster_path, 'w500') : '',
+      backdropUrl: data.backdrop_path ? getTmdbImageUrl(data.backdrop_path, 'original') : '',
+      posterPath: data.poster_path,
+      backdropPath: data.backdrop_path,
+      imdbId: data.external_ids?.imdb_id || '',
+      voteAverage: data.vote_average ? Math.round((data.vote_average / 2) * 10) / 10 : 0,
+      voteAverage10: data.vote_average ? Math.round(data.vote_average * 10) / 10 : 0,
+      voteCount: data.vote_count || 0,
+      postersList: postersList.length > 0 ? postersList : (data.poster_path ? [{ id: 'tmdb-img-0', posterUrl: getTmdbImageUrl(data.poster_path, 'w500') }] : []),
+      // OTT & Streaming Fields
+      ottReleaseDate,
+      ottPlatforms,
+      ottPlatform: primaryPlatform,
+      ottWatchUrl: regionWatch?.link || '',
+      ottStreamProviders: streamProviders,
+      ottRentProviders: rentProviders,
+      ottBuyProviders: buyProviders,
+    };
+  } catch (err) {
+    // Attempt fallback to TV show details if movie request fails
+    try {
+      return await fetchFullTmdbTvDetails(cleanId);
+    } catch (tvErr) {
+      throw err;
+    }
+  }
 }
 
 /**
@@ -480,4 +497,307 @@ export function normalizeRating5(rating) {
   }
   return Math.round(num * 10) / 10;
 }
+
+/**
+ * Normalizes TMDB TV Show results consistently
+ */
+export function normalizeTvResults(data) {
+  const results = (data.results || []).map(m => ({
+    tmdbId: m.id,
+    id: `tmdb-tv-${m.id}`,
+    isTv: true,
+    mediaType: 'tv',
+    title: m.name || m.original_name || '',
+    originalTitle: m.original_name || m.name || '',
+    releaseDate: m.first_air_date || '',
+    releaseYear: m.first_air_date ? m.first_air_date.split('-')[0] : '',
+    language: m.original_language ? m.original_language.toUpperCase() : 'EN',
+    overview: m.overview || '',
+    posterPath: m.poster_path,
+    posterUrl: m.poster_path ? getTmdbImageUrl(m.poster_path, 'w500') : '',
+    backdropPath: m.backdrop_path,
+    backdropUrl: m.backdrop_path ? getTmdbImageUrl(m.backdrop_path, 'original') : '',
+    voteAverage: m.vote_average ? Math.round((m.vote_average / 2) * 10) / 10 : 0,
+    voteAverage10: m.vote_average ? Math.round(m.vote_average * 10) / 10 : 0,
+    voteCount: m.vote_count || 0,
+    popularity: m.popularity || 0,
+    genreIds: m.genre_ids || [],
+  }));
+  return {
+    results,
+    page: data.page || 1,
+    totalPages: data.total_pages || 1,
+    totalResults: data.total_results || 0,
+  };
+}
+
+/**
+ * Normalizes Multi-Search results (movies and TV shows)
+ */
+export function normalizeMultiResults(data) {
+  const results = (data.results || [])
+    .filter(m => m.media_type === 'movie' || m.media_type === 'tv')
+    .map(m => {
+      const isTv = m.media_type === 'tv';
+      return {
+        tmdbId: m.id,
+        id: isTv ? `tmdb-tv-${m.id}` : `tmdb-${m.id}`,
+        isTv,
+        mediaType: isTv ? 'tv' : 'movie',
+        title: isTv ? (m.name || m.original_name || '') : (m.title || m.original_title || ''),
+        originalTitle: isTv ? (m.original_name || m.name || '') : (m.original_title || m.title || ''),
+        releaseDate: isTv ? (m.first_air_date || '') : (m.release_date || ''),
+        releaseYear: isTv
+          ? (m.first_air_date ? m.first_air_date.split('-')[0] : '')
+          : (m.release_date ? m.release_date.split('-')[0] : ''),
+        language: m.original_language ? m.original_language.toUpperCase() : 'EN',
+        overview: m.overview || '',
+        posterPath: m.poster_path,
+        posterUrl: m.poster_path ? getTmdbImageUrl(m.poster_path, 'w500') : '',
+        backdropPath: m.backdrop_path,
+        backdropUrl: m.backdrop_path ? getTmdbImageUrl(m.backdrop_path, 'original') : '',
+        voteAverage: m.vote_average ? Math.round((m.vote_average / 2) * 10) / 10 : 0,
+        voteAverage10: m.vote_average ? Math.round(m.vote_average * 10) / 10 : 0,
+        voteCount: m.vote_count || 0,
+        popularity: m.popularity || 0,
+        genreIds: m.genre_ids || [],
+      };
+    });
+  return {
+    results,
+    page: data.page || 1,
+    totalPages: data.total_pages || 1,
+    totalResults: data.total_results || 0,
+  };
+}
+
+/**
+ * Full details for TV Shows / Web Series
+ * GET /3/tv/{id}?append_to_response=credits,images,external_ids,watch/providers
+ */
+export async function fetchFullTmdbTvDetails(tmdbId) {
+  const cleanId = String(tmdbId).replace(/^(tmdb-)?(tv-)?/, '');
+  const data = await tmdbFetch(`/tv/${cleanId}?append_to_response=credits,images,external_ids,watch/providers,content_ratings`);
+
+  // Extract Creator / Showrunner / Executive Producers
+  const creators = (data.created_by || []).map(c => c.name);
+  const execProducers = (data.credits?.crew || [])
+    .filter(c => c.job === 'Executive Producer' || c.job === 'Director')
+    .slice(0, 3)
+    .map(c => c.name);
+  const creatorStr = creators.length > 0 
+    ? creators.join(', ') 
+    : (execProducers.length > 0 ? execProducers.join(', ') : 'Various Showrunners');
+
+  // Extract Top Cast
+  const castList = (data.credits?.cast || []).slice(0, 6).map(c => c.name);
+
+  // Extract Genres
+  const genreList = (data.genres || []).map(g => g.name);
+
+  // Posters
+  const postersList = (data.images?.posters || []).slice(0, 10).map((p, idx) => ({
+    id: `tmdb-img-${idx}`,
+    file_path: p.file_path,
+    posterUrl: getTmdbImageUrl(p.file_path, 'w500'),
+    width: p.width,
+    height: p.height,
+    vote_average: p.vote_average,
+    language: p.iso_639_1 || 'All',
+  }));
+
+  // Networks & Production
+  const networks = (data.networks || []).map(n => n.name).join(', ') || 
+                   (data.production_companies || []).slice(0, 2).map(c => c.name).join(', ') || 'Original Series';
+
+  // Format seasons & episodes
+  const seasonsCount = data.number_of_seasons || 1;
+  const episodesCount = data.number_of_episodes || 0;
+  const seasonsText = `${seasonsCount} Season${seasonsCount > 1 ? 's' : ''}${episodesCount > 0 ? ` · ${episodesCount} Episodes` : ''}`;
+
+  // Language mapping
+  const langMap = {
+    te: 'Telugu',
+    hi: 'Hindi',
+    en: 'English',
+    ta: 'Tamil',
+    kn: 'Kannada',
+    ml: 'Malayalam',
+    ko: 'Korean',
+    ja: 'Japanese',
+  };
+  const langName = langMap[data.original_language] || data.original_language?.toUpperCase() || 'Telugu';
+
+  // Watch Providers (India, fallback to US / first)
+  const watchResults = data['watch/providers']?.results || {};
+  const regionWatch = watchResults.IN || watchResults.US || Object.values(watchResults)[0] || null;
+
+  const mapProvider = (p, type) => ({
+    id: p.provider_id,
+    name: p.provider_name,
+    logoUrl: p.logo_path ? getTmdbImageUrl(p.logo_path, 'w154') : '',
+    type,
+    priority: p.display_priority || 99,
+  });
+
+  const streamProviders = (regionWatch?.flatrate || []).map(p => mapProvider(p, 'stream'));
+  const rentProviders = (regionWatch?.rent || []).map(p => mapProvider(p, 'rent'));
+  const buyProviders = (regionWatch?.buy || []).map(p => mapProvider(p, 'buy'));
+
+  const platformMap = new Map();
+  [...streamProviders, ...rentProviders, ...buyProviders].forEach(p => {
+    if (!platformMap.has(p.name)) platformMap.set(p.name, p);
+  });
+  const ottPlatforms = Array.from(platformMap.values());
+  const primaryPlatform = streamProviders[0]?.name || ottPlatforms[0]?.name || networks || '';
+
+  return {
+    id: `tmdb-tv-${data.id}`,
+    tmdbId: data.id,
+    isTv: true,
+    mediaType: 'tv',
+    title: data.name || data.original_name,
+    originalTitle: data.original_name || data.name,
+    overview: data.overview || '',
+    releaseDate: data.first_air_date || '',
+    firstAirDate: data.first_air_date || '',
+    lastAirDate: data.last_air_date || '',
+    status: data.status || 'Series',
+    runtime: seasonsText,
+    runtimeMinutes: (data.episode_run_time && data.episode_run_time[0]) || 45,
+    numberOfSeasons: seasonsCount,
+    numberOfEpisodes: episodesCount,
+    genres: genreList,
+    language: langName,
+    director: creatorStr,
+    network: networks,
+    cast: castList,
+    certificate: 'U/A',
+    posterUrl: data.poster_path ? getTmdbImageUrl(data.poster_path, 'w500') : '',
+    backdropUrl: data.backdrop_path ? getTmdbImageUrl(data.backdrop_path, 'original') : '',
+    posterPath: data.poster_path,
+    backdropPath: data.backdrop_path,
+    imdbId: data.external_ids?.imdb_id || '',
+    voteAverage: data.vote_average ? Math.round((data.vote_average / 2) * 10) / 10 : 0,
+    voteAverage10: data.vote_average ? Math.round(data.vote_average * 10) / 10 : 0,
+    voteCount: data.vote_count || 0,
+    postersList: postersList.length > 0 ? postersList : (data.poster_path ? [{ id: 'tmdb-img-0', posterUrl: getTmdbImageUrl(data.poster_path, 'w500') }] : []),
+    ottReleaseDate: data.first_air_date || '',
+    ottPlatforms,
+    ottPlatform: primaryPlatform,
+    ottWatchUrl: regionWatch?.link || '',
+    ottStreamProviders: streamProviders,
+    ottRentProviders: rentProviders,
+    ottBuyProviders: buyProviders,
+  };
+}
+
+/**
+ * Search TMDB TV Shows
+ */
+export async function searchTmdbTv(query, page = 1) {
+  if (!query || !query.trim()) return { results: [], total_pages: 0, total_results: 0 };
+  const data = await tmdbFetch(`/search/tv?query=${encodeURIComponent(query.trim())}&page=${page}&include_adult=false`);
+  return normalizeTvResults(data);
+}
+
+/**
+ * Search TMDB for both Movies and TV Shows (Multi-Search)
+ */
+export async function searchTmdbMulti(query, page = 1) {
+  if (!query || !query.trim()) return { results: [], total_pages: 0, total_results: 0 };
+  const data = await tmdbFetch(`/search/multi?query=${encodeURIComponent(query.trim())}&page=${page}&include_adult=false`);
+  return normalizeMultiResults(data);
+}
+
+/**
+ * Trending TV Shows (week or day)
+ */
+export async function fetchTrendingTv(timeWindow = 'week') {
+  const data = await tmdbFetch(`/trending/tv/${timeWindow}`);
+  return normalizeTvResults(data);
+}
+
+/**
+ * Top Rated TV Shows
+ */
+export async function fetchTopRatedTv(page = 1) {
+  const data = await tmdbFetch(`/tv/top_rated?page=${page}`);
+  return normalizeTvResults(data);
+}
+
+/**
+ * Popular TV Shows
+ */
+export async function fetchPopularTv(page = 1) {
+  const data = await tmdbFetch(`/tv/popular?page=${page}`);
+  return normalizeTvResults(data);
+}
+
+/**
+ * Indian Web Series & TV
+ */
+export async function discoverRecentIndianTv(page = 1) {
+  const data = await tmdbFetch(`/discover/tv?with_origin_country=IN&sort_by=popularity.desc&page=${page}&include_adult=false`);
+  return normalizeTvResults(data);
+}
+
+/**
+ * Telugu Web Series & TV
+ */
+export async function fetchTeluguTv(page = 1) {
+  const data = await tmdbFetch(`/discover/tv?with_original_language=te&sort_by=popularity.desc&page=${page}&include_adult=false`);
+  return normalizeTvResults(data);
+}
+
+/**
+ * Crime & Suspense TV Series (Genre 80=Crime, 9648=Mystery)
+ */
+export async function fetchCrimeSuspenseTv(page = 1) {
+  const data = await tmdbFetch(`/discover/tv?with_genres=80,9648&sort_by=popularity.desc&page=${page}&include_adult=false`);
+  return normalizeTvResults(data);
+}
+
+/**
+ * Sci-Fi & Fantasy TV Series (Genre 10765=Sci-Fi & Fantasy)
+ */
+export async function fetchSciFiFantasyTv(page = 1) {
+  const data = await tmdbFetch(`/discover/tv?with_genres=10765&sort_by=popularity.desc&page=${page}&include_adult=false`);
+  return normalizeTvResults(data);
+}
+
+/**
+ * Discover TV Shows with flexible filters
+ */
+export async function discoverTv({
+  genreId,
+  year,
+  language,
+  sortBy = 'popularity.desc',
+  page = 1,
+  with_origin_country,
+  with_genres,
+  with_original_language,
+} = {}) {
+  let endpoint = `/discover/tv?sort_by=${sortBy}&page=${page}&include_adult=false`;
+  const genres = with_genres || genreId;
+  const lang = with_original_language || language;
+
+  if (genres) endpoint += `&with_genres=${genres}`;
+  if (year) endpoint += `&first_air_date_year=${year}`;
+  if (lang) endpoint += `&with_original_language=${lang}`;
+  if (with_origin_country) endpoint += `&with_origin_country=${with_origin_country}`;
+
+  const data = await tmdbFetch(endpoint);
+  return normalizeTvResults(data);
+}
+
+/**
+ * TV Genres list from TMDB
+ */
+export async function fetchTvGenres() {
+  const data = await tmdbFetch(`/genre/tv/list`);
+  return data.genres || [];
+}
+
 

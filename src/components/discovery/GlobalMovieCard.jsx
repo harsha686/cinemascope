@@ -49,6 +49,11 @@ export default function GlobalMovieCard({ movie, onStatusChange }) {
 
   if (!movie) return null;
 
+  const isTvSeries = movie.mediaType === 'tv' || movie.isTv || String(movie.tmdbId).startsWith('tv-') || String(movie.id).includes('-tv-');
+  const targetId = isTvSeries
+    ? (String(movie.tmdbId).startsWith('tv-') ? `tmdb-${movie.tmdbId}` : `tmdb-tv-${movie.tmdbId}`)
+    : `tmdb-${movie.tmdbId}`;
+
   return (
     <div 
       className="global-movie-card"
@@ -64,7 +69,7 @@ export default function GlobalMovieCard({ movie, onStatusChange }) {
         transition: 'transform 0.2s ease',
         border: '1px solid var(--border-subtle)'
       }}
-      onClick={() => navigate(`/movie/tmdb-${movie.tmdbId}`)}
+      onClick={() => navigate(`/movie/${targetId}`)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -81,15 +86,22 @@ export default function GlobalMovieCard({ movie, onStatusChange }) {
           </div>
         )}
         
-        {/* Language Badge */}
-        {movie.language && (
-          <div className="badge" style={{ position: 'absolute', top: '8px', left: '8px', backgroundColor: 'rgba(0,0,0,0.7)', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', textTransform: 'uppercase' }}>
-            {movie.language}
-          </div>
-        )}
+        {/* Badges Container */}
+        <div style={{ position: 'absolute', top: '8px', left: '8px', display: 'flex', gap: '4px', zIndex: 2 }}>
+          {movie.language && (
+            <div className="badge" style={{ backgroundColor: 'rgba(0,0,0,0.75)', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {movie.language}
+            </div>
+          )}
+          {isTvSeries && (
+            <div className="badge" style={{ background: 'linear-gradient(135deg, #9333ea, #6b21a8)', color: '#ffffff', padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              Series
+            </div>
+          )}
+        </div>
 
         {/* Status Indicators */}
-        <div style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '4px' }}>
+        <div style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '4px', zIndex: 2 }}>
           {status.isWatched && <Eye size={12} color="var(--gold)" />}
           {status.isFavorite && <Heart size={12} color="var(--gold)" fill="var(--gold)" />}
           {status.inWatchlist && <Bookmark size={12} color="var(--gold)" />}
