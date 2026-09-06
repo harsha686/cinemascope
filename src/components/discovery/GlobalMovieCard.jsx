@@ -124,11 +124,20 @@ export default function GlobalMovieCard({ movie, onStatusChange }) {
         </h3>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-secondary)' }}>
           <span>{movie.releaseYear || 'Unknown Year'}</span>
-          {movie.voteAverage > 0 && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--gold)' }}>
-              <Star size={12} fill="var(--gold)" /> {movie.voteAverage.toFixed(1)}
-            </span>
-          )}
+          {(() => {
+            const rawRating = movie.voteAverage || 0;
+            const rating5 = rawRating > 5 ? Math.round((rawRating / 2) * 10) / 10 : rawRating;
+            const rating10 = movie.voteAverage10 || (rawRating > 5 ? rawRating : Math.round(rawRating * 20) / 10);
+            if (rating5 <= 0) return null;
+            return (
+              <span
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--gold)', fontWeight: 600 }}
+                title={`Rating: ${rating5.toFixed(1)} / 5 (TMDb: ${rating10.toFixed(1)}/10)`}
+              >
+                <Star size={12} fill="var(--gold)" /> {rating5.toFixed(1)}
+              </span>
+            );
+          })()}
         </div>
       </div>
     </div>

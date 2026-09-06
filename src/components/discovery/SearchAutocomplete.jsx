@@ -141,7 +141,11 @@ export default function SearchAutocomplete({ placeholder = 'Search movies...', o
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', gap: '8px', marginTop: '3px' }}>
                     {movie.releaseYear && <span>{movie.releaseYear}</span>}
                     {movie.language && <span style={{ textTransform: 'uppercase', background: 'rgba(255,255,255,0.06)', padding: '0 4px', borderRadius: '2px', fontSize: '10px' }}>{movie.language}</span>}
-                    {movie.voteAverage > 0 && <span style={{ color: 'var(--gold)' }}>★ {movie.voteAverage}</span>}
+                    {movie.voteAverage > 0 && (
+                      <span style={{ color: 'var(--gold)' }}>
+                        ★ {(movie.voteAverage > 5 ? movie.voteAverage / 2 : movie.voteAverage).toFixed(1)}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

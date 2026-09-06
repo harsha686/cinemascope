@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck, Tv } from 'lucide-react';
+import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck, Tv, Film, Users, Layers } from 'lucide-react';
 import { useApp } from '../AppContext';
 import RatingBreakdown from '../components/reviews/RatingBreakdown';
 import ReviewCard from '../components/reviews/ReviewCard';
@@ -57,6 +57,7 @@ export default function MovieDetailPage() {
   const [editingReview, setEditingReview] = useState(null);
   const [reviewTab, setReviewTab] = useState('all'); // 'all' | 'audience' | 'professional'
   const [submitAsPro, setSubmitAsPro] = useState(false);
+  const [activeSectionTab, setActiveSectionTab] = useState('reviews'); // 'reviews' | 'about' | 'cast' | 'all'
 
   const ratingInfo = useMemo(() => getMovieRating(movieId), [getMovieRating, movieId]);
   const proRatingInfo = useMemo(() => getProfessionalRating(movieId), [getProfessionalRating, movieId]);
@@ -136,6 +137,7 @@ export default function MovieDetailPage() {
       navigate('/login', { state: { from: `/movie/${movieId}` } });
       return;
     }
+    setActiveSectionTab('reviews');
     if (userExistingReview) {
       setEditingReview(userExistingReview);
     } else {
@@ -260,41 +262,97 @@ export default function MovieDetailPage() {
 
               {/* Score & Counts */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginTop: 4 }}>
-                {/* User / Audience Rating */}
-                <div
-                  onClick={() => {
-                    setReviewTab('audience');
-                    const elem = document.getElementById('reviews-section');
-                    if (elem) elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-                  title="Jump to audience reviews"
-                >
-                  <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--gold)', lineHeight: 1 }}>
-                    {userRatingInfo.average > 0 ? userRatingInfo.average.toFixed(1) : (ratingInfo.average > 0 ? ratingInfo.average.toFixed(1) : 'N/A')}
-                  </span>
-                  <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>/ 5</span>
-                  <span style={{ fontSize: 18, color: 'var(--gold)', letterSpacing: -1 }}>
-                    {'★'.repeat(Math.round(userRatingInfo.average || ratingInfo.average || 0))}{'☆'.repeat(5 - Math.round(userRatingInfo.average || ratingInfo.average || 0))}
-                  </span>
-                </div>
-                <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
-                <span
-                  onClick={() => {
-                    setReviewTab('audience');
-                    const elem = document.getElementById('reviews-section');
-                    if (elem) elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }}
-                  style={{ fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}
-                  title="Jump to audience reviews"
-                >
-                  <strong style={{ color: 'var(--text-primary)' }}>{userRatingInfo.count || ratingInfo.count}</strong> user reviews
-                </span>
+                {(() => {
+                  const hasUserReviews = (userRatingInfo.count || ratingInfo.count) > 0;
+                  const userAvg = userRatingInfo.average > 0 ? userRatingInfo.average : ratingInfo.average;
+
+                  // Normalize TMDB archive rating to 5-star scale
+                  const rawTmdbRating = movie.voteAverage || 0;
+                  const tmdbAvg5 = rawTmdbRating > 5 ? Math.round((rawTmdbRating / 2) * 10) / 10 : rawTmdbRating;
+                  const tmdbAvg10 = movie.voteAverage10 || (rawTmdbRating > 5 ? rawTmdbRating : Math.round(rawTmdbRating * 20) / 10);
+                  const tmdbVoteCount = movie.voteCount || 0;
+
+                  const displayScore = hasUserReviews ? userAvg : (tmdbAvg5 > 0 ? tmdbAvg5 : null);
+                  const starCount = displayScore ? Math.round(displayScore) : 0;
+
+                  return (
+                    <>
+                      {/* User / Audience Rating */}
+                      <div
+                        onClick={() => {
+                          setActiveSectionTab('reviews');
+                          setReviewTab('audience');
+                          const elem = document.getElementById('reviews-section');
+                          if (elem) elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+                        title={hasUserReviews ? "Jump to audience reviews" : (tmdbAvg10 > 0 ? `TMDb Global Rating: ${tmdbAvg10.toFixed(1)}/10` : 'Reviews')}
+                      >
+                        <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--gold)', lineHeight: 1 }}>
+                          {displayScore !== null ? displayScore.toFixed(1) : 'N/A'}
+                        </span>
+                        <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>/ 5</span>
+                        <span style={{ fontSize: 18, color: 'var(--gold)', letterSpacing: -1 }}>
+                          {'★'.repeat(starCount)}{'☆'.repeat(5 - starCount)}
+                        </span>
+                      </div>
+                      <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
+                      <span
+                        onClick={() => {
+                          setActiveSectionTab('reviews');
+                          setReviewTab('audience');
+                          const elem = document.getElementById('reviews-section');
+                          if (elem) elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }}
+                        style={{ fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}
+                        title="Jump to audience reviews"
+                      >
+                        {hasUserReviews ? (
+                          <>
+                            <strong style={{ color: 'var(--text-primary)' }}>{userRatingInfo.count || ratingInfo.count}</strong> user reviews
+                          </>
+                        ) : tmdbVoteCount > 0 ? (
+                          <>
+                            <strong style={{ color: 'var(--text-primary)' }}>{tmdbVoteCount.toLocaleString()}</strong> global ratings{' '}
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>(TMDb: {tmdbAvg10.toFixed(1)}/10)</span>
+                          </>
+                        ) : (
+                          <span>No reviews yet</span>
+                        )}
+                      </span>
+
+                      {/* If movie has both user reviews and global TMDb rating, show TMDb score badge */}
+                      {hasUserReviews && tmdbAvg5 > 0 && (
+                        <>
+                          <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '3px 10px',
+                              borderRadius: 4,
+                              background: 'rgba(255,255,255,0.04)',
+                              border: '1px solid var(--border-subtle)',
+                              fontSize: 12,
+                              color: 'var(--text-secondary)'
+                            }}
+                            title={`TMDb Global Rating: ${tmdbAvg10.toFixed(1)} / 10 based on ${tmdbVoteCount.toLocaleString()} votes`}
+                          >
+                            <span style={{ color: 'var(--gold)', fontWeight: 700 }}>★ {tmdbAvg5.toFixed(1)}/5</span>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>TMDb ({tmdbAvg10.toFixed(1)}/10)</span>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
 
                 {/* Professional Critic Rating */}
                 <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
                 <div
                   onClick={() => {
+                    setActiveSectionTab('reviews');
                     setReviewTab('professional');
                     const elem = document.getElementById('reviews-section');
                     if (elem) elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -403,59 +461,122 @@ export default function MovieDetailPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 48 }} className="detail-layout">
           
           {/* Main Left Column */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 48 }}>
-            
-            {/* ABOUT THE MOVIE */}
-            <div>
-              <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: 16 }}>
-                About the Movie
-              </h2>
-              <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.85, whiteSpace: 'pre-line' }}>
-                {movie.overview}
-              </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+
+            {/* Sub-Navigation Tabs */}
+            <div id="main-content-tabs" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              borderBottom: '1px solid var(--border-subtle)',
+              paddingBottom: 14,
+              flexWrap: 'wrap',
+            }}>
+              {[
+                { id: 'reviews', label: 'What People Think', icon: <MessageSquare size={14} />, count: allReviews.length },
+                { id: 'about', label: 'About Movie', icon: <Film size={14} /> },
+                { id: 'cast', label: 'Cast & Filmmakers', icon: <Users size={14} />, count: (movie.cast?.length || 0) + (movie.director ? 1 : 0) },
+                { id: 'all', label: 'All Info', icon: <Layers size={14} /> },
+              ].map(tab => {
+                const isActive = activeSectionTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveSectionTab(tab.id)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 7,
+                      padding: '8px 16px',
+                      borderRadius: 20,
+                      fontSize: 13,
+                      fontFamily: 'var(--font-serif)',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      letterSpacing: '0.04em',
+                      transition: 'all 0.15s ease',
+                      background: isActive ? 'var(--gold-faint)' : 'rgba(255,255,255,0.02)',
+                      color: isActive ? 'var(--gold)' : 'var(--text-muted)',
+                      border: isActive ? '1px solid var(--gold-dim)' : '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                    {tab.count !== undefined && tab.count > 0 && (
+                      <span style={{
+                        fontSize: 11,
+                        padding: '1px 7px',
+                        borderRadius: 10,
+                        background: isActive ? 'rgba(220,182,91,0.25)' : 'rgba(255,255,255,0.06)',
+                        color: isActive ? 'var(--gold)' : 'var(--text-muted)',
+                      }}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
-            {/* TRAILER EMBED */}
-            {embedTrailer && (
-              <div>
-                <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: 16 }}>
-                  Official Trailer
-                </h2>
-                <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--border-subtle)', background: '#000' }}>
-                  <iframe
-                    src={embedTrailer}
-                    title={`${movie.title} Official Trailer`}
-                    style={{ width: '100%', height: '100%', border: 'none' }}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
+            {/* ABOUT THE MOVIE */}
+            {(activeSectionTab === 'about' || activeSectionTab === 'all') && (
+              <div id="about-section" style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+                <div>
+                  <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: 16 }}>
+                    About the Movie
+                  </h2>
+                  <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.85, whiteSpace: 'pre-line' }}>
+                    {movie.overview || 'No overview available for this movie.'}
+                  </p>
                 </div>
+
+                {/* TRAILER EMBED */}
+                {embedTrailer && (
+                  <div id="trailer-section">
+                    <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: 16 }}>
+                      Official Trailer
+                    </h2>
+                    <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--border-subtle)', background: '#000' }}>
+                      <iframe
+                        src={embedTrailer}
+                        title={`${movie.title} Official Trailer`}
+                        style={{ width: '100%', height: '100%', border: 'none' }}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
             {/* CAST & DIRECTOR */}
-            <div>
-              <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: 16 }}>
-                Cast & Filmmakers
-              </h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
-                {movie.director && (
-                  <div style={{ padding: 14, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
-                    <div style={{ fontSize: 10, fontFamily: 'var(--font-serif)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Director</div>
-                    <div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500, marginTop: 2 }}>{movie.director}</div>
-                  </div>
-                )}
-                {movie.cast?.map(actor => (
-                  <div key={actor} style={{ padding: 14, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
-                    <div style={{ fontSize: 10, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Cast</div>
-                    <div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500, marginTop: 2 }}>{actor}</div>
-                  </div>
-                ))}
+            {(activeSectionTab === 'cast' || activeSectionTab === 'all') && (
+              <div id="cast-section">
+                <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: 16 }}>
+                  Cast & Filmmakers
+                </h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
+                  {movie.director && (
+                    <div style={{ padding: 14, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
+                      <div style={{ fontSize: 10, fontFamily: 'var(--font-serif)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Director</div>
+                      <div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500, marginTop: 2 }}>{movie.director}</div>
+                    </div>
+                  )}
+                  {movie.cast?.map(actor => (
+                    <div key={actor} style={{ padding: 14, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
+                      <div style={{ fontSize: 10, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Cast</div>
+                      <div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500, marginTop: 2 }}>{actor}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* WHAT PEOPLE THINK (REVIEWS SECTION) */}
-            <div id="reviews-section">
+            {(activeSectionTab === 'reviews' || activeSectionTab === 'all') && (
+              <div id="reviews-section">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
                 <div>
                   <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', letterSpacing: '0.04em' }}>
@@ -614,6 +735,7 @@ export default function MovieDetailPage() {
                 </div>
               )}
             </div>
+            )}
 
           </div>
 

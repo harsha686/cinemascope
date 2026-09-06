@@ -134,7 +134,8 @@ export async function searchTmdbMovies(query, page = 1, region = '') {
     posterUrl: m.poster_path ? getTmdbImageUrl(m.poster_path, 'w500') : '',
     backdropPath: m.backdrop_path,
     backdropUrl: m.backdrop_path ? getTmdbImageUrl(m.backdrop_path, 'original') : '',
-    voteAverage: m.vote_average ? Math.round(m.vote_average * 10) / 10 : 0,
+    voteAverage: m.vote_average ? Math.round((m.vote_average / 2) * 10) / 10 : 0,
+    voteAverage10: m.vote_average ? Math.round(m.vote_average * 10) / 10 : 0,
     voteCount: m.vote_count || 0,
     popularity: m.popularity || 0,
   }));
@@ -167,7 +168,8 @@ export async function discoverRecentIndianMovies(page = 1) {
     posterUrl: m.poster_path ? getTmdbImageUrl(m.poster_path, 'w500') : '',
     backdropPath: m.backdrop_path,
     backdropUrl: m.backdrop_path ? getTmdbImageUrl(m.backdrop_path, 'original') : '',
-    voteAverage: m.vote_average ? Math.round(m.vote_average * 10) / 10 : 0,
+    voteAverage: m.vote_average ? Math.round((m.vote_average / 2) * 10) / 10 : 0,
+    voteAverage10: m.vote_average ? Math.round(m.vote_average * 10) / 10 : 0,
     voteCount: m.vote_count || 0,
   }));
 
@@ -287,7 +289,9 @@ export async function fetchFullTmdbMovieDetails(tmdbId) {
     posterPath: data.poster_path,
     backdropPath: data.backdrop_path,
     imdbId: data.external_ids?.imdb_id || '',
-    voteAverage: data.vote_average ? Math.round(data.vote_average * 10) / 10 : 0,
+    voteAverage: data.vote_average ? Math.round((data.vote_average / 2) * 10) / 10 : 0,
+    voteAverage10: data.vote_average ? Math.round(data.vote_average * 10) / 10 : 0,
+    voteCount: data.vote_count || 0,
     postersList: postersList.length > 0 ? postersList : (data.poster_path ? [{ id: 'tmdb-img-0', posterUrl: getTmdbImageUrl(data.poster_path, 'w500') }] : []),
     // OTT & Streaming Fields
     ottReleaseDate,
@@ -450,7 +454,8 @@ function normalizeResults(data) {
     posterUrl: m.poster_path ? getTmdbImageUrl(m.poster_path, 'w500') : '',
     backdropPath: m.backdrop_path,
     backdropUrl: m.backdrop_path ? getTmdbImageUrl(m.backdrop_path, 'original') : '',
-    voteAverage: m.vote_average ? Math.round(m.vote_average * 10) / 10 : 0,
+    voteAverage: m.vote_average ? Math.round((m.vote_average / 2) * 10) / 10 : 0,
+    voteAverage10: m.vote_average ? Math.round(m.vote_average * 10) / 10 : 0,
     voteCount: m.vote_count || 0,
     popularity: m.popularity || 0,
     genreIds: m.genre_ids || [],
@@ -462,3 +467,17 @@ function normalizeResults(data) {
     totalResults: data.total_results || 0,
   };
 }
+
+/**
+ * Universal helper to normalize any movie rating to a 5-star scale.
+ * If rating > 5, it is assumed to be on a 10-point scale (e.g. from TMDB) and divided by 2.
+ */
+export function normalizeRating5(rating) {
+  if (!rating || isNaN(rating) || Number(rating) <= 0) return 0;
+  const num = Number(rating);
+  if (num > 5) {
+    return Math.round((num / 2) * 10) / 10;
+  }
+  return Math.round(num * 10) / 10;
+}
+
