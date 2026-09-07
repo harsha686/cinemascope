@@ -345,7 +345,9 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
               )}
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
-                  <span className="badge badge-gold" style={{ fontSize: 9 }}>🏆 COMMUNITY WINNER</span>
+                  <span className="badge badge-gold" style={{ fontSize: 9 }}>
+                    {result.voteCount ? '🏆 COMMUNITY WINNER' : '✨ FEATURED PICK'}
+                  </span>
                   <span className="badge badge-dim" style={{ fontSize: 9 }}>{result.genreName}</span>
                   <span className="badge badge-dim" style={{ fontSize: 9 }}>{result.type}</span>
                 </div>
@@ -354,8 +356,12 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                 </h4>
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span>⭐ {result.communityScore ? `${result.communityScore}% score` : '4.8 rating'}</span>
-                  <span>·</span>
-                  <span>{result.voteCount?.toLocaleString() || 1500} votes</span>
+                  {result.voteCount && (
+                    <>
+                      <span>·</span>
+                      <span>{result.voteCount.toLocaleString()} votes</span>
+                    </>
+                  )}
                   {result.releaseYear && (
                     <>
                       <span>·</span>

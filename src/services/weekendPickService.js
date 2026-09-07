@@ -943,29 +943,10 @@ export function pickMyWeekendRecommendation({ genreId = null, mood = 'any', type
 
   let pool = winners && winners.length > 0 ? [...winners] : [...seedWinners];
 
-  // Also include all candidates from active round
+  // Include candidates from active round purely as candidate options
   if (activeRound && activeRound.genreRounds) {
     Object.keys(activeRound.genreRounds).forEach(gId => {
       const res = calculateGenreResults(activeRound.id, gId);
-      if (res.leadingCandidate) {
-        pool.push({
-          roundId: activeRound.id,
-          roundName: activeRound.name,
-          genreId: gId,
-          genreName: res.genreName,
-          titleId: res.leadingCandidate.titleId,
-          title: res.leadingCandidate.title,
-          type: res.leadingCandidate.type || 'MOVIE',
-          releaseYear: res.leadingCandidate.releaseYear,
-          posterUrl: res.leadingCandidate.posterUrl,
-          overview: res.leadingCandidate.overview,
-          voteCount: res.leadingCandidate.totalVotes,
-          votePercentage: res.leadingCandidate.votePercentage,
-          communityScore: Math.round((res.leadingCandidate.rating || 4.7) * 20),
-          isCurrentLeader: true,
-        });
-      }
-      // Also include all candidate items as potential picks
       if (res.candidates && res.candidates.length > 0) {
         res.candidates.forEach(cand => {
           pool.push({
@@ -978,9 +959,8 @@ export function pickMyWeekendRecommendation({ genreId = null, mood = 'any', type
             type: cand.type || 'MOVIE',
             releaseYear: cand.releaseYear,
             posterUrl: cand.posterUrl,
+            backdropUrl: cand.backdropUrl,
             overview: cand.overview,
-            voteCount: cand.totalVotes || cand.initialVoteSeed || 1200,
-            votePercentage: cand.votePercentage || 50,
             communityScore: Math.round((cand.rating || 4.7) * 20),
           });
         });

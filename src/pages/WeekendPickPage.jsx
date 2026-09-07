@@ -251,7 +251,11 @@ export default function WeekendPickPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 11, color: 'var(--text-muted)' }}>
               <span>Strictly <strong>1 vote per genre</strong></span>
               <span>·</span>
-              <span>Total Genre Votes: <strong style={{ color: 'var(--text-primary)' }}>{genreResults?.totalVotes?.toLocaleString() || 0}</strong></span>
+              {userVote ? (
+                <span>Total Genre Votes: <strong style={{ color: 'var(--text-primary)' }}>{genreResults?.totalVotes?.toLocaleString() || 0}</strong></span>
+              ) : (
+                <span>Genre Standings: <strong style={{ color: 'var(--gold)' }}>🔒 Vote to Reveal</strong></span>
+              )}
             </div>
           </div>
         )}
