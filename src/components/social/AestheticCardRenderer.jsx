@@ -34,6 +34,213 @@ export default function AestheticCardRenderer({
   const hasMultiplePosters = content.posters && content.posters.length > 1;
   const isStats = content.type === SOCIAL_CONTENT_TYPES.USER_STATS;
   const isWeekendWinner = content.type === SOCIAL_CONTENT_TYPES.WEEKEND_WINNER;
+  const isKeyArt = template.isKeyArt;
+
+  // Background image source priority for full-bleed key-art mode
+  const keyArtImage = content.backdropUrl || content.posterUrl;
+
+  if (isKeyArt) {
+    return (
+      <div
+        ref={cardRef}
+        style={{
+          width: '100%',
+          aspectRatio: format.aspectRatio,
+          background: '#000000',
+          color: '#ffffff',
+          position: 'relative',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          padding: isStory ? '48px 32px' : isLandscape ? '28px 40px' : '36px 30px',
+          boxSizing: 'border-box',
+          fontFamily: 'var(--font-sans, "Montserrat", -apple-system, sans-serif)',
+          border: '1px solid rgba(255,255,255,0.15)',
+        }}
+      >
+        {/* Full Bleed Movie Key-Art / Backdrop Image */}
+        {keyArtImage && (
+          <img
+            src={keyArtImage}
+            alt={content.title}
+            crossOrigin={keyArtImage.startsWith('data:') ? undefined : 'anonymous'}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: 'center',
+              display: 'block',
+            }}
+          />
+        )}
+
+        {/* Cinematic Vignette Gradients for Legibility */}
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(180deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.15) 60%, rgba(0,0,0,0.92) 100%)',
+          pointerEvents: 'none',
+        }} />
+
+        {/* ================= TOP SECTION: STUDIO ACCOLADE MASTHEAD ================= */}
+        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
+          <h1 style={{
+            fontSize: isStory ? 'clamp(24px, 5.5vw, 36px)' : isLandscape ? '24px' : '28px',
+            fontWeight: 900,
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            margin: '0 0 6px',
+            color: '#ffffff',
+            textShadow: '0 2px 14px rgba(0,0,0,0.95), 0 4px 28px rgba(0,0,0,0.95)',
+          }}>
+            CINEMASCOPE
+          </h1>
+
+          {/* Underline Rule */}
+          <div style={{
+            width: '80%',
+            height: 2,
+            margin: '0 auto 8px',
+            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.95) 20%, rgba(255,255,255,0.95) 80%, transparent 100%)',
+          }} />
+
+          {/* Headline / Award Category */}
+          <p style={{
+            fontSize: isStory ? 12 : 11,
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            letterSpacing: '0.12em',
+            color: '#ffffff',
+            margin: '0 0 4px',
+            textShadow: '0 2px 8px rgba(0,0,0,0.9)',
+          }}>
+            {headline || 'FEATURE FILM OF THE YEAR'}
+          </p>
+
+          {/* Review excerpt or Nominee Line */}
+          <p style={{
+            fontSize: isStory ? 11 : 10,
+            fontWeight: 500,
+            letterSpacing: '0.08em',
+            color: 'rgba(255,255,255,0.9)',
+            textTransform: 'uppercase',
+            margin: 0,
+            textShadow: '0 2px 8px rgba(0,0,0,0.9)',
+          }}>
+            {quote ? `“${quote}”` : 'CRITICS CHOICE CERTIFIED FRESH'}
+          </p>
+        </div>
+
+        {/* ================= CENTER ACCENT (OPTIONAL RATING PILL) ================= */}
+        {showRating && (
+          <div style={{
+            position: 'relative',
+            zIndex: 2,
+            display: 'flex',
+            justifyContent: 'center',
+            margin: 'auto 0',
+          }}>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '5px 14px',
+              borderRadius: 20,
+              background: 'rgba(0,0,0,0.75)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(252,224,139,0.5)',
+              boxShadow: '0 6px 20px rgba(0,0,0,0.8)',
+            }}>
+              <span style={{ color: '#fce08b', fontSize: 13 }}>★</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#ffffff', letterSpacing: '0.05em' }}>
+                {ratingNum} <span style={{ fontSize: 10, opacity: 0.7 }}>/ 5.0</span>
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* ================= BOTTOM SECTION: STUDIO TITLE & BRANDING ================= */}
+        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
+          {/* Studio Mini Badge */}
+          <div style={{
+            display: 'inline-block',
+            padding: '3px 10px',
+            border: '1px solid rgba(255,255,255,0.85)',
+            fontSize: 9,
+            fontWeight: 800,
+            letterSpacing: '0.22em',
+            textTransform: 'uppercase',
+            color: '#ffffff',
+            marginBottom: 8,
+            backdropFilter: 'blur(6px)',
+          }}>
+            {content.genres && content.genres.length > 0 ? content.genres[0] : 'CINEMASCOPE SELECTION'}
+          </div>
+
+          {/* Movie Title */}
+          <div>
+            <h2 style={{
+              fontSize: isStory ? 'clamp(22px, 5vw, 34px)' : isLandscape ? '22px' : '26px',
+              fontWeight: 700,
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              fontFamily: 'var(--font-serif, "Cinzel", Georgia, serif)',
+              color: '#ffffff',
+              margin: '0 0 6px',
+              lineHeight: 1.1,
+              textShadow: '0 2px 16px rgba(0,0,0,0.95)',
+            }}>
+              {content.title}
+            </h2>
+
+            {/* Title Underline Separator */}
+            <div style={{
+              width: '65%',
+              height: 1,
+              margin: '0 auto 6px',
+              background: 'rgba(255,255,255,0.7)',
+            }} />
+
+            {/* Subtitle / Release Info */}
+            {content.subtitle && (
+              <p style={{
+                fontSize: 10,
+                letterSpacing: '0.22em',
+                textTransform: 'uppercase',
+                color: 'rgba(255,255,255,0.9)',
+                margin: 0,
+                fontWeight: 600,
+              }}>
+                {content.subtitle}
+              </p>
+            )}
+          </div>
+
+          {/* Bottom Bar: Exclusivity & Now Streaming */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginTop: 18,
+            paddingTop: 10,
+            borderTop: '1px solid rgba(255,255,255,0.2)',
+            fontSize: 9,
+            fontWeight: 800,
+          }}>
+            <span style={{ letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.9)' }}>
+              CINEMASCOPE EXCLUSIVE
+            </span>
+            <span style={{ letterSpacing: '0.14em', textTransform: 'uppercase', color: '#fce08b' }}>
+              NOW STREAMING
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

@@ -64,6 +64,19 @@ export const SOCIAL_FORMATS = [
 
 export const TEMPLATE_STYLES = [
   {
+    id: 'keyart',
+    name: 'Studio Accolade',
+    emoji: '🏆',
+    description: 'Full-bleed key-art, official award banner, and studio masthead.',
+    bg: '#000000',
+    textColor: '#ffffff',
+    accentColor: '#fce08b',
+    badgeBg: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.2)',
+    fontFamily: 'sans-serif',
+    isKeyArt: true,
+  },
+  {
     id: 'cinematic',
     name: 'Cinematic Gold',
     emoji: '🎬',
