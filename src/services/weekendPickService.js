@@ -483,7 +483,7 @@ const getSeedWinners = () => [
     title: 'Top Gun: Maverick',
     type: 'MOVIE',
     releaseYear: 2022,
-    posterUrl: 'https://image.tmdb.org/t/p/w500/62HCnUTziyWcpDaBO2i1DX17pmH.jpg',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/62HCn2NY1eTzzYAFflgCGlaVOHv.jpg',
     voteCount: 18430,
     votePercentage: 62.4,
     totalGenreVotes: 29535,

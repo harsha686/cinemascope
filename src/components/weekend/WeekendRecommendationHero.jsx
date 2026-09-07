@@ -23,6 +23,21 @@ export default function WeekendRecommendationHero() {
   const [selectedGenre, setSelectedGenre] = useState(() => getUserPreferredGenre(currentUser?.id));
   const [showPickModal, setShowPickModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [activeRound, setActiveRound] = useState(() => getActiveRound());
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    const syncData = () => {
+      setActiveRound(getActiveRound());
+      setRevision(r => r + 1);
+    };
+    window.addEventListener('storage', syncData);
+    window.addEventListener('focus', syncData);
+    return () => {
+      window.removeEventListener('storage', syncData);
+      window.removeEventListener('focus', syncData);
+    };
+  }, []);
 
   // Update preferred genre in storage when user changes it
   const handleGenreChange = (newGenreId) => {
@@ -33,12 +48,16 @@ export default function WeekendRecommendationHero() {
   };
 
   // Find winner or leading candidate for selected genre
-  const activeRound = getActiveRound();
-  let winner = getWinnerForGenre(selectedGenre);
-
-  // If no declared winner yet for this round, fall back to leading candidate in active round
+  let winner = null;
   let isLeading = false;
-  if (!winner && activeRound) {
+
+  // 1. If active round has declared winners, get winner for this round
+  if (activeRound?.status === 'WINNER_DECLARED') {
+    winner = getWinnerForGenre(selectedGenre, activeRound.id);
+  }
+
+  // 2. If active round is currently active/upcoming, compute the LIVE leading candidate!
+  if (!winner && activeRound && (activeRound.status === 'ACTIVE' || activeRound.status === 'UPCOMING')) {
     const res = calculateGenreResults(activeRound.id, selectedGenre);
     if (res.leadingCandidate) {
       winner = {
@@ -63,13 +82,18 @@ export default function WeekendRecommendationHero() {
     }
   }
 
+  // 3. Fallback to latest declared historical winner
+  if (!winner) {
+    winner = getWinnerForGenre(selectedGenre);
+  }
+
   const [status, setStatus] = useState(() => winner ? getMovieStatusSync(winner.titleId, currentUser?.id) : {});
 
   useEffect(() => {
     if (winner?.titleId) {
       setStatus(getMovieStatusSync(winner.titleId, currentUser?.id));
     }
-  }, [winner?.titleId, selectedGenre, currentUser?.id]);
+  }, [winner?.titleId, selectedGenre, currentUser?.id, revision]);
 
   const handleToggleWatchlist = async () => {
     if (!currentUser) {
@@ -281,11 +305,12 @@ export default function WeekendRecommendationHero() {
           {/* Details */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-              <WeekendWinnerBadge genreName={winner.genreName || genreObj.name} size="sm" />
-              {isLeading && (
-                <span className="badge" style={{ background: 'rgba(59,130,246,0.2)', border: '1px solid #3b82f6', color: '#60a5fa', fontSize: 9 }}>
-                  <Flame size={10} style={{ marginRight: 3 }} /> Current Poll Leader
+              {isLeading ? (
+                <span className="badge" style={{ background: 'linear-gradient(135deg, #c9a84c, #eab308)', color: '#000', fontWeight: 700, fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 12 }}>
+                  <Flame size={11} /> CURRENT POLL LEADER · {winner.genreName || genreObj.name}
                 </span>
+              ) : (
+                <WeekendWinnerBadge genreName={winner.genreName || genreObj.name} size="sm" />
               )}
               <span className="badge badge-dim" style={{ fontSize: 9 }}>
                 {winner.type === 'SERIES' ? '📺 TV Series' : '🎬 Movie'}
@@ -317,9 +342,11 @@ export default function WeekendRecommendationHero() {
                 <span>{winner.communityScore ? `${winner.communityScore}% Community Score` : '4.8 rating'}</span>
               </div>
               <span>·</span>
-              <span><strong>{winner.voteCount?.toLocaleString() || '12,500'}</strong> votes {winner.votePercentage ? `(${winner.votePercentage}%)` : ''}</span>
+              <span><strong>{winner.voteCount?.toLocaleString() || '1,420'}</strong> votes {winner.votePercentage ? `(${winner.votePercentage}%)` : ''}</span>
               <span>·</span>
-              <span style={{ color: 'var(--text-muted)' }}>Crowned in {winner.genreName || genreObj.name}</span>
+              <span style={{ color: 'var(--text-muted)' }}>
+                {isLeading ? `Leading in ${winner.genreName || genreObj.name}` : `Crowned in ${winner.genreName || genreObj.name}`}
+              </span>
             </div>
 
             <p style={{
