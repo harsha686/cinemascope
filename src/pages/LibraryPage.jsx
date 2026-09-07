@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Film, CheckCircle, Bookmark, Heart, BookOpen, Folder, Plus, Search, LayoutGrid, List as ListIcon, X, RefreshCw } from 'lucide-react';
+import { Film, CheckCircle, Bookmark, Heart, BookOpen, Folder, Plus, Search, LayoutGrid, List as ListIcon, X, RefreshCw, Share2 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import * as LibService from '../services/movieLibraryService';
 import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
 import GlobalMovieCard from '../components/discovery/GlobalMovieCard';
+import ShareCollectionModal from '../components/library/ShareCollectionModal';
 
 export default function LibraryPage() {
   const { state } = useApp();
@@ -24,6 +25,7 @@ export default function LibraryPage() {
   const [sort, setSort] = useState('dateAdded');
 
   const [showCollectionModal, setShowCollectionModal] = useState(false);
+  const [selectedShareCollection, setSelectedShareCollection] = useState(null);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [newCollectionDesc, setNewCollectionDesc] = useState('');
 
@@ -226,12 +228,67 @@ export default function LibraryPage() {
           {collections.length > 0 && (
             <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
               {collections.map(c => (
-                <Link key={c.id} to={`/collection/${c.id}`} style={{ display: 'block', padding: '6px 8px', color: 'var(--text-secondary)', textDecoration: 'none', fontSize: 12, borderRadius: 3, marginBottom: 2 }}
-                  onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
-                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+                <div
+                  key={c.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    borderRadius: 3,
+                    marginBottom: 2,
+                    paddingRight: 4,
+                  }}
                 >
-                  📁 {c.name}
-                </Link>
+                  <Link
+                    to={`/collection/${c.id}`}
+                    style={{
+                      flex: 1,
+                      padding: '6px 8px',
+                      color: 'var(--text-secondary)',
+                      textDecoration: 'none',
+                      fontSize: 12,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+                  >
+                    📁 {c.name}
+                  </Link>
+
+                  <button
+                    type="button"
+                    title={`Share "${c.name}" collection link`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSelectedShareCollection(c);
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      padding: 4,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: 3,
+                      transition: 'all 150ms ease',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.color = 'var(--gold)';
+                      e.currentTarget.style.backgroundColor = 'var(--gold-faint)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.color = 'var(--text-muted)';
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <Share2 size={12} />
+                  </button>
+                </div>
               ))}
             </div>
           )}
@@ -287,12 +344,57 @@ export default function LibraryPage() {
             <div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
                 {collections.map(col => (
-                  <Link key={col.id} to={`/collection/${col.id}`} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4, padding: 20, textDecoration: 'none', display: 'block' }}>
-                    <Folder size={28} color="var(--gold)" style={{ marginBottom: 10 }} />
-                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--text-primary)', marginBottom: 4 }}>{col.name}</div>
-                    {col.description && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>{col.description}</div>}
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{(col.movie_ids || []).length} movies</div>
-                  </Link>
+                  <div
+                    key={col.id}
+                    style={{
+                      background: 'var(--bg-card)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 4,
+                      padding: 20,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      position: 'relative',
+                    }}
+                  >
+                    <Link
+                      to={`/collection/${col.id}`}
+                      style={{ textDecoration: 'none', color: 'inherit', flex: 1, display: 'block' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <Folder size={28} color="var(--gold)" />
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                          {(col.movie_ids || []).length} movies
+                        </span>
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--text-primary)', marginBottom: 4 }}>
+                        {col.name}
+                      </div>
+                      {col.description && (
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.4 }}>
+                          {col.description}
+                        </div>
+                      )}
+                    </Link>
+
+                    <div style={{ display: 'flex', gap: 8, marginTop: 14, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedShareCollection(col)}
+                        className="btn btn-primary btn-sm"
+                        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11 }}
+                      >
+                        <Share2 size={12} /> Share Link
+                      </button>
+                      <Link
+                        to={`/collection/${col.id}`}
+                        className="btn btn-outline btn-sm"
+                        style={{ fontSize: 11, textDecoration: 'none' }}
+                      >
+                        Open →
+                      </Link>
+                    </div>
+                  </div>
                 ))}
                 <button onClick={() => setShowCollectionModal(true)} style={{ background: 'transparent', border: '1px dashed var(--border)', borderRadius: 4, padding: 20, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 120 }}>
                   <Plus size={24} color="var(--text-muted)" />
@@ -421,6 +523,17 @@ export default function LibraryPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Share Collection Modal */}
+      {selectedShareCollection && (
+        <ShareCollectionModal
+          isOpen={!!selectedShareCollection}
+          onClose={() => setSelectedShareCollection(null)}
+          collection={selectedShareCollection}
+          movies={(selectedShareCollection.movie_ids || []).map(id => moviesData[id]).filter(Boolean)}
+          currentUser={currentUser}
+        />
       )}
     </div>
   );

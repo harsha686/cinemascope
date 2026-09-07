@@ -440,6 +440,31 @@ export async function getDiaryStats(userId) {
 }
 
 // Collections
+const PUBLIC_COLLECTIONS_KEY = 'cinemascope_public_collections';
+
+export async function getPublicCollections() {
+  try {
+    return JSON.parse(localStorage.getItem(PUBLIC_COLLECTIONS_KEY) || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+export async function registerPublicCollection(collection) {
+  if (!collection || !collection.id) return;
+  try {
+    const publicCols = await getPublicCollections();
+    publicCols[collection.id] = {
+      ...collection,
+      updated_at: collection.updated_at || new Date().toISOString(),
+    };
+    localStorage.setItem(PUBLIC_COLLECTIONS_KEY, JSON.stringify(publicCols));
+    localStorage.setItem(`cinemascope_col_${collection.id}`, JSON.stringify(collection));
+  } catch (e) {
+    console.warn('Error caching public collection:', e);
+  }
+}
+
 export async function getCollections(userId) {
   const key = getCollectionsStorageKey(userId);
   return JSON.parse(localStorage.getItem(key) || '[]');
@@ -448,6 +473,9 @@ export async function getCollections(userId) {
 export async function saveCollections(cols, userId) {
   const key = getCollectionsStorageKey(userId);
   localStorage.setItem(key, JSON.stringify(cols));
+  if (Array.isArray(cols)) {
+    cols.forEach(c => registerPublicCollection(c));
+  }
 }
 
 export async function createCollection(name, description, userId) {
@@ -461,10 +489,16 @@ export async function createCollection(name, description, userId) {
     movie_ids: [],
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    visibility: 'private'
+    visibility: 'public'
   };
   cols.push(newCol);
   await saveCollections(cols, uid);
+  await registerPublicCollection(newCol);
+
+  if (isSupabaseConfigured() && uid && uid !== 'guest') {
+    supabaseService.upsertCollection(newCol).catch(console.error);
+  }
+
   return newCol;
 }
 
@@ -473,6 +507,13 @@ export async function deleteCollection(collectionId, userId) {
   let cols = await getCollections(uid);
   cols = cols.filter(c => c.id !== collectionId);
   await saveCollections(cols, uid);
+
+  try {
+    const publicCols = await getPublicCollections();
+    delete publicCols[collectionId];
+    localStorage.setItem(PUBLIC_COLLECTIONS_KEY, JSON.stringify(publicCols));
+    localStorage.removeItem(`cinemascope_col_${collectionId}`);
+  } catch (e) {}
 
   if (isSupabaseConfigured()) {
     supabaseService.deleteCollection(collectionId).catch(console.error);
@@ -488,6 +529,7 @@ export async function renameCollection(collectionId, name, description, userId) 
     col.description = description;
     col.updated_at = new Date().toISOString();
     await saveCollections(cols, uid);
+    await registerPublicCollection(col);
 
     if (isSupabaseConfigured() && col.user_id && col.user_id !== 'guest') {
       supabaseService.upsertCollection(col).catch(console.error);
@@ -506,6 +548,7 @@ export async function addMovieToCollection(collectionId, tmdbId, movieMeta, user
       col.movie_ids.push(cleanId);
       col.updated_at = new Date().toISOString();
       await saveCollections(cols, uid);
+      await registerPublicCollection(col);
 
       if (isSupabaseConfigured() && col.user_id && col.user_id !== 'guest') {
         supabaseService.upsertCollection(col).catch(console.error);
@@ -523,6 +566,7 @@ export async function removeMovieFromCollection(collectionId, tmdbId, userId) {
     col.movie_ids = col.movie_ids.filter(id => id !== cleanId);
     col.updated_at = new Date().toISOString();
     await saveCollections(cols, uid);
+    await registerPublicCollection(col);
 
     if (isSupabaseConfigured() && col.user_id && col.user_id !== 'guest') {
       supabaseService.upsertCollection(col).catch(console.error);
@@ -534,6 +578,171 @@ export async function getCollectionsForMovie(tmdbId, userId) {
   const cleanId = String(tmdbId || '').replace('tmdb-', '');
   const cols = await getCollections(userId);
   return cols.filter(c => c.movie_ids && c.movie_ids.includes(cleanId));
+}
+
+/**
+ * Universal lookup for any collection by ID (works for owner, guest, or friend via link)
+ */
+export async function getCollectionById(collectionId, hintUserId = null, encodedData = null) {
+  if (!collectionId) return null;
+
+  // 1. If explicit payload is embedded in link (zero-server cross-device sharing), decode it
+  if (encodedData) {
+    try {
+      let rawJson = '';
+      try {
+        rawJson = decodeURIComponent(atob(encodedData));
+      } catch {
+        rawJson = decodeURIComponent(encodedData);
+      }
+      const decoded = JSON.parse(rawJson);
+      if (decoded && (decoded.id === collectionId || !decoded.id)) {
+        const fullCol = {
+          ...decoded,
+          id: collectionId,
+          movie_ids: Array.isArray(decoded.movie_ids) ? decoded.movie_ids : [],
+        };
+        await registerPublicCollection(fullCol);
+        return fullCol;
+      }
+    } catch (e) {
+      console.warn('Could not unpack collection URL snapshot:', e);
+    }
+  }
+
+  // 2. Direct key lookup
+  try {
+    const direct = localStorage.getItem(`cinemascope_col_${collectionId}`);
+    if (direct) {
+      const parsed = JSON.parse(direct);
+      if (parsed && parsed.id === collectionId) return parsed;
+    }
+  } catch (e) {}
+
+  // 3. Check public registry
+  const publicCols = await getPublicCollections();
+  if (publicCols[collectionId]) {
+    return publicCols[collectionId];
+  }
+
+  // 4. Try hint user if provided in URL parameter
+  if (hintUserId) {
+    const hintCols = await getCollections(hintUserId);
+    const found = hintCols.find(c => c.id === collectionId);
+    if (found) {
+      await registerPublicCollection(found);
+      return found;
+    }
+  }
+
+  // 5. Try current logged-in user
+  const currentUid = getActiveUserId();
+  if (currentUid && currentUid !== hintUserId) {
+    const userCols = await getCollections(currentUid);
+    const found = userCols.find(c => c.id === collectionId);
+    if (found) {
+      await registerPublicCollection(found);
+      return found;
+    }
+  }
+
+  // 6. Scan all localStorage keys for any user's collection matching collectionId
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith('cinemascope_collections') || k.startsWith(BASE_COLLECTIONS_KEY))) {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr)) {
+            const match = arr.find(c => c.id === collectionId);
+            if (match) {
+              await registerPublicCollection(match);
+              return match;
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 7. Try Supabase remote database
+  if (isSupabaseConfigured()) {
+    try {
+      const remote = await supabaseService.getCollectionById(collectionId);
+      if (remote) {
+        await registerPublicCollection(remote);
+        return remote;
+      }
+    } catch (e) {}
+  }
+
+  return null;
+}
+
+/**
+ * Generates a shareable URL for a collection.
+ * Includes a compact base64-encoded snapshot so that ANY recipient on ANY phone or computer
+ * can open it instantly even before syncing to a cloud database!
+ */
+export function getCollectionShareUrl(collection, currentUser) {
+  if (!collection) return window.location.href;
+  const origin = window.location.origin;
+  const pathname = window.location.pathname.replace(/\/+$/, '');
+  const baseUrl = `${origin}${pathname}#/collection/${collection.id}`;
+  const ownerParam = collection.user_id || currentUser?.id || 'curator';
+  const creatorName = currentUser?.displayName || collection.creatorName || 'Cinemascope Curator';
+
+  const snapshot = {
+    id: collection.id,
+    name: collection.name,
+    description: collection.description || '',
+    user_id: ownerParam,
+    creatorName,
+    movie_ids: collection.movie_ids || [],
+    created_at: collection.created_at || new Date().toISOString(),
+  };
+
+  let dataStr = '';
+  try {
+    dataStr = btoa(encodeURIComponent(JSON.stringify(snapshot)));
+  } catch {
+    try {
+      dataStr = encodeURIComponent(JSON.stringify(snapshot));
+    } catch {}
+  }
+
+  // If payload fits comfortably inside browser URL limits (< 1800 chars), append &d=
+  if (dataStr && dataStr.length < 1800) {
+    return `${baseUrl}?u=${encodeURIComponent(ownerParam)}&d=${encodeURIComponent(dataStr)}`;
+  }
+
+  return `${baseUrl}?u=${encodeURIComponent(ownerParam)}`;
+}
+
+/**
+ * Copies or saves a shared collection into the current user's personal collections
+ */
+export async function saveSharedCollectionToMyLibrary(collection, targetUserId) {
+  const uid = getActiveUserId(targetUserId);
+  const myCols = await getCollections(uid);
+
+  const newCol = {
+    id: `col_${Date.now()}`,
+    user_id: uid,
+    name: collection.name,
+    description: collection.description 
+      ? `${collection.description} (Shared by ${collection.creatorName || 'a friend'})`
+      : `Saved from ${collection.creatorName || 'community'}`,
+    movie_ids: [...(collection.movie_ids || [])],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    visibility: 'public',
+  };
+
+  myCols.push(newCol);
+  await saveCollections(myCols, uid);
+  return newCol;
 }
 
 // ── Alias / backward-compat exports used by generated pages ──────────────────

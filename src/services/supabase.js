@@ -240,4 +240,14 @@ export const supabaseService = {
     }
     return data;
   },
+  async getCollectionById(id) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    const { data, error } = await supabase.from('collections').select('*').eq('id', id).maybeSingle();
+    if (error) {
+      console.warn('Supabase getCollectionById error:', error);
+      return null;
+    }
+    return data;
+  },
 };
