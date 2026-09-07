@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Trophy, Sparkles, Star, Bookmark, Heart, Eye, ArrowRight, Dices, Share2, Flame } from 'lucide-react';
+import { Trophy, Sparkles, Star, Bookmark, Heart, Eye, ArrowRight, Dices, Share2, Flame, Lock } from 'lucide-react';
 import {
   GENRE_OPTIONS,
   getWinnerForGenre,
@@ -8,6 +8,8 @@ import {
   calculateGenreResults,
   getUserPreferredGenre,
   setUserPreferredGenre,
+  hasUserVotedInAllGenres,
+  getUserVotedGenresCount,
 } from '../../services/weekendPickService';
 import { toggleWatchlist, toggleFavorite, toggleWatched, getMovieStatusSync } from '../../services/movieLibraryService';
 import { useApp } from '../../AppContext';
@@ -281,160 +283,279 @@ export default function WeekendRecommendationHero() {
         </div>
       </div>
 
-      {/* Winner Spotlight Card */}
-      {winner ? (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(120px, 160px) 1fr',
-          gap: 24,
-          alignItems: 'center',
-          background: 'rgba(0,0,0,0.3)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 6,
-          padding: 18,
-        }} className="weekend-winner-spotlight">
-          {/* Poster */}
-          <div
-            onClick={() => navigate(`/movie/${formattedUrl}`)}
-            style={{ cursor: 'pointer', position: 'relative' }}
-          >
-            <img
-              src={winner.posterUrl}
-              alt={winner.title}
-              style={{
-                width: '100%',
-                aspectRatio: '2/3',
-                objectFit: 'cover',
-                borderRadius: 4,
-                border: '1px solid rgba(201,168,76,0.3)',
-                boxShadow: '0 6px 18px rgba(0,0,0,0.6)',
-              }}
-              onError={e => { e.target.src = '/demo-frame.jpg'; }}
-            />
-          </div>
+      {/* Winner Spotlight Card or Vote-Gated Teaser */}
+      {(() => {
+        const hasVotedAll = currentUser && activeRound?.id
+          ? hasUserVotedInAllGenres(currentUser.id, activeRound.id)
+          : false;
 
-          {/* Details */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-              {isLeading ? (
-                <span className="badge" style={{ background: 'linear-gradient(135deg, #c9a84c, #eab308)', color: '#000', fontWeight: 700, fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 12 }}>
-                  <Flame size={11} /> CURRENT POLL LEADER · {winner.genreName || genreObj.name}
-                </span>
-              ) : (
-                <WeekendWinnerBadge genreName={winner.genreName || genreObj.name} size="sm" />
-              )}
-              <span className="badge badge-dim" style={{ fontSize: 9 }}>
-                {winner.type === 'SERIES' ? '📺 TV Series' : '🎬 Movie'}
-              </span>
-              {winner.releaseYear && (
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  {winner.releaseYear}
-                </span>
-              )}
-            </div>
+        // If polling is active and user hasn't voted in all genres, show teaser prompt
+        if (activeRound?.status === 'ACTIVE' && !hasVotedAll) {
+          const voteProgress = getUserVotedGenresCount(currentUser?.id, activeRound.id);
 
-            <h3
-              onClick={() => navigate(`/movie/${formattedUrl}`)}
-              style={{
-                fontFamily: 'var(--font-serif)',
-                fontSize: 'clamp(18px, 2.5vw, 24px)',
-                color: 'var(--text-primary)',
-                margin: '0 0 8px',
-                cursor: 'pointer',
-              }}
-            >
-              {winner.title}
-            </h3>
-
-            {/* Stats row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, fontSize: 12, color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--gold)', fontWeight: 600 }}>
-                <Star size={13} fill="var(--gold)" color="var(--gold)" />
-                <span>{winner.communityScore ? `${winner.communityScore}% Community Score` : '4.8 rating'}</span>
-              </div>
-              <span>·</span>
-              <span><strong>{winner.voteCount?.toLocaleString() || '1,420'}</strong> votes {winner.votePercentage ? `(${winner.votePercentage}%)` : ''}</span>
-              <span>·</span>
-              <span style={{ color: 'var(--text-muted)' }}>
-                {isLeading ? `Leading in ${winner.genreName || genreObj.name}` : `Crowned in ${winner.genreName || genreObj.name}`}
-              </span>
-            </div>
-
-            <p style={{
-              fontSize: 12,
-              color: 'var(--text-muted)',
-              lineHeight: 1.55,
-              marginBottom: 16,
-              maxWidth: 680,
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
+          return (
+            <div style={{
+              background: 'radial-gradient(ellipse at center, rgba(201,168,76,0.12) 0%, rgba(15,15,20,0.95) 75%)',
+              border: '1px solid rgba(201,168,76,0.3)',
+              borderRadius: 8,
+              padding: '36px 24px',
+              textAlign: 'center',
+              position: 'relative',
               overflow: 'hidden',
             }}>
-              {winner.overview || 'Voted by the community as the standout pick for this weekend. Verified and recommended by Cinemascope.'}
-            </p>
+              <div style={{
+                width: 56,
+                height: 56,
+                borderRadius: '50%',
+                background: 'rgba(201,168,76,0.15)',
+                border: '1px solid var(--gold)',
+                color: 'var(--gold)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px',
+                boxShadow: '0 0 20px rgba(201,168,76,0.25)',
+              }}>
+                <Lock size={26} />
+              </div>
 
-            {/* Action Bar */}
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => navigate(`/movie/${formattedUrl}`)}
-                className="btn btn-primary btn-sm"
-                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}
-              >
-                View Details <ArrowRight size={13} />
-              </button>
+              <span className="badge badge-gold" style={{ fontSize: 10, letterSpacing: '0.08em', marginBottom: 10 }}>
+                🔒 COMMUNITY LEADER & WINNER HIDDEN
+              </span>
 
-              <button
-                type="button"
-                onClick={handleToggleWatchlist}
-                className={`btn btn-sm ${status.watchlist ? 'btn-primary' : 'btn-outline'}`}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}
-              >
-                <Bookmark size={12} fill={status.watchlist ? 'currentColor' : 'none'} />
-                {status.watchlist ? 'In Watchlist' : '+ Watchlist'}
-              </button>
+              <h3 style={{
+                fontFamily: 'var(--font-serif)',
+                fontSize: 'clamp(20px, 3vw, 26px)',
+                color: 'var(--text-primary)',
+                margin: '0 0 10px',
+              }}>
+                To know the Weekend Picker, you have to vote your favorite movie first!
+              </h3>
 
-              <button
-                type="button"
-                onClick={handleToggleFavorite}
-                className={`btn btn-sm ${status.favorite ? 'btn-primary' : 'btn-outline'}`}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}
-              >
-                <Heart size={12} fill={status.favorite ? '#ef4444' : 'none'} color={status.favorite ? '#ef4444' : 'currentColor'} />
-                {status.favorite ? 'Favorited' : 'Favorite'}
-              </button>
+              <p style={{
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+                maxWidth: 580,
+                margin: '0 auto 20px',
+                lineHeight: 1.6,
+              }}>
+                {currentUser ? (
+                  <>
+                    You've voted in <strong style={{ color: 'var(--gold)' }}>{voteProgress.votedCount}</strong> of <strong>{voteProgress.totalGenres}</strong> genres.
+                    Cast your vote in all {voteProgress.totalGenres} genres to instantly unlock the live standings, poll leaders, and official recommendations!
+                  </>
+                ) : (
+                  <>
+                    Log in and vote across all 8 blockbuster genres (Sunday 9:00 PM – Friday 11:00 PM) to unlock this weekend's top community picks and current standings.
+                  </>
+                )}
+              </p>
 
-              <button
-                type="button"
-                onClick={handleToggleWatched}
-                className={`btn btn-sm ${status.watched ? 'btn-primary' : 'btn-outline'}`}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}
-              >
-                <Eye size={12} />
-                {status.watched ? 'Watched' : 'Mark Watched'}
-              </button>
+              {/* Progress bar */}
+              {currentUser && (
+                <div style={{ maxWidth: 320, margin: '0 auto 24px' }}>
+                  <div style={{
+                    width: '100%',
+                    height: 8,
+                    background: 'rgba(255,255,255,0.08)',
+                    borderRadius: 4,
+                    overflow: 'hidden',
+                    marginBottom: 6,
+                  }}>
+                    <div style={{
+                      width: `${(voteProgress.votedCount / voteProgress.totalGenres) * 100}%`,
+                      height: '100%',
+                      background: 'linear-gradient(90deg, #c9a84c, #fbbf24)',
+                      borderRadius: 4,
+                      transition: 'width 300ms ease',
+                    }} />
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    {voteProgress.remainingCount} more genre{voteProgress.remainingCount === 1 ? '' : 's'} needed to unlock
+                  </div>
+                </div>
+              )}
 
-              <button
-                type="button"
-                title="Share Weekend Winner"
-                onClick={() => setShowShareModal(true)}
-                className="btn btn-ghost btn-sm"
-                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-secondary)' }}
-              >
-                <Share2 size={13} /> Share
-              </button>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => navigate('/weekend')}
+                  className="btn btn-primary"
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 22px', fontSize: 13, fontWeight: 700 }}
+                >
+                  <Trophy size={16} /> Vote Your Favorite Movie First →
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPickModal(true)}
+                  className="btn btn-outline"
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', fontSize: 13 }}
+                >
+                  <Dices size={15} /> 🎲 Pick My Weekend
+                </button>
+              </div>
             </div>
+          );
+        }
+
+        if (winner) {
+          return (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(120px, 160px) 1fr',
+              gap: 24,
+              alignItems: 'center',
+              background: 'rgba(0,0,0,0.3)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 6,
+              padding: 18,
+            }} className="weekend-winner-spotlight">
+              {/* Poster */}
+              <div
+                onClick={() => navigate(`/movie/${formattedUrl}`)}
+                style={{ cursor: 'pointer', position: 'relative' }}
+              >
+                <img
+                  src={winner.posterUrl}
+                  alt={winner.title}
+                  style={{
+                    width: '100%',
+                    aspectRatio: '2/3',
+                    objectFit: 'cover',
+                    borderRadius: 4,
+                    border: '1px solid rgba(201,168,76,0.3)',
+                    boxShadow: '0 6px 18px rgba(0,0,0,0.6)',
+                  }}
+                  onError={e => { e.target.src = '/demo-frame.jpg'; }}
+                />
+              </div>
+
+              {/* Details */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                  {isLeading ? (
+                    <span className="badge" style={{ background: 'linear-gradient(135deg, #c9a84c, #eab308)', color: '#000', fontWeight: 700, fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 12 }}>
+                      <Flame size={11} /> CURRENT POLL LEADER · {winner.genreName || genreObj.name}
+                    </span>
+                  ) : (
+                    <WeekendWinnerBadge genreName={winner.genreName || genreObj.name} size="sm" />
+                  )}
+                  <span className="badge badge-dim" style={{ fontSize: 9 }}>
+                    {winner.type === 'SERIES' ? '📺 TV Series' : '🎬 Movie'}
+                  </span>
+                  {winner.releaseYear && (
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                      {winner.releaseYear}
+                    </span>
+                  )}
+                </div>
+
+                <h3
+                  onClick={() => navigate(`/movie/${formattedUrl}`)}
+                  style={{
+                    fontFamily: 'var(--font-serif)',
+                    fontSize: 'clamp(18px, 2.5vw, 24px)',
+                    color: 'var(--text-primary)',
+                    margin: '0 0 8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {winner.title}
+                </h3>
+
+                {/* Stats row */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, fontSize: 12, color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--gold)', fontWeight: 600 }}>
+                    <Star size={13} fill="var(--gold)" color="var(--gold)" />
+                    <span>{winner.communityScore ? `${winner.communityScore}% Community Score` : '4.8 rating'}</span>
+                  </div>
+                  <span>·</span>
+                  <span><strong>{winner.voteCount?.toLocaleString() || '1,420'}</strong> votes {winner.votePercentage ? `(${winner.votePercentage}%)` : ''}</span>
+                  <span>·</span>
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    {isLeading ? `Leading in ${winner.genreName || genreObj.name}` : `Crowned in ${winner.genreName || genreObj.name}`}
+                  </span>
+                </div>
+
+                <p style={{
+                  fontSize: 12,
+                  color: 'var(--text-muted)',
+                  lineHeight: 1.55,
+                  marginBottom: 16,
+                  maxWidth: 680,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}>
+                  {winner.overview || 'Voted by the community as the standout pick for this weekend. Verified and recommended by Cinemascope.'}
+                </p>
+
+                {/* Action Bar */}
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/movie/${formattedUrl}`)}
+                    className="btn btn-primary btn-sm"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}
+                  >
+                    View Details <ArrowRight size={13} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleToggleWatchlist}
+                    className={`btn btn-sm ${status.watchlist ? 'btn-primary' : 'btn-outline'}`}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}
+                  >
+                    <Bookmark size={12} fill={status.watchlist ? 'currentColor' : 'none'} />
+                    {status.watchlist ? 'In Watchlist' : '+ Watchlist'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleToggleFavorite}
+                    className={`btn btn-sm ${status.favorite ? 'btn-primary' : 'btn-outline'}`}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}
+                  >
+                    <Heart size={12} fill={status.favorite ? '#ef4444' : 'none'} color={status.favorite ? '#ef4444' : 'currentColor'} />
+                    {status.favorite ? 'Favorited' : 'Favorite'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleToggleWatched}
+                    className={`btn btn-sm ${status.watched ? 'btn-primary' : 'btn-outline'}`}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}
+                  >
+                    <Eye size={12} />
+                    {status.watched ? 'Watched' : 'Mark Watched'}
+                  </button>
+
+                  <button
+                    type="button"
+                    title="Share Weekend Winner"
+                    onClick={() => setShowShareModal(true)}
+                    className="btn btn-ghost btn-sm"
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-secondary)' }}
+                  >
+                    <Share2 size={13} /> Share
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>
+            <p>No winner declared yet for {genreObj.name}. Be the first to vote!</p>
+            <button onClick={() => navigate('/weekend')} className="btn btn-primary btn-sm" style={{ marginTop: 8 }}>
+              Vote in {genreObj.name} Now
+            </button>
           </div>
-        </div>
-      ) : (
-        <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>
-          <p>No winner declared yet for {genreObj.name}. Be the first to vote!</p>
-          <button onClick={() => navigate('/weekend')} className="btn btn-primary btn-sm" style={{ marginTop: 8 }}>
-            Vote in {genreObj.name} Now
-          </button>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Pick My Weekend Modal */}
       <PickMyWeekendModal

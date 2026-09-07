@@ -134,7 +134,7 @@ export default function CandidateVoteCard({
           )}
         </div>
 
-        {isLeader && (
+        {isLeader && hasVotedInGenre && (
           <span style={{
             fontSize: 9,
             fontWeight: 700,
@@ -257,8 +257,8 @@ export default function CandidateVoteCard({
           </p>
         </div>
 
-        {/* Live Vote Progress Bar (if active/voted/transparent) */}
-        {(showLiveResults || hasVotedInGenre) && candidate.votePercentage !== undefined && (
+        {/* Live Vote Progress Bar (Shown ONLY when user has voted in this genre) */}
+        {hasVotedInGenre && candidate.votePercentage !== undefined ? (
           <div style={{ marginBottom: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>
               <span>{candidate.totalVotes?.toLocaleString() || 0} votes</span>
@@ -285,6 +285,22 @@ export default function CandidateVoteCard({
                 transition: 'width 400ms ease',
               }} />
             </div>
+          </div>
+        ) : (
+          <div style={{
+            marginBottom: 12,
+            padding: '5px 8px',
+            background: 'rgba(255,255,255,0.02)',
+            borderRadius: 3,
+            border: '1px dashed var(--border-subtle)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            fontSize: 10,
+            color: 'var(--text-muted)',
+          }}>
+            <span>🔒 Vote to reveal community standings</span>
           </div>
         )}
 

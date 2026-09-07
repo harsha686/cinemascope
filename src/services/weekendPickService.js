@@ -43,15 +43,15 @@ const saveStorage = (key, val) => {
 
 // INITIAL SEED DATA
 const getSeedRounds = () => {
-  // Active round for this weekend
+  // Active round: Opens Sunday 9:00 PM, Closes Friday 11:00 PM
   const activeRound = {
     id: 'round-2026-w36',
-    name: 'Weekend Pick — September 6–7, 2026',
+    name: 'Weekend Pick — Weekly Edition',
     edition: 'Week 36 · September 2026',
-    description: 'Vote for this weekend\'s top picks across 8 blockbuster genres! Voting closes Sunday night.',
-    startDate: '2026-09-01T00:00:00.000Z',
-    endDate: '2026-09-07T23:59:59.000Z',
-    votingClosesAt: '2026-09-07T22:00:00.000Z',
+    description: 'Vote for this weekend\'s top picks across all 8 blockbuster genres! Polling runs Sunday 9:00 PM to Friday 11:00 PM.',
+    startDate: '2026-08-30T21:00:00.000Z',
+    endDate: '2026-09-04T23:00:00.000Z',
+    votingClosesAt: '2026-09-04T23:00:00.000Z',
     status: 'ACTIVE', // DRAFT | UPCOMING | ACTIVE | CLOSED | WINNER_DECLARED | ARCHIVED
     tieBreakerRule: 'highest_percentage',
     showLiveResults: true,
@@ -470,59 +470,10 @@ const getSeedRounds = () => {
     }
   };
 
-  return [activeRound, pastRound1];
+  return [activeRound];
 };
 
-const getSeedWinners = () => [
-  {
-    roundId: 'round-2026-w35',
-    roundName: 'Weekend Pick — August 30–31, 2026',
-    genreId: 'action',
-    genreName: 'Action',
-    titleId: 'top-gun-maverick',
-    title: 'Top Gun: Maverick',
-    type: 'MOVIE',
-    releaseYear: 2022,
-    posterUrl: 'https://image.tmdb.org/t/p/w500/62HCn2NY1eTzzYAFflgCGlaVOHv.jpg',
-    voteCount: 18430,
-    votePercentage: 62.4,
-    totalGenreVotes: 29535,
-    communityScore: 92,
-    declaredAt: '2026-08-31T22:05:00.000Z',
-  },
-  {
-    roundId: 'round-2026-w35',
-    roundName: 'Weekend Pick — August 30–31, 2026',
-    genreId: 'horror',
-    genreName: 'Horror',
-    titleId: 'a-quiet-place',
-    title: 'A Quiet Place: Day One',
-    type: 'MOVIE',
-    releaseYear: 2024,
-    posterUrl: 'https://image.tmdb.org/t/p/w500/yrpPYK2z98gSFCU0XGDykEGv7zR.jpg',
-    voteCount: 15928,
-    votePercentage: 58.1,
-    totalGenreVotes: 27415,
-    communityScore: 86,
-    declaredAt: '2026-08-31T22:05:00.000Z',
-  },
-  {
-    roundId: 'round-2026-w35',
-    roundName: 'Weekend Pick — August 30–31, 2026',
-    genreId: 'scifi',
-    genreName: 'Sci-Fi',
-    titleId: 'the-matrix',
-    title: 'The Matrix',
-    type: 'MOVIE',
-    releaseYear: 1999,
-    posterUrl: 'https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg',
-    voteCount: 24105,
-    votePercentage: 71.3,
-    totalGenreVotes: 33800,
-    communityScore: 96,
-    declaredAt: '2026-08-31T22:05:00.000Z',
-  },
-];
+const getSeedWinners = () => [];
 
 // ==================== SERVICE API ====================
 
@@ -655,6 +606,38 @@ export function getUserVotes(userId, roundId = null) {
   if (!userId) return [];
   const votes = getAllVotes();
   return votes.filter(v => v.userId === userId && (!roundId || v.roundId === roundId));
+}
+
+/**
+ * Check if a user has voted in all active genres for a round
+ */
+export function hasUserVotedInAllGenres(userId, roundId) {
+  if (!userId || !roundId) return false;
+  const round = getRoundById(roundId);
+  if (!round || !round.genreRounds) return false;
+  const allGenreKeys = Object.keys(round.genreRounds);
+  if (allGenreKeys.length === 0) return false;
+  const userVotes = getUserVotes(userId, roundId);
+  const votedGenres = new Set(userVotes.map(v => v.genreId));
+  return allGenreKeys.every(gKey => votedGenres.has(gKey));
+}
+
+/**
+ * Get the count of genres voted by the user for a round
+ */
+export function getUserVotedGenresCount(userId, roundId) {
+  if (!userId || !roundId) return { votedCount: 0, totalGenres: 8, remainingCount: 8, isComplete: false };
+  const round = getRoundById(roundId);
+  const totalGenres = round?.genreRounds ? Object.keys(round.genreRounds).length : GENRE_OPTIONS.length;
+  const userVotes = getUserVotes(userId, roundId);
+  const votedGenres = new Set(userVotes.map(v => v.genreId));
+  const votedCount = votedGenres.size;
+  return {
+    votedCount,
+    totalGenres,
+    remainingCount: Math.max(0, totalGenres - votedCount),
+    isComplete: totalGenres > 0 && votedCount >= totalGenres,
+  };
 }
 
 /**

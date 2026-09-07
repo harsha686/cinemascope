@@ -22,6 +22,8 @@ import {
   getUserVotes,
   GENRE_OPTIONS,
   getAllWinners,
+  hasUserVotedInAllGenres,
+  getUserVotedGenresCount,
 } from '../services/weekendPickService';
 import { useApp } from '../AppContext';
 import CandidateVoteCard from '../components/weekend/CandidateVoteCard';
@@ -169,19 +171,34 @@ export default function WeekendPickPage() {
                 </button>
               </div>
 
-              {/* User Voting Status */}
-              {currentUser && activeRound && (
-                <div style={{
-                  fontSize: 11,
-                  color: 'var(--text-muted)',
-                  background: 'rgba(255,255,255,0.04)',
-                  padding: '6px 12px',
-                  borderRadius: 20,
-                  border: '1px solid var(--border-subtle)',
-                }}>
-                  You have voted in <strong style={{ color: 'var(--gold)' }}>{userAllVotes.length}</strong> of {Object.keys(activeRound.genreRounds || {}).length} genres
-                </div>
-              )}
+              {/* User Voting Status & Progress */}
+              {currentUser && activeRound && (() => {
+                const progress = getUserVotedGenresCount(currentUser.id, activeRound.id);
+                return (
+                  <div style={{
+                    fontSize: 11,
+                    color: progress.isComplete ? '#4ade80' : 'var(--text-secondary)',
+                    background: progress.isComplete ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.04)',
+                    padding: '6px 14px',
+                    borderRadius: 20,
+                    border: `1px solid ${progress.isComplete ? '#4ade80' : 'var(--border-subtle)'}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}>
+                    {progress.isComplete ? (
+                      <>
+                        <Check size={12} />
+                        <span>All {progress.totalGenres} genres voted! <strong>Weekend Pick Unlocked 🏆</strong></span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Voted in <strong style={{ color: 'var(--gold)' }}>{progress.votedCount}</strong> of {progress.totalGenres} genres ({progress.remainingCount} left to unlock full standings)</span>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -227,7 +244,7 @@ export default function WeekendPickPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <Clock size={15} color="var(--gold)" />
               <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                <strong>{activeRound.name}</strong> · Voting closes Sunday night
+                <strong>{activeRound.name}</strong> · Polling window: <strong>Sunday 9:00 PM</strong> to <strong>Friday 11:00 PM</strong>
               </span>
             </div>
 
