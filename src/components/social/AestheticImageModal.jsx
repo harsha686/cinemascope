@@ -121,6 +121,17 @@ export default function AestheticImageModal({
     }
   }, [normalized]);
 
+  // Lock body scroll while modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen || !normalized) return null;
 
   // Next style cycle helper ("↻ Try Another Style")
@@ -160,27 +171,24 @@ export default function AestheticImageModal({
         dataUrl,
       });
     } catch (err) {
-      console.error('Error generating card image:', err);
-      alert('Could not render image. Try another template or download without background.');
+      console.error('Failed to generate image:', err);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // 2. Native Mobile Web Share API
-  const handleNativeShare = async () => {
+  // 2. Share Image (Web Share API)
+  const handleWebShare = async () => {
     if (!cardRef.current) return;
     setIsGenerating(true);
     try {
-      const blob = await toBlob(cardRef.current, { pixelRatio: 2 });
-      const file = new File([blob], `${normalized.title}-card.png`, { type: 'image/png' });
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      const blob = await toBlob(cardRef.current, { cacheBust: true, pixelRatio: 2 });
+      if (blob && navigator.canShare && navigator.canShare({ files: [new File([blob], 'share.png', { type: 'image/png' })] })) {
+        const file = new File([blob], `cinemascope-${normalized.title}.png`, { type: 'image/png' });
         await navigator.share({
-          files: [file],
           title: normalized.title,
-          text: `Check out ${normalized.title} on Cinemascope!`,
-          url: normalized.canonicalUrl,
+          text: customQuote || `Check out ${normalized.title} on CinemaScope!`,
+          files: [file],
         });
         trackShareEvent({
           contentType,
@@ -191,8 +199,9 @@ export default function AestheticImageModal({
       } else {
         handleDownload();
       }
-    } catch (err) {
-      console.warn('Native share failed or cancelled:', err);
+    } catch (e) {
+      console.warn('Native share failed, downloading instead:', e);
+      handleDownload();
     } finally {
       setIsGenerating(false);
     }
@@ -237,11 +246,11 @@ export default function AestheticImageModal({
     setTimeout(() => setCopiedLink(false), 2500);
   };
 
-  return (
+  return createPortal(
     <div style={{
       position: 'fixed',
       inset: 0,
-      zIndex: 4000,
+      zIndex: 99999,
       background: 'rgba(0,0,0,0.85)',
       backdropFilter: 'blur(12px)',
       display: 'flex',
@@ -567,6 +576,7 @@ export default function AestheticImageModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
