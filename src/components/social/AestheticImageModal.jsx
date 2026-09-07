@@ -247,31 +247,37 @@ export default function AestheticImageModal({
   };
 
   return createPortal(
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 99999,
-      background: 'rgba(0,0,0,0.85)',
-      backdropFilter: 'blur(12px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '16px',
-      overflowY: 'auto',
-    }}>
-      <div style={{
-        background: 'var(--bg-card, #121216)',
-        border: '1px solid var(--gold)',
-        borderRadius: 8,
-        maxWidth: 1040,
-        width: '100%',
-        maxHeight: '94vh',
+    <div
+      className="modal-studio-overlay"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 99999,
+        background: 'rgba(0,0,0,0.85)',
+        backdropFilter: 'blur(12px)',
         display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.85)',
-        position: 'relative',
-        overflow: 'hidden',
-      }}>
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+        overflowY: 'auto',
+      }}
+    >
+      <div
+        className="modal-studio-dialog"
+        style={{
+          background: 'var(--bg-card, #121216)',
+          border: '1px solid var(--gold)',
+          borderRadius: 8,
+          maxWidth: 1040,
+          width: '100%',
+          maxHeight: '94vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.85)',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
         {/* Top Modal Header */}
         <div style={{
           padding: '16px 20px',
@@ -340,15 +346,18 @@ export default function AestheticImageModal({
           overflowY: 'auto',
         }} className="modal-studio-grid">
           {/* Left Canvas Preview Area */}
-          <div style={{
-            padding: '24px',
-            background: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflowY: 'auto',
-          }}>
+          <div
+            className="modal-studio-preview"
+            style={{
+              padding: '24px',
+              background: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflowY: 'auto',
+            }}
+          >
             {/* Format Pills */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
               {SOCIAL_FORMATS.map(f => {
@@ -413,16 +422,19 @@ export default function AestheticImageModal({
           </div>
 
           {/* Right Controls & Actions Sidebar */}
-          <div style={{
-            padding: '24px',
-            borderLeft: '1px solid var(--border-subtle)',
-            background: 'var(--bg-card)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: 20,
-            overflowY: 'auto',
-          }}>
+          <div
+            className="modal-studio-sidebar"
+            style={{
+              padding: '24px',
+              borderLeft: '1px solid var(--border-subtle)',
+              background: 'var(--bg-card)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: 20,
+              overflowY: 'auto',
+            }}
+          >
             <div>
               {/* Template Style Selector */}
               <div style={{ marginBottom: 20 }}>

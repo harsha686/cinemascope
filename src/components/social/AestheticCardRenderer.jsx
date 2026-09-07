@@ -86,15 +86,16 @@ export default function AestheticCardRenderer({
         }} />
 
         {/* ================= TOP SECTION: STUDIO ACCOLADE MASTHEAD ================= */}
-        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
+        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', width: '100%' }}>
           <h1 style={{
-            fontSize: isStory ? 'clamp(24px, 5.5vw, 36px)' : isLandscape ? '24px' : '28px',
+            fontSize: isStory ? 'clamp(20px, 5vw, 32px)' : isLandscape ? '22px' : 'clamp(18px, 4.5vw, 24px)',
             fontWeight: 900,
-            letterSpacing: '0.18em',
+            letterSpacing: '0.14em',
             textTransform: 'uppercase',
             margin: '0 0 6px',
             color: '#ffffff',
             textShadow: '0 2px 14px rgba(0,0,0,0.95), 0 4px 28px rgba(0,0,0,0.95)',
+            whiteSpace: 'nowrap',
           }}>
             CINEMASCOPE
           </h1>

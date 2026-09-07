@@ -501,11 +501,49 @@ select optgroup {
   .desktop-nav { display: none !important; }
   .mobile-bottom-nav { display: block !important; }
   body { padding-bottom: 68px; } /* Ensure content is not covered by bottom nav */
+
+  /* Aesthetic Share Studio Responsive Mobile Layout */
+  .modal-studio-overlay {
+    padding: 8px !important;
+    align-items: flex-start !important;
+  }
+  .modal-studio-dialog {
+    max-height: 96vh !important;
+    width: 100% !important;
+    border-radius: 6px !important;
+  }
+  .modal-studio-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    height: auto !important;
+  }
+  .modal-studio-preview {
+    padding: 16px 10px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+  .modal-studio-sidebar {
+    border-left: none !important;
+    border-top: 1px solid var(--border-subtle) !important;
+    padding: 16px 14px 24px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
 }
 
 @media (max-width: 480px) {
   .container { padding: 0 12px; }
   .spec-grid { grid-template-columns: 1fr; }
+  .modal-studio-overlay {
+    padding: 4px !important;
+  }
+  .modal-studio-dialog {
+    max-height: 98vh !important;
+  }
 }
 
 /* --- Skeleton Shimmer Animation --- */
