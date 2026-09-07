@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Sparkles, Dices, Trophy, Star, ArrowRight, Bookmark, Check, Heart } from 'lucide-react';
 import { GENRE_OPTIONS, pickMyWeekendRecommendation } from '../../services/weekendPickService';
-import { toggleWatchlist, toggleFavorite, toggleWatched, getMovieStatus } from '../../services/movieLibraryService';
+import { toggleWatchlist, toggleFavorite, toggleWatched, getMovieStatusSync } from '../../services/movieLibraryService';
 import { useApp } from '../../AppContext';
 
 const MOODS = [
@@ -25,6 +25,13 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
   const [selectedType, setSelectedType] = useState('ANY'); // ANY | MOVIE | SERIES
   const [result, setResult] = useState(null);
   const [isSpinning, setIsSpinning] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState({});
+
+  useEffect(() => {
+    if (result?.titleId) {
+      setCurrentStatus(getMovieStatusSync(result.titleId, currentUser?.id));
+    }
+  }, [result?.titleId, currentUser?.id]);
 
   if (!isOpen) return null;
 
@@ -46,11 +53,34 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
         type: selectedType,
       });
       setResult(pick);
+      if (pick?.titleId) {
+        setCurrentStatus(getMovieStatusSync(pick.titleId, currentUser?.id));
+      }
       setIsSpinning(false);
     }, 600);
   };
 
-  const currentStatus = result ? getMovieStatus(result.titleId) : {};
+  const handleToggleWatchlist = async () => {
+    if (!currentUser) return alert('Please log in to add to your watchlist');
+    if (!result?.titleId) return;
+    try {
+      const res = await toggleWatchlist(result.titleId, currentUser.id);
+      setCurrentStatus(res);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleToggleFavorite = async () => {
+    if (!currentUser) return alert('Please log in to favorite');
+    if (!result?.titleId) return;
+    try {
+      const res = await toggleFavorite(result.titleId, currentUser.id);
+      setCurrentStatus(res);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   return (
     <div style={{
@@ -315,24 +345,20 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button
                 type="button"
-                onClick={() => {
-                  toggleWatchlist(result.titleId, currentUser?.id);
-                }}
+                onClick={handleToggleWatchlist}
                 className={`btn btn-sm ${currentStatus.watchlist ? 'btn-primary' : 'btn-outline'}`}
                 style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11 }}
               >
-                <Bookmark size={13} /> {currentStatus.watchlist ? 'In Watchlist' : '+ Watchlist'}
+                <Bookmark size={13} fill={currentStatus.watchlist ? 'currentColor' : 'none'} /> {currentStatus.watchlist ? 'In Watchlist' : '+ Watchlist'}
               </button>
 
               <button
                 type="button"
-                onClick={() => {
-                  toggleFavorite(result.titleId, currentUser?.id);
-                }}
+                onClick={handleToggleFavorite}
                 className={`btn btn-sm ${currentStatus.favorite ? 'btn-primary' : 'btn-outline'}`}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}
               >
-                <Heart size={13} /> {currentStatus.favorite ? 'Favorited' : 'Favorite'}
+                <Heart size={13} fill={currentStatus.favorite ? '#ef4444' : 'none'} color={currentStatus.favorite ? '#ef4444' : 'currentColor'} /> {currentStatus.favorite ? 'Favorited' : 'Favorite'}
               </button>
 
               <button

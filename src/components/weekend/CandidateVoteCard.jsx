@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Trophy, Star, Check, Bookmark, Heart, Eye, ArrowUpRight, Flame } from 'lucide-react';
-import { toggleWatchlist, toggleFavorite, toggleWatched, getMovieStatus } from '../../services/movieLibraryService';
+import { toggleWatchlist, toggleFavorite, toggleWatched, getMovieStatusSync } from '../../services/movieLibraryService';
 import { useApp } from '../../AppContext';
 
 export default function CandidateVoteCard({
@@ -21,43 +21,57 @@ export default function CandidateVoteCard({
   const isUserPick = userVotedCandidateId === candidate.id || userVotedCandidateId === candidate.titleId;
   const isLeader = rank === 1;
 
-  const [status, setStatus] = useState(() => getMovieStatus(candidate.titleId));
+  const [status, setStatus] = useState(() => getMovieStatusSync(candidate.titleId, currentUser?.id));
 
-  const refreshStatus = () => {
-    setStatus(getMovieStatus(candidate.titleId));
-  };
+  useEffect(() => {
+    if (candidate?.titleId) {
+      setStatus(getMovieStatusSync(candidate.titleId, currentUser?.id));
+    }
+  }, [candidate?.titleId, currentUser?.id]);
 
-  const handleToggleWatchlist = (e) => {
+  const handleToggleWatchlist = async (e) => {
     e.stopPropagation();
     if (!currentUser) {
       alert('Please log in to add to your watchlist');
       return;
     }
-    toggleWatchlist(candidate.titleId, currentUser.id);
-    refreshStatus();
+    try {
+      const res = await toggleWatchlist(candidate.titleId, currentUser.id);
+      setStatus(res);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleToggleFavorite = (e) => {
+  const handleToggleFavorite = async (e) => {
     e.stopPropagation();
     if (!currentUser) {
       alert('Please log in to favorite');
       return;
     }
-    toggleFavorite(candidate.titleId, currentUser.id);
-    refreshStatus();
+    try {
+      const res = await toggleFavorite(candidate.titleId, currentUser.id);
+      setStatus(res);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleToggleWatched = (e) => {
+  const handleToggleWatched = async (e) => {
     e.stopPropagation();
     if (!currentUser) {
       alert('Please log in to track watched movies');
       return;
     }
-    toggleWatched(candidate.titleId, currentUser.id, {
-      title: candidate.title,
-      posterUrl: candidate.posterUrl,
-    });
-    refreshStatus();
+    try {
+      const res = await toggleWatched(candidate.titleId, currentUser.id, {
+        title: candidate.title,
+        posterUrl: candidate.posterUrl,
+      });
+      setStatus(res);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const formattedUrl = candidate.titleId?.startsWith('tmdb-') || candidate.titleId?.startsWith('tt')
@@ -275,57 +289,72 @@ export default function CandidateVoteCard({
         )}
 
         {/* Actions row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, borderTop: '1px solid var(--border-subtle)', paddingTop: 10, marginTop: 4 }}>
-          {/* Quick library shortcuts */}
-          <div style={{ display: 'flex', gap: 4 }}>
-            <button
-              type="button"
-              title={status.watchlist ? 'In Watchlist' : 'Add to Watchlist'}
-              onClick={handleToggleWatchlist}
-              style={{
-                background: status.watchlist ? 'var(--gold-faint)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${status.watchlist ? 'var(--gold)' : 'var(--border-subtle)'}`,
-                color: status.watchlist ? 'var(--gold)' : 'var(--text-muted)',
-                borderRadius: 3,
-                padding: '5px 7px',
-                cursor: 'pointer',
-              }}
-            >
-              <Bookmark size={12} fill={status.watchlist ? 'var(--gold)' : 'none'} />
-            </button>
+        {(() => {
+          const inWatchlist = Boolean(status?.watchlist || status?.inWatchlist);
+          const isFavorite = Boolean(status?.favorite || status?.isFavorite);
+          const isWatched = Boolean(status?.watched || status?.isWatched);
 
-            <button
-              type="button"
-              title={status.favorite ? 'Favorited' : 'Favorite'}
-              onClick={handleToggleFavorite}
-              style={{
-                background: status.favorite ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${status.favorite ? '#ef4444' : 'var(--border-subtle)'}`,
-                color: status.favorite ? '#ef4444' : 'var(--text-muted)',
-                borderRadius: 3,
-                padding: '5px 7px',
-                cursor: 'pointer',
-              }}
-            >
-              <Heart size={12} fill={status.favorite ? '#ef4444' : 'none'} />
-            </button>
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, borderTop: '1px solid var(--border-subtle)', paddingTop: 10, marginTop: 4 }}>
+              {/* Quick library shortcuts */}
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  type="button"
+                  title={inWatchlist ? 'In Watchlist (Click to remove)' : 'Add to Watchlist'}
+                  onClick={handleToggleWatchlist}
+                  style={{
+                    background: inWatchlist ? 'var(--gold-faint)' : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${inWatchlist ? 'var(--gold)' : 'var(--border-subtle)'}`,
+                    color: inWatchlist ? 'var(--gold)' : 'var(--text-muted)',
+                    borderRadius: 3,
+                    padding: '5px 7px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Bookmark size={12} fill={inWatchlist ? 'var(--gold)' : 'none'} />
+                </button>
 
-            <button
-              type="button"
-              title={status.watched ? 'Watched' : 'Mark as Watched'}
-              onClick={handleToggleWatched}
-              style={{
-                background: status.watched ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${status.watched ? '#10b981' : 'var(--border-subtle)'}`,
-                color: status.watched ? '#10b981' : 'var(--text-muted)',
-                borderRadius: 3,
-                padding: '5px 7px',
-                cursor: 'pointer',
-              }}
-            >
-              <Eye size={12} />
-            </button>
-          </div>
+                <button
+                  type="button"
+                  title={isFavorite ? 'Favorited (Click to remove)' : 'Add to Favorites'}
+                  onClick={handleToggleFavorite}
+                  style={{
+                    background: isFavorite ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${isFavorite ? '#ef4444' : 'var(--border-subtle)'}`,
+                    color: isFavorite ? '#ef4444' : 'var(--text-muted)',
+                    borderRadius: 3,
+                    padding: '5px 7px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Heart size={12} fill={isFavorite ? '#ef4444' : 'none'} />
+                </button>
+
+                <button
+                  type="button"
+                  title={isWatched ? 'Watched (Click to remove)' : 'Mark as Watched'}
+                  onClick={handleToggleWatched}
+                  style={{
+                    background: isWatched ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${isWatched ? '#10b981' : 'var(--border-subtle)'}`,
+                    color: isWatched ? '#10b981' : 'var(--text-muted)',
+                    borderRadius: 3,
+                    padding: '5px 7px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Eye size={12} />
+                </button>
+              </div>
 
           {/* VOTE BUTTON */}
           {isUserPick ? (
@@ -375,6 +404,8 @@ export default function CandidateVoteCard({
             </div>
           )}
         </div>
+          );
+        })()}
       </div>
     </div>
   );

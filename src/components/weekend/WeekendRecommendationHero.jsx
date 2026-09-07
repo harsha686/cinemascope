@@ -9,7 +9,7 @@ import {
   getUserPreferredGenre,
   setUserPreferredGenre,
 } from '../../services/weekendPickService';
-import { toggleWatchlist, toggleFavorite, toggleWatched, getMovieStatus } from '../../services/movieLibraryService';
+import { toggleWatchlist, toggleFavorite, toggleWatched, getMovieStatusSync } from '../../services/movieLibraryService';
 import { useApp } from '../../AppContext';
 import PickMyWeekendModal from './PickMyWeekendModal';
 import SocialShareModal from './SocialShareModal';
@@ -63,47 +63,59 @@ export default function WeekendRecommendationHero() {
     }
   }
 
-  const [status, setStatus] = useState(() => winner ? getMovieStatus(winner.titleId) : {});
+  const [status, setStatus] = useState(() => winner ? getMovieStatusSync(winner.titleId, currentUser?.id) : {});
 
   useEffect(() => {
-    if (winner) {
-      setStatus(getMovieStatus(winner.titleId));
+    if (winner?.titleId) {
+      setStatus(getMovieStatusSync(winner.titleId, currentUser?.id));
     }
-  }, [winner?.titleId, selectedGenre]);
+  }, [winner?.titleId, selectedGenre, currentUser?.id]);
 
-  const handleToggleWatchlist = () => {
+  const handleToggleWatchlist = async () => {
     if (!currentUser) {
       alert('Please log in to add to your watchlist');
       return;
     }
     if (winner) {
-      toggleWatchlist(winner.titleId, currentUser.id);
-      setStatus(getMovieStatus(winner.titleId));
+      try {
+        const res = await toggleWatchlist(winner.titleId, currentUser.id);
+        setStatus(res);
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 
-  const handleToggleFavorite = () => {
+  const handleToggleFavorite = async () => {
     if (!currentUser) {
       alert('Please log in to favorite');
       return;
     }
     if (winner) {
-      toggleFavorite(winner.titleId, currentUser.id);
-      setStatus(getMovieStatus(winner.titleId));
+      try {
+        const res = await toggleFavorite(winner.titleId, currentUser.id);
+        setStatus(res);
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 
-  const handleToggleWatched = () => {
+  const handleToggleWatched = async () => {
     if (!currentUser) {
       alert('Please log in to track watched movies');
       return;
     }
     if (winner) {
-      toggleWatched(winner.titleId, currentUser.id, {
-        title: winner.title,
-        posterUrl: winner.posterUrl,
-      });
-      setStatus(getMovieStatus(winner.titleId));
+      try {
+        const res = await toggleWatched(winner.titleId, currentUser.id, {
+          title: winner.title,
+          posterUrl: winner.posterUrl,
+        });
+        setStatus(res);
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 

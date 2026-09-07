@@ -154,12 +154,16 @@ export default function MovieDetailPage() {
     return list;
   }, [activeReviews, sortOption]);
 
-  // Loading state for TMDB movies
+  // Loading state for TMDB movies & TV series
   if (isTmdbMovie && tmdbLoading) {
     return (
       <div style={{ padding: '80px 24px', textAlign: 'center' }}>
-        <div style={{ fontFamily: 'var(--font-serif)', color: 'var(--gold)', fontSize: 18, marginBottom: 12 }}>Loading movie…</div>
-        <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Fetching from global movie archive</p>
+        <div style={{ fontFamily: 'var(--font-serif)', color: 'var(--gold)', fontSize: 18, marginBottom: 12 }}>
+          {isTmdbTv ? 'Loading series…' : 'Loading movie…'}
+        </div>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+          {isTmdbTv ? 'Fetching from global TV & series archive' : 'Fetching from global movie archive'}
+        </p>
       </div>
     );
   }
@@ -167,12 +171,14 @@ export default function MovieDetailPage() {
   if (!movie) {
     return (
       <div style={{ padding: '80px 24px', textAlign: 'center' }}>
-        <h1 style={{ fontFamily: 'var(--font-serif)', color: 'var(--gold)' }}>Movie Not Found</h1>
+        <h1 style={{ fontFamily: 'var(--font-serif)', color: 'var(--gold)' }}>
+          {isTmdbTv ? 'Series Not Found' : 'Movie Not Found'}
+        </h1>
         <p style={{ color: 'var(--text-secondary)', marginTop: 12 }}>
-          {tmdbError ? `Error: ${tmdbError}` : 'The requested movie could not be found.'}
+          {tmdbError ? `Error: ${tmdbError}` : `The requested ${isTmdbTv ? 'series' : 'movie'} could not be found.`}
         </p>
         <button onClick={() => navigate('/discover')} className="btn btn-outline" style={{ marginTop: 24 }}>
-          ← Explore Movies
+          ← Explore Discover
         </button>
       </div>
     );
@@ -656,10 +662,10 @@ export default function MovieDetailPage() {
 
                 <div>
                   <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: 16 }}>
-                    About the Movie
+                    {movie.isTv ? 'About the Series' : 'About the Movie'}
                   </h2>
                   <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.85, whiteSpace: 'pre-line' }}>
-                    {movie.overview || 'No overview available for this movie.'}
+                    {movie.overview || (movie.isTv ? 'No overview available for this series.' : 'No overview available for this movie.')}
                   </p>
                 </div>
 
@@ -687,12 +693,14 @@ export default function MovieDetailPage() {
             {(activeSectionTab === 'cast' || activeSectionTab === 'all') && (
               <div id="cast-section">
                 <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: 16 }}>
-                  Cast & Filmmakers
+                  {movie.isTv ? 'Cast & Creators' : 'Cast & Filmmakers'}
                 </h2>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
                   {movie.director && (
                     <div style={{ padding: 14, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
-                      <div style={{ fontSize: 10, fontFamily: 'var(--font-serif)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Director</div>
+                      <div style={{ fontSize: 10, fontFamily: 'var(--font-serif)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                        {movie.isTv ? 'Creator / Showrunner' : 'Director'}
+                      </div>
                       <div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500, marginTop: 2 }}>{movie.director}</div>
                     </div>
                   )}
@@ -838,8 +846,8 @@ export default function MovieDetailPage() {
                   </h4>
                   <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
                     {reviewTab === 'professional'
-                      ? 'No verified critics have reviewed this film yet.'
-                      : 'Be the first to share your thoughts on this movie!'}
+                      ? `No verified critics have reviewed this ${movie.isTv ? 'series' : 'film'} yet.`
+                      : `Be the first to share your thoughts on this ${movie.isTv ? 'series' : 'movie'}!`}
                   </p>
                   {reviewTab !== 'professional' && (
                     <button type="button" onClick={handleWriteClick} className="btn btn-primary btn-sm">Write a Review</button>

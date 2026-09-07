@@ -83,6 +83,28 @@ function getCollectionsStorageKey(userId) {
 }
 
 // Library state management (localStorage + optional Supabase)
+export function getLibrarySync(userId) {
+  const key = getLibStorageKey(userId);
+  try {
+    return JSON.parse(localStorage.getItem(key) || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+export function getMovieStatusSync(tmdbId, userId) {
+  const cleanId = String(tmdbId || '').replace('tmdb-', '');
+  const lib = getLibrarySync(userId);
+  const entry = lib[cleanId] || { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
+  return {
+    ...entry,
+    inWatchlist: !!entry.watchlist,
+    isWatched: !!entry.watched,
+    isFavorite: !!entry.favorite,
+    rating: entry.rating || 0
+  };
+}
+
 export async function getLibrary(userId) {
   const key = getLibStorageKey(userId);
   return JSON.parse(localStorage.getItem(key) || '{}');
@@ -94,16 +116,7 @@ export async function saveLibrary(lib, userId) {
 }
 
 export async function getMovieStatus(tmdbId, userId) {
-  const cleanId = String(tmdbId || '').replace('tmdb-', '');
-  const lib = await getLibrary(userId);
-  const entry = lib[cleanId] || { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
-  return {
-    ...entry,
-    inWatchlist: !!entry.watchlist,
-    isWatched: !!entry.watched,
-    isFavorite: !!entry.favorite,
-    rating: entry.rating || 0
-  };
+  return getMovieStatusSync(tmdbId, userId);
 }
 
 export async function toggleWatchlist(tmdbId, userIdOrMeta) {

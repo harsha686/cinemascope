@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Trophy, Search, Filter, Share2, Star, ArrowRight, Bookmark, Heart, Eye, Dices, Film } from 'lucide-react';
 import {
@@ -6,7 +6,7 @@ import {
   getHistoricalWinners,
   GENRE_OPTIONS,
 } from '../services/weekendPickService';
-import { toggleWatchlist, toggleFavorite, toggleWatched, getMovieStatus } from '../services/movieLibraryService';
+import { toggleWatchlist, toggleFavorite, toggleWatched, getMovieStatusSync } from '../services/movieLibraryService';
 import { useApp } from '../AppContext';
 import SocialShareModal from '../components/weekend/SocialShareModal';
 import PickMyWeekendModal from '../components/weekend/PickMyWeekendModal';
@@ -17,32 +17,48 @@ function WinnerArchiveCard({ winner, onShare }) {
   const { state } = useApp();
   const currentUser = state.currentUser;
 
-  const [status, setStatus] = useState(() => getMovieStatus(winner.titleId));
+  const [status, setStatus] = useState(() => getMovieStatusSync(winner.titleId, currentUser?.id));
 
-  const refreshStatus = () => setStatus(getMovieStatus(winner.titleId));
+  useEffect(() => {
+    if (winner?.titleId) {
+      setStatus(getMovieStatusSync(winner.titleId, currentUser?.id));
+    }
+  }, [winner?.titleId, currentUser?.id]);
 
-  const handleToggleWatchlist = (e) => {
+  const handleToggleWatchlist = async (e) => {
     e.stopPropagation();
     if (!currentUser) return alert('Please log in to track watchlist');
-    toggleWatchlist(winner.titleId, currentUser.id);
-    refreshStatus();
+    try {
+      const res = await toggleWatchlist(winner.titleId, currentUser.id);
+      setStatus(res);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleToggleFavorite = (e) => {
+  const handleToggleFavorite = async (e) => {
     e.stopPropagation();
     if (!currentUser) return alert('Please log in to favorite');
-    toggleFavorite(winner.titleId, currentUser.id);
-    refreshStatus();
+    try {
+      const res = await toggleFavorite(winner.titleId, currentUser.id);
+      setStatus(res);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleToggleWatched = (e) => {
+  const handleToggleWatched = async (e) => {
     e.stopPropagation();
     if (!currentUser) return alert('Please log in to track watched');
-    toggleWatched(winner.titleId, currentUser.id, {
-      title: winner.title,
-      posterUrl: winner.posterUrl,
-    });
-    refreshStatus();
+    try {
+      const res = await toggleWatched(winner.titleId, currentUser.id, {
+        title: winner.title,
+        posterUrl: winner.posterUrl,
+      });
+      setStatus(res);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const formattedUrl = winner.titleId?.startsWith('tmdb-') ? winner.titleId : `tmdb-${winner.titleId}`;

@@ -278,7 +278,9 @@ export default function OttStreamingInfo({ movie }) {
           lineHeight: 1.5,
           marginBottom: 16
         }}>
-          Currently screening in cinemas. OTT platform rights will be updated once streaming rights are confirmed.
+          {movie.isTv
+            ? 'OTT platform streaming rights will be updated once officially announced.'
+            : 'Currently screening in cinemas. OTT platform rights will be updated once streaming rights are confirmed.'}
         </div>
       )}
 
