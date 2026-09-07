@@ -28,6 +28,24 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
   const [currentStatus, setCurrentStatus] = useState({});
 
   useEffect(() => {
+    if (isOpen) {
+      setResult(null);
+      setIsSpinning(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
     if (result?.titleId) {
       setCurrentStatus(getMovieStatusSync(result.titleId, currentUser?.id));
     }
@@ -47,17 +65,22 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
     }
 
     setTimeout(() => {
-      const pick = pickMyWeekendRecommendation({
-        genreId: targetGenre,
-        mood: selectedMood,
-        type: selectedType,
-      });
-      setResult(pick);
-      if (pick?.titleId) {
-        setCurrentStatus(getMovieStatusSync(pick.titleId, currentUser?.id));
+      try {
+        const pick = pickMyWeekendRecommendation({
+          genreId: targetGenre,
+          mood: selectedMood,
+          type: selectedType,
+        });
+        setResult(pick);
+        if (pick?.titleId) {
+          setCurrentStatus(getMovieStatusSync(pick.titleId, currentUser?.id));
+        }
+      } catch (err) {
+        console.error('Error generating weekend pick:', err);
+      } finally {
+        setIsSpinning(false);
       }
-      setIsSpinning(false);
-    }, 600);
+    }, 400);
   };
 
   const handleToggleWatchlist = async () => {
@@ -83,17 +106,22 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 3000,
-      background: 'rgba(0,0,0,0.88)',
-      backdropFilter: 'blur(8px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 16,
-    }}>
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 3000,
+        background: 'rgba(0,0,0,0.88)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+      }}
+    >
       <div style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border)',
@@ -365,7 +393,10 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                 type="button"
                 onClick={() => {
                   onClose();
-                  navigate(`/movie/${result.titleId.startsWith('tmdb-') ? result.titleId : `tmdb-${result.titleId}`}`);
+                  if (result?.titleId) {
+                    const formattedUrl = result.titleId.startsWith('tmdb-') ? result.titleId : `tmdb-${result.titleId}`;
+                    navigate(`/movie/${formattedUrl}`);
+                  }
                 }}
                 className="btn btn-primary btn-sm"
                 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}

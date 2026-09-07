@@ -213,8 +213,54 @@ export default function WeekendRecommendationHero() {
           </div>
         </div>
 
-        {/* Action triggers */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        {/* Action triggers & Side-wise Genre Select Menu */}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Select Genre Menu Side-Wise */}
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '2px 8px',
+          }}>
+            <span style={{
+              fontSize: 11,
+              fontFamily: 'var(--font-serif)',
+              color: 'var(--text-muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              whiteSpace: 'nowrap'
+            }}>
+              Select Genre:
+            </span>
+            <select
+              value={selectedGenre}
+              onChange={(e) => handleGenreChange(e.target.value)}
+              className="input"
+              style={{
+                width: 'auto',
+                minWidth: '135px',
+                padding: '4px 10px',
+                fontSize: '12px',
+                fontFamily: 'var(--font-serif)',
+                fontWeight: 600,
+                background: '#18140e',
+                color: 'var(--gold)',
+                border: '1px solid var(--gold-dim)',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+              }}
+            >
+              {GENRE_OPTIONS.map(g => (
+                <option key={g.id} value={g.id} style={{ background: '#18140e', color: '#ffffff' }}>
+                  {g.emoji} {g.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <button
             type="button"
             onClick={() => setShowPickModal(true)}
@@ -233,41 +279,6 @@ export default function WeekendRecommendationHero() {
             <Trophy size={13} /> Vote in This Weekend's Poll →
           </button>
         </div>
-      </div>
-
-      {/* Genre Selector Tabs */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto', paddingBottom: 14, marginBottom: 20 }}>
-        <span style={{ fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>
-          Select Genre:
-        </span>
-        {GENRE_OPTIONS.map(g => {
-          const isSelected = selectedGenre === g.id;
-          return (
-            <button
-              key={g.id}
-              type="button"
-              onClick={() => handleGenreChange(g.id)}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 20,
-                fontSize: 11,
-                fontFamily: 'var(--font-serif)',
-                background: isSelected ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${isSelected ? 'var(--gold)' : 'var(--border-subtle)'}`,
-                color: isSelected ? 'var(--gold)' : 'var(--text-secondary)',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                transition: 'all 150ms ease',
-              }}
-            >
-              <span>{g.emoji}</span>
-              <span>{g.name}</span>
-            </button>
-          );
-        })}
       </div>
 
       {/* Winner Spotlight Card */}

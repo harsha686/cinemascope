@@ -874,12 +874,13 @@ export function setUserPreferredGenre(userId, genreId) {
  * "Pick My Weekend" Mood / Surprise generator
  */
 export function pickMyWeekendRecommendation({ genreId = null, mood = 'any', type = 'ANY' } = {}) {
+  const seedWinners = getSeedWinners();
   const winners = getAllWinners();
   const activeRound = getActiveRound();
 
-  let pool = [...winners];
+  let pool = winners && winners.length > 0 ? [...winners] : [...seedWinners];
 
-  // Also include leading candidates from active round if few winners
+  // Also include all candidates from active round
   if (activeRound && activeRound.genreRounds) {
     Object.keys(activeRound.genreRounds).forEach(gId => {
       const res = calculateGenreResults(activeRound.id, gId);
@@ -894,10 +895,31 @@ export function pickMyWeekendRecommendation({ genreId = null, mood = 'any', type
           type: res.leadingCandidate.type || 'MOVIE',
           releaseYear: res.leadingCandidate.releaseYear,
           posterUrl: res.leadingCandidate.posterUrl,
+          overview: res.leadingCandidate.overview,
           voteCount: res.leadingCandidate.totalVotes,
           votePercentage: res.leadingCandidate.votePercentage,
           communityScore: Math.round((res.leadingCandidate.rating || 4.7) * 20),
           isCurrentLeader: true,
+        });
+      }
+      // Also include all candidate items as potential picks
+      if (res.candidates && res.candidates.length > 0) {
+        res.candidates.forEach(cand => {
+          pool.push({
+            roundId: activeRound.id,
+            roundName: activeRound.name,
+            genreId: gId,
+            genreName: res.genreName,
+            titleId: cand.titleId,
+            title: cand.title,
+            type: cand.type || 'MOVIE',
+            releaseYear: cand.releaseYear,
+            posterUrl: cand.posterUrl,
+            overview: cand.overview,
+            voteCount: cand.totalVotes || cand.initialVoteSeed || 1200,
+            votePercentage: cand.votePercentage || 50,
+            communityScore: Math.round((cand.rating || 4.7) * 20),
+          });
         });
       }
     });
@@ -905,19 +927,21 @@ export function pickMyWeekendRecommendation({ genreId = null, mood = 'any', type
 
   // Filter by genre
   if (genreId && genreId !== 'surprise') {
-    pool = pool.filter(p => p.genreId === genreId);
+    const genreFiltered = pool.filter(p => p.genreId === genreId);
+    if (genreFiltered.length > 0) pool = genreFiltered;
   }
 
   // Filter by type
   if (type && type !== 'ANY') {
-    pool = pool.filter(p => p.type === type);
+    const typeFiltered = pool.filter(p => p.type === type);
+    if (typeFiltered.length > 0) pool = typeFiltered;
   }
 
   if (pool.length === 0) {
-    pool = getAllWinners();
+    pool = [...seedWinners];
   }
 
-  const selected = pool[Math.floor(Math.random() * pool.length)] || getAllWinners()[0];
+  const selected = pool[Math.floor(Math.random() * pool.length)] || seedWinners[0];
   return selected;
 }
 
