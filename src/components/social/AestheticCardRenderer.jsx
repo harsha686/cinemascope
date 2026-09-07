@@ -264,9 +264,11 @@ export default function AestheticCardRenderer({
                   <img
                     src={p}
                     alt="poster"
-                    crossOrigin="anonymous"
+                    crossOrigin={p?.startsWith('data:') ? undefined : 'anonymous'}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    onError={e => { e.target.src = '/demo-frame.jpg'; }}
+                    onError={e => {
+                      e.target.style.display = 'none';
+                    }}
                   />
                 </div>
               ))}
@@ -292,7 +294,7 @@ export default function AestheticCardRenderer({
                 <img
                   src={content.posterUrl}
                   alt={content.title}
-                  crossOrigin="anonymous"
+                  crossOrigin={content.posterUrl?.startsWith('data:') ? undefined : 'anonymous'}
                   style={{
                     width: '100%',
                     height: '100%',
@@ -300,7 +302,10 @@ export default function AestheticCardRenderer({
                     borderRadius: template.isScrapbook ? 1 : 8,
                     display: 'block',
                   }}
-                  onError={e => { e.target.src = '/demo-frame.jpg'; }}
+                  onError={e => {
+                    // Do not replace with a generic mountain demo-frame.jpg
+                    console.warn('Poster failed to load:', content.posterUrl);
+                  }}
                 />
                 {isWeekendWinner && (
                   <div style={{

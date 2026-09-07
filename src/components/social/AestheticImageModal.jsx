@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Sparkles,
@@ -48,6 +49,28 @@ export default function AestheticImageModal({
   const [showBranding, setShowBranding] = useState(true);
   const [showMeta, setShowMeta] = useState(true);
 
+  // Helper to convert an image URL to Data URL (base64) using fetch with CORS
+  const urlToDataUrl = async (url) => {
+    if (!url || typeof url !== 'string' || url.startsWith('data:')) return url;
+    try {
+      // Append a cache-buster so browser doesn't return non-CORS cached response
+      const separator = url.includes('?') ? '&' : '?';
+      const corsUrl = `${url}${separator}cors_ts=${Date.now()}`;
+      const response = await fetch(corsUrl, { mode: 'cors' });
+      if (!response.ok) return url;
+      const blob = await response.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => resolve(url);
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) {
+      console.warn('Could not convert image to Data URL:', e);
+      return url;
+    }
+  };
+
   // Normalized Shareable Content
   const normalized = React.useMemo(() => {
     if (!data) return null;
@@ -58,10 +81,43 @@ export default function AestheticImageModal({
     });
   }, [contentType, data, currentUser]);
 
+  const [resolvedContent, setResolvedContent] = useState(null);
+
   useEffect(() => {
     if (normalized) {
       setCustomHeadline(normalized.headline || '');
       setCustomQuote(normalized.quote || '');
+      setResolvedContent(normalized);
+
+      // Pre-convert poster and backdrop to base64 Data URLs
+      let isCancelled = false;
+      const convertImages = async () => {
+        const posterPromise = normalized.posterUrl ? urlToDataUrl(normalized.posterUrl) : Promise.resolve(null);
+        const backdropPromise = normalized.backdropUrl ? urlToDataUrl(normalized.backdropUrl) : Promise.resolve(null);
+        const postersPromises = (normalized.posters && normalized.posters.length > 0)
+          ? Promise.all(normalized.posters.map(p => urlToDataUrl(p)))
+          : Promise.resolve(null);
+
+        const [posterUrl, backdropUrl, posters] = await Promise.all([
+          posterPromise,
+          backdropPromise,
+          postersPromises,
+        ]);
+
+        if (!isCancelled) {
+          setResolvedContent(prev => ({
+            ...(prev || normalized),
+            ...(posterUrl ? { posterUrl } : {}),
+            ...(backdropUrl ? { backdropUrl } : {}),
+            ...(posters ? { posters } : {}),
+          }));
+        }
+      };
+
+      convertImages();
+      return () => {
+        isCancelled = true;
+      };
     }
   }, [normalized]);
 
@@ -322,7 +378,7 @@ export default function AestheticImageModal({
             }}>
               <AestheticCardRenderer
                 cardRef={cardRef}
-                content={normalized}
+                content={resolvedContent || normalized}
                 format={selectedFormat}
                 template={selectedTemplate}
                 options={{
