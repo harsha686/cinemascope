@@ -35,9 +35,9 @@ export default function GlobalMovieCard({ movie, onStatusChange }) {
     
     try {
       let result;
-      if (action === 'watchlist') result = await toggleWatchlist(movie.tmdbId, activeUser.id);
-      else if (action === 'watched') result = await toggleWatched(movie.tmdbId, activeUser.id);
-      else if (action === 'favorite') result = await toggleFavorite(movie.tmdbId, activeUser.id);
+      if (action === 'watchlist') result = await toggleWatchlist(movie.tmdbId, activeUser.id, movie);
+      else if (action === 'watched') result = await toggleWatched(movie.tmdbId, activeUser.id, movie);
+      else if (action === 'favorite') result = await toggleFavorite(movie.tmdbId, activeUser.id, movie);
       
       const newStatus = { ...status, ...result };
       setStatus(newStatus);

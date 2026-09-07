@@ -186,12 +186,54 @@ export async function discoverRecentIndianMovies(page = 1) {
  * GET /3/movie/{movie_id}?append_to_response=credits,images,external_ids
  */
 export async function fetchFullTmdbMovieDetails(tmdbId) {
-  const strId = String(tmdbId);
+  if (!tmdbId) throw new Error('Missing tmdbId');
+  const strId = String(tmdbId).trim();
   if (strId.startsWith('tv-') || strId.startsWith('tmdb-tv-')) {
-    return fetchFullTmdbTvDetails(strId.replace(/^tmdb-/, '').replace(/^tv-/, ''));
+    const tvDetails = await fetchFullTmdbTvDetails(strId.replace(/^tmdb-/, '').replace(/^tv-/, ''));
+    return { ...tvDetails, requestedId: strId };
   }
 
   const cleanId = strId.replace(/^tmdb-/, '');
+
+  // If cleanId contains non-numeric slug characters (e.g. 'john-wick-4', 'oppenheimer', 'arcane-series')
+  if (!/^\d+$/.test(cleanId)) {
+    try {
+      const isSeries = cleanId.includes('-series') || cleanId.includes('-show') || cleanId.includes('-tv');
+      const searchQuery = cleanId
+        .replace(/-series$/i, '')
+        .replace(/-show$/i, '')
+        .replace(/-tv$/i, '')
+        .replace(/-/g, ' ')
+        .trim();
+
+      const searchRes = isSeries ? await searchTmdbTv(searchQuery) : await searchTmdbMovies(searchQuery);
+      let topMatch = searchRes.results && searchRes.results[0];
+      if (!topMatch && !isSeries) {
+        // Try multi search as second attempt
+        const multiRes = await searchTmdbMulti(searchQuery);
+        topMatch = multiRes.results && multiRes.results[0];
+      }
+
+      if (topMatch) {
+        let details;
+        if (isSeries || topMatch.isTv || topMatch.mediaType === 'tv') {
+          details = await fetchFullTmdbTvDetails(topMatch.tmdbId || topMatch.id);
+        } else {
+          details = await fetchFullTmdbMovieDetails(topMatch.tmdbId || topMatch.id);
+        }
+        if (details) {
+          return {
+            ...details,
+            requestedId: strId,
+            cleanId: cleanId,
+          };
+        }
+      }
+    } catch (slugErr) {
+      console.warn(`Could not resolve slug "${cleanId}" via TMDB search:`, slugErr);
+    }
+  }
+
   try {
     const data = await tmdbFetch(`/movie/${cleanId}?append_to_response=credits,images,external_ids,watch/providers,release_dates`);
 
@@ -280,6 +322,8 @@ export async function fetchFullTmdbMovieDetails(tmdbId) {
     return {
       id: `tmdb-${data.id}`,
       tmdbId: data.id,
+      requestedId: strId,
+      cleanId: cleanId,
       isTv: false,
       mediaType: 'movie',
       title: data.title || data.original_title,
@@ -314,7 +358,12 @@ export async function fetchFullTmdbMovieDetails(tmdbId) {
   } catch (err) {
     // Attempt fallback to TV show details if movie request fails
     try {
-      return await fetchFullTmdbTvDetails(cleanId);
+      const tvDetails = await fetchFullTmdbTvDetails(cleanId);
+      return {
+        ...tvDetails,
+        requestedId: strId,
+        cleanId: cleanId,
+      };
     } catch (tvErr) {
       throw err;
     }
@@ -654,6 +703,8 @@ export async function fetchFullTmdbTvDetails(tmdbId) {
   return {
     id: `tmdb-tv-${data.id}`,
     tmdbId: data.id,
+    requestedId: String(tmdbId),
+    cleanId: cleanId,
     isTv: true,
     mediaType: 'tv',
     title: data.name || data.original_name,

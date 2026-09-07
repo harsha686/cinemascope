@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Film, CheckCircle, Bookmark, Heart, BookOpen, Folder, Plus, Search, LayoutGrid, List as ListIcon, X, RefreshCw } from 'lucide-react';
 import { useApp } from '../AppContext';
@@ -68,35 +68,86 @@ export default function LibraryPage() {
   const displayedItems = useMemo(() => {
     let items = [...sectionItems];
     if (searchQuery) {
+      const q = searchQuery.toLowerCase();
       items = items.filter(item => {
         const m = moviesData[item.tmdbId];
-        return m?.title?.toLowerCase().includes(searchQuery.toLowerCase());
+        const title = m?.title || item.title || item.movieMeta?.title || item.tmdbId;
+        return title.toLowerCase().includes(q);
       });
     }
     items.sort((a, b) => {
       const mA = moviesData[a.tmdbId];
       const mB = moviesData[b.tmdbId];
-      if (sort === 'title' && mA && mB) return mA.title.localeCompare(mB.title);
-      if (sort === 'year' && mA && mB) return (mB.releaseYear || 0) - (mA.releaseYear || 0);
+      if (sort === 'title') {
+        const titleA = mA?.title || a.title || a.tmdbId;
+        const titleB = mB?.title || b.title || b.tmdbId;
+        return titleA.localeCompare(titleB);
+      }
+      if (sort === 'year') {
+        const yearA = parseInt(mA?.releaseYear || a.releaseYear || 0, 10) || 0;
+        const yearB = parseInt(mB?.releaseYear || b.releaseYear || 0, 10) || 0;
+        return yearB - yearA;
+      }
       if (sort === 'rating') return (b.rating || 0) - (a.rating || 0);
       return 0;
     });
     return items;
   }, [sectionItems, searchQuery, sort, moviesData]);
 
-  // Fetch TMDB data for items not yet loaded
+  const attemptedIdsRef = useRef(new Set());
+
+  // Fetch TMDB data for items not yet loaded (without cyclic re-fetch loops)
   useEffect(() => {
-    const idsToFetch = displayedItems.map(i => i.tmdbId).filter(id => id && !moviesData[id]);
-    if (idsToFetch.length === 0) return;
+    const rawIds = sectionItems.map(i => i.tmdbId).filter(Boolean);
+    const unattempted = rawIds.filter(id => !attemptedIdsRef.current.has(id) && !moviesData[id]);
+    if (unattempted.length === 0) return;
+
+    const batch = [...new Set(unattempted)].slice(0, 30);
+    batch.forEach(id => attemptedIdsRef.current.add(id));
+
     setLoadingMovies(true);
-    Promise.all([...new Set(idsToFetch)].slice(0, 20).map(id =>
-      fetchFullTmdbMovieDetails(id).catch(() => null)
-    )).then(results => {
+    Promise.all(batch.map(async (id) => {
+      try {
+        const details = await fetchFullTmdbMovieDetails(id);
+        return { id, details };
+      } catch {
+        return { id, details: null };
+      }
+    })).then(results => {
       const map = {};
-      results.forEach(m => { if (m) map[m.tmdbId] = m; });
+      results.forEach(({ id, details }) => {
+        const item = library[id] || {};
+        if (details) {
+          map[id] = details;
+          if (details.tmdbId) {
+            map[details.tmdbId] = details;
+            map[String(details.tmdbId)] = details;
+          }
+          if (details.id) map[details.id] = details;
+          if (details.cleanId) map[details.cleanId] = details;
+          if (details.requestedId) map[details.requestedId] = details;
+        } else {
+          // Robust fallback so item always displays nicely and is never re-fetched
+          const fallbackTitle = item.title || item.movieMeta?.title || id.replace(/-series$/i, '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+          map[id] = {
+            tmdbId: id,
+            id: `tmdb-${id}`,
+            title: fallbackTitle,
+            posterUrl: item.posterUrl || item.movieMeta?.posterUrl || '',
+            releaseYear: item.releaseYear || item.movieMeta?.releaseYear || '',
+            voteAverage: item.rating || 0,
+            language: item.language || 'English',
+            isTv: item.type === 'SERIES' || id.includes('-series'),
+            mediaType: item.type === 'SERIES' || id.includes('-series') ? 'tv' : 'movie',
+            isFallback: true,
+          };
+        }
+      });
       setMoviesData(prev => ({ ...prev, ...map }));
-    }).finally(() => setLoadingMovies(false));
-  }, [displayedItems]);
+    }).finally(() => {
+      setLoadingMovies(false);
+    });
+  }, [sectionItems, library]);
 
   const handleCreateCollection = async (e) => {
     e.preventDefault();
@@ -215,6 +266,12 @@ export default function LibraryPage() {
                 <option value="rating" style={{ background: '#18140e', color: '#ffffff' }}>My Rating</option>
               </select>
             )}
+            {loadingMovies && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--gold)', fontSize: 11, padding: '5px 10px', background: 'rgba(201,168,76,0.08)', borderRadius: 4, border: '1px solid var(--gold-dim)' }}>
+                <RefreshCw size={12} className="animate-spin" style={{ animation: 'spin 1.2s linear infinite' }} />
+                <span>Syncing details…</span>
+              </div>
+            )}
             <div style={{ display: 'flex', border: '1px solid var(--border-subtle)', borderRadius: 4, overflow: 'hidden' }}>
               <button onClick={() => setViewMode('grid')} style={{ padding: '6px 10px', background: viewMode === 'grid' ? 'var(--gold-faint)' : 'transparent', border: 'none', cursor: 'pointer', color: viewMode === 'grid' ? 'var(--gold)' : 'var(--text-muted)' }}>
                 <LayoutGrid size={14} />
@@ -267,30 +324,42 @@ export default function LibraryPage() {
             </div>
           ) : (
             <>
-              {loadingMovies && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)', fontSize: 12, marginBottom: 16 }}>
-                  <RefreshCw size={14} /> Loading movie data…
-                </div>
-              )}
               {viewMode === 'grid' ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 16 }}>
                   {displayedItems.map(item => {
-                    const movie = moviesData[item.tmdbId];
-                    if (!movie) return (
-                      <div key={item.tmdbId} style={{ aspectRatio: '2/3', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Film size={20} color="var(--text-muted)" />
-                      </div>
-                    );
+                    const movie = moviesData[item.tmdbId] || {
+                      tmdbId: item.tmdbId,
+                      id: `tmdb-${item.tmdbId}`,
+                      title: item.title || item.movieMeta?.title || item.tmdbId.replace(/-series$/i, '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+                      posterUrl: item.posterUrl || item.movieMeta?.posterUrl || '',
+                      releaseYear: item.releaseYear || item.movieMeta?.releaseYear || '',
+                      voteAverage: item.rating || 0,
+                      language: item.language || 'English',
+                      isTv: item.type === 'SERIES' || String(item.tmdbId).includes('-series'),
+                      mediaType: item.type === 'SERIES' || String(item.tmdbId).includes('-series') ? 'tv' : 'movie',
+                    };
                     return <GlobalMovieCard key={item.tmdbId} movie={movie} />;
                   })}
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {displayedItems.map(item => {
-                    const movie = moviesData[item.tmdbId];
+                    const movie = moviesData[item.tmdbId] || {
+                      tmdbId: item.tmdbId,
+                      title: item.title || item.movieMeta?.title || item.tmdbId.replace(/-series$/i, '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+                      posterUrl: item.posterUrl || item.movieMeta?.posterUrl || '',
+                      releaseYear: item.releaseYear || item.movieMeta?.releaseYear || '',
+                      language: item.language || 'English',
+                    };
                     return (
                       <div key={item.tmdbId} style={{ display: 'flex', gap: 12, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4, padding: '12px 16px', alignItems: 'center' }}>
-                        {movie?.posterUrl && <img src={movie.posterUrl} alt={movie.title} style={{ width: 36, height: 54, objectFit: 'cover', borderRadius: 3, flexShrink: 0 }} />}
+                        {movie?.posterUrl ? (
+                          <img src={movie.posterUrl} alt={movie.title} style={{ width: 36, height: 54, objectFit: 'cover', borderRadius: 3, flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: 36, height: 54, background: 'var(--bg)', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'var(--text-muted)' }}>
+                            <Film size={16} />
+                          </div>
+                        )}
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <Link to={`/movie/tmdb-${item.tmdbId}`} style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--text-primary)', fontWeight: 600, textDecoration: 'none' }}>
                             {movie?.title || item.tmdbId}

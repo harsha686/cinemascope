@@ -37,9 +37,36 @@ export default function WatchlistPage() {
     if (watchlistItems.length === 0) return;
     const idsToFetch = watchlistItems.map(i => i.tmdbId).filter(id => id && !moviesData[id]);
     if (idsToFetch.length === 0) return;
-    Promise.all([...new Set(idsToFetch)].map(id => fetchFullTmdbMovieDetails(id).catch(() => null))).then(results => {
+    const uniqueIds = [...new Set(idsToFetch)];
+    Promise.all(uniqueIds.map(async (id) => {
+      try {
+        const details = await fetchFullTmdbMovieDetails(id);
+        return { id, details };
+      } catch {
+        return { id, details: null };
+      }
+    })).then(results => {
       const map = {};
-      results.forEach(m => { if (m) map[m.tmdbId] = m; });
+      results.forEach(({ id, details }) => {
+        const item = watchlistItems.find(w => w.tmdbId === id) || {};
+        if (details) {
+          map[id] = details;
+          if (details.tmdbId) map[details.tmdbId] = details;
+          if (details.id) map[details.id] = details;
+          if (details.cleanId) map[details.cleanId] = details;
+          if (details.requestedId) map[details.requestedId] = details;
+        } else {
+          map[id] = {
+            tmdbId: id,
+            id: `tmdb-${id}`,
+            title: item.title || item.movieMeta?.title || id.replace(/-series$/i, '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            posterUrl: item.posterUrl || item.movieMeta?.posterUrl || '',
+            releaseYear: item.releaseYear || item.movieMeta?.releaseYear || '',
+            voteAverage: item.rating || 0,
+            language: item.language || 'English',
+          };
+        }
+      });
       setMoviesData(prev => ({ ...prev, ...map }));
     });
   }, [watchlistItems]);

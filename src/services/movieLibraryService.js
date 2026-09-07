@@ -119,12 +119,20 @@ export async function getMovieStatus(tmdbId, userId) {
   return getMovieStatusSync(tmdbId, userId);
 }
 
-export async function toggleWatchlist(tmdbId, userIdOrMeta) {
+export async function toggleWatchlist(tmdbId, userIdOrMeta, maybeMeta) {
   const cleanId = String(tmdbId || '').replace('tmdb-', '');
   const userId = getActiveUserId(userIdOrMeta);
+  const meta = maybeMeta || (typeof userIdOrMeta === 'object' ? userIdOrMeta : null);
   const lib = await getLibrary(userId);
   if (!lib[cleanId]) lib[cleanId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
   lib[cleanId].watchlist = !lib[cleanId].watchlist;
+  if (meta && typeof meta === 'object') {
+    if (meta.title) lib[cleanId].title = meta.title;
+    if (meta.posterUrl) lib[cleanId].posterUrl = meta.posterUrl;
+    if (meta.releaseYear) lib[cleanId].releaseYear = meta.releaseYear;
+    if (meta.language) lib[cleanId].language = meta.language;
+    if (meta.type || meta.mediaType) lib[cleanId].type = meta.type || meta.mediaType;
+  }
   await saveLibrary(lib, userId);
   
   if (isSupabaseConfigured() && userId && userId !== 'guest') {
@@ -151,14 +159,22 @@ export async function toggleWatchlist(tmdbId, userIdOrMeta) {
   };
 }
 
-export async function toggleWatched(tmdbId, userIdOrMeta) {
+export async function toggleWatched(tmdbId, userIdOrMeta, maybeMeta) {
   const cleanId = String(tmdbId || '').replace('tmdb-', '');
   const userId = getActiveUserId(userIdOrMeta);
+  const meta = maybeMeta || (typeof userIdOrMeta === 'object' ? userIdOrMeta : null);
   const lib = await getLibrary(userId);
   if (!lib[cleanId]) lib[cleanId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
   lib[cleanId].watched = !lib[cleanId].watched;
   if (lib[cleanId].watched) {
     lib[cleanId].watchCount = (lib[cleanId].watchCount || 0) + 1;
+  }
+  if (meta && typeof meta === 'object') {
+    if (meta.title) lib[cleanId].title = meta.title;
+    if (meta.posterUrl) lib[cleanId].posterUrl = meta.posterUrl;
+    if (meta.releaseYear) lib[cleanId].releaseYear = meta.releaseYear;
+    if (meta.language) lib[cleanId].language = meta.language;
+    if (meta.type || meta.mediaType) lib[cleanId].type = meta.type || meta.mediaType;
   }
   await saveLibrary(lib, userId);
 
@@ -186,12 +202,20 @@ export async function toggleWatched(tmdbId, userIdOrMeta) {
   };
 }
 
-export async function toggleFavorite(tmdbId, userIdOrMeta) {
+export async function toggleFavorite(tmdbId, userIdOrMeta, maybeMeta) {
   const cleanId = String(tmdbId || '').replace('tmdb-', '');
   const userId = getActiveUserId(userIdOrMeta);
+  const meta = maybeMeta || (typeof userIdOrMeta === 'object' ? userIdOrMeta : null);
   const lib = await getLibrary(userId);
   if (!lib[cleanId]) lib[cleanId] = { watchlist: false, watched: false, favorite: false, rating: null, notes: '', watchCount: 0 };
   lib[cleanId].favorite = !lib[cleanId].favorite;
+  if (meta && typeof meta === 'object') {
+    if (meta.title) lib[cleanId].title = meta.title;
+    if (meta.posterUrl) lib[cleanId].posterUrl = meta.posterUrl;
+    if (meta.releaseYear) lib[cleanId].releaseYear = meta.releaseYear;
+    if (meta.language) lib[cleanId].language = meta.language;
+    if (meta.type || meta.mediaType) lib[cleanId].type = meta.type || meta.mediaType;
+  }
   await saveLibrary(lib, userId);
 
   if (isSupabaseConfigured() && userId && userId !== 'guest') {
