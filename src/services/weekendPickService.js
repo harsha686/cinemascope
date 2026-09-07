@@ -826,6 +826,86 @@ export function declareWinnersForRound(roundId, tieBreakerOption = 'highest_perc
 }
 
 /**
+ * Reset polling for a specific round (clears all user votes, removes declared winners, sets round to ACTIVE)
+ */
+export function resetRoundPolling(roundId, resetSeeds = false) {
+  if (!roundId) return false;
+
+  // 1. Remove all user votes for this round
+  const allVotes = getAllVotes();
+  const remainingVotes = allVotes.filter(v => v.roundId !== roundId);
+  saveVotes(remainingVotes);
+
+  // 2. Remove any declared winners for this round
+  const allWinners = getAllWinners();
+  const remainingWinners = allWinners.filter(w => w.roundId !== roundId);
+  saveWinners(remainingWinners);
+
+  // 3. Reset seed baseline votes on candidates if requested
+  const round = getRoundById(roundId);
+  if (round) {
+    const updatedGenreRounds = JSON.parse(JSON.stringify(round.genreRounds || {}));
+    if (resetSeeds) {
+      Object.keys(updatedGenreRounds).forEach(gId => {
+        if (updatedGenreRounds[gId]?.candidates) {
+          updatedGenreRounds[gId].candidates = updatedGenreRounds[gId].candidates.map(c => ({
+            ...c,
+            initialVoteSeed: 0
+          }));
+        }
+      });
+    }
+
+    // Set round status back to ACTIVE
+    updateRound(roundId, {
+      status: 'ACTIVE',
+      genreRounds: updatedGenreRounds,
+    });
+  }
+
+  // Trigger storage sync event
+  try {
+    window.dispatchEvent(new Event('storage'));
+  } catch (e) {}
+
+  return true;
+}
+
+/**
+ * Reset votes for a specific genre in a round
+ */
+export function resetGenrePolling(roundId, genreId) {
+  if (!roundId || !genreId) return false;
+
+  const allVotes = getAllVotes();
+  const remainingVotes = allVotes.filter(v => !(v.roundId === roundId && v.genreId === genreId));
+  saveVotes(remainingVotes);
+
+  const allWinners = getAllWinners();
+  const remainingWinners = allWinners.filter(w => !(w.roundId === roundId && w.genreId === genreId));
+  saveWinners(remainingWinners);
+
+  try {
+    window.dispatchEvent(new Event('storage'));
+  } catch (e) {}
+
+  return true;
+}
+
+/**
+ * Factory reset all weekend pick data back to default seed state
+ */
+export function factoryResetWeekendData() {
+  saveStorage(ROUNDS_KEY, getSeedRounds());
+  saveStorage(VOTES_KEY, []);
+  saveStorage(WINNERS_KEY, getSeedWinners());
+  try {
+    window.dispatchEvent(new Event('storage'));
+  } catch (e) {}
+  return true;
+}
+
+/**
  * Get the latest winner for a specific genre
  */
 export function getWinnerForGenre(genreId, roundId = null) {

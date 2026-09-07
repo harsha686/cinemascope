@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Film,
   Tv,
+  RotateCcw,
 } from 'lucide-react';
 import {
   getAllRounds,
@@ -27,6 +28,9 @@ import {
   calculateGenreResults,
   GENRE_OPTIONS,
   TIE_BREAKER_OPTIONS,
+  resetRoundPolling,
+  resetGenrePolling,
+  factoryResetWeekendData,
 } from '../../services/weekendPickService';
 import { searchTmdbMovies, fetchFullTmdbMovieDetails } from '../../services/tmdbService';
 
@@ -106,6 +110,46 @@ export default function WeekendVotingAdminTab() {
     if (window.confirm('Are you sure you want to delete this voting round and all its candidate data?')) {
       deleteRound(roundId);
       reloadData();
+    }
+  };
+
+  const handleResetPolling = (roundId) => {
+    if (!currentRound) return;
+    const isConfirmed = window.confirm(
+      `Are you sure you want to RESET POLLING for "${currentRound.name}"?\n\n` +
+      `• All submitted user votes for this round will be cleared to 0.\n` +
+      `• Any declared winners for this round will be reset.\n` +
+      `• Round status will be reset back to ACTIVE.\n\n` +
+      `Do you want to proceed?`
+    );
+    if (!isConfirmed) return;
+
+    const resetSeedsToo = window.confirm(
+      `Do you also want to reset candidate baseline seed votes to 0?\n\n` +
+      `• Click [OK] to reset candidate initial votes to 0 (true zero baseline).\n` +
+      `• Click [Cancel] to keep the default baseline counts.`
+    );
+
+    resetRoundPolling(roundId, resetSeedsToo);
+    reloadData();
+    alert(`Polling for "${currentRound.name}" has been successfully reset!`);
+  };
+
+  const handleResetGenrePolling = (genreId) => {
+    if (!currentRound) return;
+    const genreName = GENRE_OPTIONS.find(g => g.id === genreId)?.name || genreId;
+    if (window.confirm(`Reset all votes and winner status for "${genreName}" in "${currentRound.name}"?`)) {
+      resetGenrePolling(currentRound.id, genreId);
+      reloadData();
+      alert(`Votes for "${genreName}" have been reset.`);
+    }
+  };
+
+  const handleFactoryReset = () => {
+    if (window.confirm('⚠️ FACTORY RESET WEEKEND PICKS:\n\nThis will restore all default seed rounds, clear all user votes, and reset winners archive to default.\n\nAre you sure you want to continue?')) {
+      factoryResetWeekendData();
+      reloadData();
+      alert('Weekend Pick system has been restored to default seeds!');
     }
   };
 
@@ -277,6 +321,16 @@ export default function WeekendVotingAdminTab() {
               <Trophy size={12} /> Declare Winners
             </button>
 
+            <button
+              type="button"
+              onClick={() => handleResetPolling(currentRound.id)}
+              className="btn btn-outline btn-sm"
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, borderColor: '#f97316', color: '#f97316' }}
+              title="Reset all user votes and winner status for this round"
+            >
+              <RotateCcw size={12} /> Reset Polling
+            </button>
+
             {currentRound.status !== 'ARCHIVED' && (
               <button
                 type="button"
@@ -377,14 +431,25 @@ export default function WeekendVotingAdminTab() {
               })}
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowAddCandidateModal(true)}
-              className="btn btn-outline btn-sm"
-              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}
-            >
-              <Plus size={13} /> Add Candidate in {GENRE_OPTIONS.find(g => g.id === activeGenreTab)?.name}
-            </button>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => handleResetGenrePolling(activeGenreTab)}
+                className="btn btn-ghost btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-muted)' }}
+                title={`Reset votes for ${genreResults?.genreName || activeGenreTab}`}
+              >
+                <RotateCcw size={11} /> Reset {genreResults?.genreName || activeGenreTab} Votes
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAddCandidateModal(true)}
+                className="btn btn-outline btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}
+              >
+                <Plus size={13} /> Add Candidate in {GENRE_OPTIONS.find(g => g.id === activeGenreTab)?.name}
+              </button>
+            </div>
           </div>
 
           {/* Candidate Table / Cards */}
@@ -470,6 +535,50 @@ export default function WeekendVotingAdminTab() {
           )}
         </div>
       )}
+
+      {/* ADMIN MAINTENANCE & POLLING DATA TOOLS */}
+      <div style={{
+        marginTop: 12,
+        padding: 20,
+        background: 'rgba(239,68,68,0.03)',
+        border: '1px solid rgba(239,68,68,0.2)',
+        borderRadius: 4,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 16,
+      }}>
+        <div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: '#f87171', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <AlertTriangle size={15} /> Admin Polling Maintenance &amp; Reset Tools
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+            Clear community user votes for this round, reset candidate seed baselines, or restore default seed database.
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {currentRound && (
+            <button
+              type="button"
+              onClick={() => handleResetPolling(currentRound.id)}
+              className="btn btn-outline btn-sm"
+              style={{ borderColor: '#f97316', color: '#f97316', fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}
+            >
+              <RotateCcw size={12} /> Reset Current Round Polling
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleFactoryReset}
+            className="btn btn-ghost btn-sm"
+            style={{ color: '#f87171', fontSize: 11, display: 'flex', alignItems: 'center', gap: 5, border: '1px solid rgba(239,68,68,0.3)' }}
+          >
+            <RefreshCw size={12} /> Factory Reset All Weekend Data
+          </button>
+        </div>
+      </div>
 
       {/* CREATE ROUND MODAL */}
       {showCreateModal && (
