@@ -531,7 +531,7 @@ export default function AestheticImageModal({
               {navigator.share && (
                 <button
                   type="button"
-                  onClick={handleNativeShare}
+                  onClick={handleWebShare}
                   className="btn btn-outline"
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 12 }}
                 >
