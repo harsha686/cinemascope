@@ -4,8 +4,9 @@ const ROUNDS_KEY = 'cinemascope_weekend_rounds';
 const VOTES_KEY = 'cinemascope_weekend_votes';
 const WINNERS_KEY = 'cinemascope_weekend_winners';
 const USER_PREFS_KEY = 'cinemascope_user_weekend_prefs';
+const GENRES_KEY = 'cinemascope_weekend_genres';
 
-export const GENRE_OPTIONS = [
+export const DEFAULT_GENRE_OPTIONS = [
   { id: 'action', name: 'Action', emoji: '💥', icon: 'Flame', color: '#f97316' },
   { id: 'comedy', name: 'Comedy', emoji: '😂', icon: 'Smile', color: '#fbbf24' },
   { id: 'horror', name: 'Horror', emoji: '👻', icon: 'Ghost', color: '#ef4444' },
@@ -14,12 +15,6 @@ export const GENRE_OPTIONS = [
   { id: 'romance', name: 'Romance', emoji: '💖', icon: 'Heart', color: '#ec4899' },
   { id: 'animation', name: 'Animation', emoji: '🎨', icon: 'Sparkles', color: '#10b981' },
   { id: 'drama', name: 'Drama', emoji: '🎭', icon: 'Film', color: '#eab308' },
-];
-
-export const TIE_BREAKER_OPTIONS = [
-  { id: 'highest_percentage', label: 'Highest Vote Percentage' },
-  { id: 'engagement_score', label: 'Community Rating & Engagement' },
-  { id: 'admin_resolution', label: 'Admin Manual Selection' },
 ];
 
 // Helper storage functions
@@ -40,6 +35,165 @@ const saveStorage = (key, val) => {
     console.error(`Error saving ${key} to storage:`, e);
   }
 };
+
+/**
+ * Get dynamic list of genres
+ */
+export function getGenreOptions() {
+  const loaded = loadStorage(GENRES_KEY, null);
+  if (Array.isArray(loaded) && loaded.length > 0) {
+    return loaded;
+  }
+  return [...DEFAULT_GENRE_OPTIONS];
+}
+
+/**
+ * Global dynamic array reference for direct access
+ */
+export const GENRE_OPTIONS = getGenreOptions();
+
+/**
+ * Save genre options list
+ */
+export function saveGenreOptions(genres) {
+  saveStorage(GENRES_KEY, genres);
+  GENRE_OPTIONS.length = 0;
+  GENRE_OPTIONS.push(...genres);
+  try {
+    window.dispatchEvent(new Event('cinemascope_genres_updated'));
+  } catch (e) {}
+}
+
+/**
+ * Update a specific genre
+ */
+export function updateGenreOption(genreId, updates) {
+  const current = getGenreOptions();
+  const updated = current.map(g => {
+    if (g.id === genreId) {
+      return { ...g, ...updates };
+    }
+    return g;
+  });
+  saveGenreOptions(updated);
+
+  // If name changed, also update any active round that contains this genre
+  if (updates.name) {
+    try {
+      const rounds = loadStorage(ROUNDS_KEY, []);
+      let modified = false;
+      const updatedRounds = rounds.map(r => {
+        if (r.genreRounds && r.genreRounds[genreId]) {
+          modified = true;
+          return {
+            ...r,
+            genreRounds: {
+              ...r.genreRounds,
+              [genreId]: {
+                ...r.genreRounds[genreId],
+                genreName: updates.name,
+              },
+            },
+          };
+        }
+        return r;
+      });
+      if (modified) {
+        saveStorage(ROUNDS_KEY, updatedRounds);
+      }
+    } catch (e) {
+      console.warn('Could not sync genre name across rounds:', e);
+    }
+  }
+
+  return updated;
+}
+
+/**
+ * Add a new genre
+ */
+export function addGenreOption(genreData) {
+  const current = getGenreOptions();
+  const rawId = genreData.id || genreData.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/^-+|-+$/g, '');
+  const id = rawId || `genre-${Date.now()}`;
+
+  if (current.some(g => g.id === id)) {
+    throw new Error(`A genre with ID "${id}" already exists.`);
+  }
+
+  const newGenre = {
+    id,
+    name: genreData.name.trim(),
+    emoji: genreData.emoji || '🎬',
+    icon: genreData.icon || 'Film',
+    color: genreData.color || '#eab308',
+  };
+
+  const updated = [...current, newGenre];
+  saveGenreOptions(updated);
+
+  // Also add this genre to current rounds so it's immediately available to add candidates
+  try {
+    const rounds = loadStorage(ROUNDS_KEY, []);
+    let modified = false;
+    const updatedRounds = rounds.map(r => {
+      if (r.genreRounds && !r.genreRounds[id]) {
+        modified = true;
+        return {
+          ...r,
+          genreRounds: {
+            ...r.genreRounds,
+            [id]: {
+              genreId: id,
+              genreName: newGenre.name,
+              candidates: [],
+            },
+          },
+        };
+      }
+      return r;
+    });
+    if (modified) {
+      saveStorage(ROUNDS_KEY, updatedRounds);
+    }
+  } catch (e) {
+    console.warn('Could not add genre to existing rounds:', e);
+  }
+
+  return newGenre;
+}
+
+/**
+ * Delete a genre
+ */
+export function deleteGenreOption(genreId) {
+  const current = getGenreOptions();
+  const updated = current.filter(g => g.id !== genreId);
+  saveGenreOptions(updated);
+  return updated;
+}
+
+/**
+ * Reset genres to default 8
+ */
+export function resetGenreOptionsToDefault() {
+  saveGenreOptions(DEFAULT_GENRE_OPTIONS);
+  return DEFAULT_GENRE_OPTIONS;
+}
+
+/**
+ * Reorder genres
+ */
+export function reorderGenreOptions(newOrder) {
+  saveGenreOptions(newOrder);
+  return newOrder;
+}
+
+export const TIE_BREAKER_OPTIONS = [
+  { id: 'highest_percentage', label: 'Highest Vote Percentage' },
+  { id: 'engagement_score', label: 'Community Rating & Engagement' },
+  { id: 'admin_resolution', label: 'Admin Manual Selection' },
+];
 
 // INITIAL SEED DATA
 const getSeedRounds = () => {

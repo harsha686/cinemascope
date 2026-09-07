@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Sparkles, Dices, Trophy, Star, ArrowRight, Bookmark, Check, Heart } from 'lucide-react';
-import { GENRE_OPTIONS, pickMyWeekendRecommendation } from '../../services/weekendPickService';
+import { getGenreOptions, pickMyWeekendRecommendation } from '../../services/weekendPickService';
 import { toggleWatchlist, toggleFavorite, toggleWatched, getMovieStatusSync } from '../../services/movieLibraryService';
 import { useApp } from '../../AppContext';
 
@@ -20,6 +20,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
   const { state } = useApp();
   const currentUser = state.currentUser;
 
+  const [genres, setGenres] = useState(() => getGenreOptions());
   const [selectedGenre, setSelectedGenre] = useState('surprise');
   const [selectedMood, setSelectedMood] = useState('any');
   const [selectedType, setSelectedType] = useState('ANY'); // ANY | MOVIE | SERIES
@@ -29,10 +30,21 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
 
   useEffect(() => {
     if (isOpen) {
+      setGenres(getGenreOptions());
       setResult(null);
       setIsSpinning(false);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    const handleUpdate = () => setGenres(getGenreOptions());
+    window.addEventListener('storage', handleUpdate);
+    window.addEventListener('cinemascope_genres_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('cinemascope_genres_updated', handleUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -241,7 +253,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                 >
                   🎲 Surprise Me
                 </button>
-                {GENRE_OPTIONS.map(g => (
+                {genres.map(g => (
                   <button
                     key={g.id}
                     type="button"

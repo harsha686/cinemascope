@@ -56,7 +56,7 @@ export default function GlobalMovieCard({ movie, onStatusChange }) {
 
   return (
     <div 
-      className="global-movie-card"
+      className="global-movie-card interactive-card"
       style={{
         width: '180px',
         maxWidth: '100%',
@@ -66,7 +66,6 @@ export default function GlobalMovieCard({ movie, onStatusChange }) {
         borderRadius: 'var(--radius-sm)',
         overflow: 'hidden',
         cursor: 'pointer',
-        transition: 'transform 0.2s ease',
         border: '1px solid var(--border-subtle)'
       }}
       onClick={() => navigate(`/movie/${targetId}`)}
@@ -78,7 +77,8 @@ export default function GlobalMovieCard({ movie, onStatusChange }) {
           <img 
             src={movie.posterUrl} 
             alt={movie.title} 
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+            loading="lazy"
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', transition: 'opacity 0.3s ease' }}
           />
         ) : (
           <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>

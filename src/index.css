@@ -491,17 +491,46 @@ select optgroup {
 ::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 
 /* --- Responsive --- */
+/* --- Responsive & Mobile Bottom Nav --- */
 @media (max-width: 768px) {
   .container { padding: 0 16px; }
   .section { padding: 40px 0; }
   .comparison-grid { grid-template-columns: 1fr; }
   .vs-label { margin-top: 0; padding: 14px 0; }
   .spec-grid { grid-template-columns: 1fr 1fr; }
+  .desktop-nav { display: none !important; }
+  .mobile-bottom-nav { display: block !important; }
+  body { padding-bottom: 68px; } /* Ensure content is not covered by bottom nav */
 }
 
 @media (max-width: 480px) {
   .container { padding: 0 12px; }
   .spec-grid { grid-template-columns: 1fr; }
+}
+
+/* --- Skeleton Shimmer Animation --- */
+@keyframes skeleton-glow {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* --- Smooth Shelf Edge Scroll Masks --- */
+.shelf-scroll-container {
+  mask-image: linear-gradient(to right, black calc(100% - 48px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 48px), transparent 100%);
+}
+
+/* --- Card Micro-Interactions & Lifts --- */
+.interactive-card {
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+}
+.interactive-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.75), 0 0 18px var(--gold-glow);
+  border-color: var(--gold-dim) !important;
+}
+.interactive-card:active {
+  transform: scale(0.98);
 }
 
 /* --- Reduced Motion --- */

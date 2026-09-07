@@ -5,6 +5,8 @@ import { useApp } from '../AppContext';
 import * as LibService from '../services/movieLibraryService';
 import { fetchFullTmdbMovieDetails, searchTmdbMovies } from '../services/tmdbService';
 import GlobalMovieCard from '../components/discovery/GlobalMovieCard';
+import ShareButton from '../components/social/ShareButton';
+import { SOCIAL_CONTENT_TYPES } from '../services/socialSharingService';
 
 function AddMoviesModal({ collection, onClose, onCollectionUpdated, userId }) {
   const [query, setQuery] = useState('');
@@ -317,7 +319,20 @@ export default function CollectionPage() {
               </p>
             </div>
             
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <ShareButton
+                contentType={SOCIAL_CONTENT_TYPES.COLLECTION}
+                data={{
+                  id: collection.id,
+                  name: collection.name,
+                  description: collection.description,
+                  movies: (collection.movie_ids || []).map(id => moviesData[id] || { id, title: id }),
+                }}
+                variant="primary"
+                size="sm"
+                customLabel="✨ Share Collection"
+              />
+
               <button className="btn btn-outline btn-sm" onClick={() => setIsEditing(true)}>
                 <Edit2 size={14} /> Edit
               </button>

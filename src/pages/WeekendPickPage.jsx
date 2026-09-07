@@ -20,7 +20,7 @@ import {
   hasUserVotedInGenre,
   getUserVoteInGenre,
   getUserVotes,
-  GENRE_OPTIONS,
+  getGenreOptions,
   getAllWinners,
   hasUserVotedInAllGenres,
   getUserVotedGenresCount,
@@ -36,15 +36,32 @@ export default function WeekendPickPage() {
   const { state } = useApp();
   const currentUser = state.currentUser;
 
+  const [genres, setGenres] = useState(() => getGenreOptions());
   const [activeRound, setActiveRound] = useState(() => getActiveRound());
-  const [selectedGenre, setSelectedGenre] = useState('action');
+  const [selectedGenre, setSelectedGenre] = useState(() => getGenreOptions()[0]?.id || 'action');
   const [showPickModal, setShowPickModal] = useState(false);
   const [shareModalData, setShareModalData] = useState(null);
   const [voteConfirmationMsg, setVoteConfirmationMsg] = useState('');
 
   const reloadRoundData = () => {
     setActiveRound(getActiveRound());
+    setGenres(getGenreOptions());
   };
+
+  useEffect(() => {
+    const syncData = () => {
+      setActiveRound(getActiveRound());
+      setGenres(getGenreOptions());
+    };
+    window.addEventListener('storage', syncData);
+    window.addEventListener('focus', syncData);
+    window.addEventListener('cinemascope_genres_updated', syncData);
+    return () => {
+      window.removeEventListener('storage', syncData);
+      window.removeEventListener('focus', syncData);
+      window.removeEventListener('cinemascope_genres_updated', syncData);
+    };
+  }, []);
 
   const isRoundActive = activeRound?.status === 'ACTIVE';
   const isWinnersDeclared = activeRound?.status === 'WINNER_DECLARED';
@@ -78,7 +95,7 @@ export default function WeekendPickPage() {
         userEmail: currentUser.email,
       });
 
-      setVoteConfirmationMsg(`🎉 Vote confirmed! You chose "${candidate.title}" in ${GENRE_OPTIONS.find(g => g.id === selectedGenre)?.name || selectedGenre}.`);
+      setVoteConfirmationMsg(`🎉 Vote confirmed! You chose "${candidate.title}" in ${genres.find(g => g.id === selectedGenre)?.name || selectedGenre}.`);
       reloadRoundData();
 
       setTimeout(() => {
@@ -89,7 +106,7 @@ export default function WeekendPickPage() {
     }
   };
 
-  const genreObj = GENRE_OPTIONS.find(g => g.id === selectedGenre) || GENRE_OPTIONS[0];
+  const genreObj = genres.find(g => g.id === selectedGenre) || genres[0] || { id: selectedGenre, name: selectedGenre, emoji: '🎬' };
 
   return (
     <div className="page-enter" style={{ minHeight: '90vh', paddingBottom: 60 }}>
@@ -269,7 +286,7 @@ export default function WeekendPickPage() {
           marginBottom: 24,
           borderBottom: '1px solid var(--border-subtle)',
         }}>
-          {GENRE_OPTIONS.map(g => {
+          {genres.map(g => {
             const isSelected = selectedGenre === g.id;
             const hasVoted = currentUser && activeRound && hasUserVotedInGenre(currentUser.id, activeRound.id, g.id);
 
@@ -421,7 +438,7 @@ export default function WeekendPickPage() {
               gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
               gap: 16,
             }}>
-              {GENRE_OPTIONS.map(g => {
+              {genres.map(g => {
                 const res = calculateGenreResults(activeRound.id, g.id);
                 const winner = res.leadingCandidate;
                 if (!winner) return null;

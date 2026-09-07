@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Trophy, Sparkles, Star, Bookmark, Heart, Eye, ArrowRight, Dices, Share2, Flame, Lock } from 'lucide-react';
 import {
-  GENRE_OPTIONS,
+  getGenreOptions,
   getWinnerForGenre,
   getActiveRound,
   calculateGenreResults,
@@ -14,14 +14,16 @@ import {
 import { toggleWatchlist, toggleFavorite, toggleWatched, getMovieStatusSync } from '../../services/movieLibraryService';
 import { useApp } from '../../AppContext';
 import PickMyWeekendModal from './PickMyWeekendModal';
-import SocialShareModal from './SocialShareModal';
 import WeekendWinnerBadge from './WeekendWinnerBadge';
+import ShareButton from '../social/ShareButton';
+import { SOCIAL_CONTENT_TYPES } from '../../services/socialSharingService';
 
 export default function WeekendRecommendationHero() {
   const navigate = useNavigate();
   const { state } = useApp();
   const currentUser = state.currentUser;
 
+  const [genres, setGenres] = useState(() => getGenreOptions());
   const [selectedGenre, setSelectedGenre] = useState(() => getUserPreferredGenre(currentUser?.id));
   const [showPickModal, setShowPickModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -31,13 +33,16 @@ export default function WeekendRecommendationHero() {
   useEffect(() => {
     const syncData = () => {
       setActiveRound(getActiveRound());
+      setGenres(getGenreOptions());
       setRevision(r => r + 1);
     };
     window.addEventListener('storage', syncData);
     window.addEventListener('focus', syncData);
+    window.addEventListener('cinemascope_genres_updated', syncData);
     return () => {
       window.removeEventListener('storage', syncData);
       window.removeEventListener('focus', syncData);
+      window.removeEventListener('cinemascope_genres_updated', syncData);
     };
   }, []);
 
@@ -149,7 +154,7 @@ export default function WeekendRecommendationHero() {
     ? (winner.titleId?.startsWith('tmdb-') ? winner.titleId : `tmdb-${winner.titleId}`)
     : '';
 
-  const genreObj = GENRE_OPTIONS.find(g => g.id === selectedGenre) || GENRE_OPTIONS[0];
+  const genreObj = genres.find(g => g.id === selectedGenre) || genres[0] || { id: selectedGenre, name: selectedGenre, emoji: '🎬' };
 
   return (
     <section style={{
@@ -255,7 +260,7 @@ export default function WeekendRecommendationHero() {
                 cursor: 'pointer',
               }}
             >
-              {GENRE_OPTIONS.map(g => (
+              {genres.map(g => (
                 <option key={g.id} value={g.id} style={{ background: '#18140e', color: '#ffffff' }}>
                   {g.emoji} {g.name}
                 </option>
@@ -532,15 +537,14 @@ export default function WeekendRecommendationHero() {
                     {status.watched ? 'Watched' : 'Mark Watched'}
                   </button>
 
-                  <button
-                    type="button"
-                    title="Share Weekend Winner"
-                    onClick={() => setShowShareModal(true)}
-                    className="btn btn-ghost btn-sm"
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-secondary)' }}
-                  >
-                    <Share2 size={13} /> Share
-                  </button>
+                  {/* Aesthetic Weekend Winner Share Button */}
+                  <ShareButton
+                    contentType={SOCIAL_CONTENT_TYPES.WEEKEND_WINNER}
+                    data={winner}
+                    variant="ghost"
+                    size="sm"
+                    customLabel="✨ Share Pick"
+                  />
                 </div>
               </div>
             </div>
@@ -562,21 +566,6 @@ export default function WeekendRecommendationHero() {
         isOpen={showPickModal}
         onClose={() => setShowPickModal(false)}
       />
-
-      {/* Social Share Modal */}
-      {winner && (
-        <SocialShareModal
-          isOpen={showShareModal}
-          onClose={() => setShowShareModal(false)}
-          title={winner.title}
-          genreName={winner.genreName || genreObj.name}
-          voteCount={winner.voteCount}
-          votePercentage={winner.votePercentage}
-          edition={winner.edition || activeRound?.edition}
-          posterUrl={winner.posterUrl}
-          type={winner.type}
-        />
-      )}
     </section>
   );
 }

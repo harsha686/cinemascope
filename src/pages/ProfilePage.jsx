@@ -5,9 +5,10 @@ import { useApp } from '../AppContext';
 import ReviewCard from '../components/reviews/ReviewCard';
 import * as LibService from '../services/movieLibraryService';
 import ApplicationStatusBanner from '../components/pro/ApplicationStatusBanner';
-import ProfessionalRatingBadge from '../components/reviews/ProfessionalRatingBadge';
 import { getUserApplication } from '../services/proReviewerService';
 import { getUserVotingStats, getUserVotes } from '../services/weekendPickService';
+import ShareButton from '../components/social/ShareButton';
+import { SOCIAL_CONTENT_TYPES } from '../services/socialSharingService';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -132,7 +133,24 @@ export default function ProfilePage() {
                 )}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* Share My Movie Stats Button */}
+              <ShareButton
+                contentType={SOCIAL_CONTENT_TYPES.USER_STATS}
+                data={{
+                  stats: {
+                    totalWatched: libStats.totalWatched,
+                    totalRated: libStats.totalRated,
+                    totalWatchlist: libStats.totalWatchlist,
+                    avgRating: libStats.avgRating,
+                    weekendVotes: weekendVotingStats.totalVotes,
+                  },
+                }}
+                variant="primary"
+                size="sm"
+                customLabel="✨ Share My Stats"
+              />
+
               <Link to="/library" className="btn btn-outline btn-sm">
                 <Film size={14} /> My Library
               </Link>

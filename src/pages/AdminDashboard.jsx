@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShieldAlert, Film, MessageSquare, Users, MapPin, Plus, Search, Edit3, Trash2, CheckCircle2, EyeOff, Sparkles, AlertCircle, ArrowLeft, ExternalLink, Check, Image as ImageIcon, Database, RefreshCw, ShieldCheck, Building2, Trophy } from 'lucide-react';
+import { ShieldAlert, Film, MessageSquare, Users, MapPin, Plus, Search, Edit3, Trash2, CheckCircle2, EyeOff, Sparkles, AlertCircle, ArrowLeft, ExternalLink, Check, Image as ImageIcon, Database, RefreshCw, ShieldCheck, Building2, Trophy, Share2 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import TMDBImportHelper from '../components/admin/TMDBImportHelper';
 import XPosterDiscoveryModal from '../components/admin/XPosterDiscoveryModal';
 import AdminTheaterFormModal from '../components/admin/AdminTheaterFormModal';
 import WeekendVotingAdminTab from '../components/admin/WeekendVotingAdminTab';
+import SocialPreviewTestPage from './SocialPreviewTestPage';
 import { isSupabaseConfigured, setCustomSupabaseCredentials, supabaseService } from '../services/supabase';
 import { getApplications, updateApplicationStatus } from '../services/proReviewerService';
 
@@ -382,6 +383,7 @@ export default function AdminDashboard() {
               { id: 'reviews', label: 'Review Moderation', icon: MessageSquare, count: state.reviews.length },
               { id: 'users', label: 'Users', icon: Users, count: state.users.length },
               { id: 'cities', label: 'Cities', icon: MapPin, count: allCities.length },
+              { id: 'social-preview', label: 'Social & OG Previews', icon: Share2, count: 'Live' },
               { id: 'pro-reviewers', label: 'Pro Reviewers', icon: ShieldCheck, count: getApplications().length },
               { id: 'database', label: 'Cloud Database', icon: Database, count: isSupabaseConfigured() ? 'Live' : 'Local' },
             ].map(tab => {
@@ -1645,6 +1647,13 @@ function ProReviewersPanel({ dispatch, currentUser }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* SOCIAL PREVIEW & OG DEBUGGER TAB */}
+      {activeTab === 'social-preview' && (
+        <div style={{ background: 'var(--bg-card)', padding: 24, borderRadius: 6, border: '1px solid var(--border-subtle)' }}>
+          <SocialPreviewTestPage />
         </div>
       )}
     </div>

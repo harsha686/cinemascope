@@ -2,6 +2,7 @@ import React from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import { AppProvider } from './AppContext';
 import Navbar from './components/layout/Navbar';
+import MobileBottomNav from './components/layout/MobileBottomNav';
 import Footer from './components/layout/Footer';
 import HomePage from './pages/HomePage';
 import MoviesPage from './pages/MoviesPage';
@@ -22,9 +23,10 @@ import DiaryPage from './pages/DiaryPage';
 import WatchlistPage from './pages/WatchlistPage';
 import CollectionPage from './pages/CollectionPage';
 import ProReviewerApplyPage from './pages/ProReviewerApplyPage';
-import ProReviewerProfilePage from './pages/ProReviewerProfilePage';
 import WeekendPickPage from './pages/WeekendPickPage';
 import WeekendWinnersArchivePage from './pages/WeekendWinnersArchivePage';
+import PublicReviewPage from './pages/PublicReviewPage';
+import SocialPreviewTestPage from './pages/SocialPreviewTestPage';
 
 export default function App() {
   return (
@@ -59,9 +61,13 @@ export default function App() {
               <Route path="/admin/*" element={<AdminDashboard />} />
               <Route path="/apply-professional" element={<ProReviewerApplyPage />} />
               <Route path="/reviewer/:userId" element={<ProReviewerProfilePage />} />
+              <Route path="/review/:reviewId" element={<PublicReviewPage />} />
+              <Route path="/share/preview" element={<SocialPreviewTestPage />} />
+              <Route path="/admin/social-preview" element={<SocialPreviewTestPage />} />
             </Routes>
           </main>
           <Footer />
+          <MobileBottomNav />
         </div>
       </HashRouter>
     </AppProvider>

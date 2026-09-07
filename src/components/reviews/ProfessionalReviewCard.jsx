@@ -39,6 +39,7 @@ export default function ProfessionalReviewCard({ review, onEdit, onDelete }) {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [reportReason, setReportReason] = useState("Spam or Advertising");
   const [showParams, setShowParams] = useState(false);
+  const [showFullText, setShowFullText] = useState(false);
 
   if (!review) return null;
 
@@ -205,9 +206,40 @@ export default function ProfessionalReviewCard({ review, onEdit, onDelete }) {
 
       {/* Review text */}
       {review.reviewText && (
-        <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, whiteSpace: "pre-wrap", fontStyle: "italic" }}>
-          &ldquo;{review.reviewText}&rdquo;
-        </p>
+        <div>
+          <p style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            lineHeight: 1.7,
+            whiteSpace: "pre-wrap",
+            fontStyle: "italic",
+            ...((review.reviewText.length > 280 && !showFullText) ? {
+              display: '-webkit-box',
+              WebkitLineClamp: 4,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            } : {})
+          }}>
+            &ldquo;{review.reviewText}&rdquo;
+          </p>
+          {review.reviewText.length > 280 && (
+            <button
+              type="button"
+              onClick={() => setShowFullText(!showFullText)}
+              style={{
+                fontSize: 11,
+                color: "#10b981",
+                fontWeight: 600,
+                marginTop: 4,
+                cursor: "pointer",
+                background: "none",
+                border: "none",
+              }}
+            >
+              {showFullText ? "Show less ▲" : "Read more ▼"}
+            </button>
+          )}
+        </div>
       )}
 
       {/* Footer */}

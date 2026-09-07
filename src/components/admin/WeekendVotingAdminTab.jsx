@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Trophy,
   Plus,
@@ -17,6 +17,9 @@ import {
   Film,
   Tv,
   RotateCcw,
+  X,
+  Check,
+  Settings,
 } from 'lucide-react';
 import {
   getAllRounds,
@@ -26,31 +29,59 @@ import {
   declareWinnersForRound,
   getLiveAdminAnalytics,
   calculateGenreResults,
-  GENRE_OPTIONS,
   TIE_BREAKER_OPTIONS,
   resetRoundPolling,
   resetGenrePolling,
   factoryResetWeekendData,
+  getGenreOptions,
+  updateGenreOption,
+  addGenreOption,
+  deleteGenreOption,
+  resetGenreOptionsToDefault,
+  reorderGenreOptions,
 } from '../../services/weekendPickService';
 import { searchTmdbMovies, fetchFullTmdbMovieDetails } from '../../services/tmdbService';
 
 export default function WeekendVotingAdminTab() {
   const [rounds, setRounds] = useState(() => getAllRounds());
   const [selectedRoundId, setSelectedRoundId] = useState(() => rounds[0]?.id || null);
-  const [activeGenreTab, setActiveGenreTab] = useState('action');
+  const [genres, setGenres] = useState(() => getGenreOptions());
+  const [activeGenreTab, setActiveGenreTab] = useState(() => getGenreOptions()[0]?.id || 'action');
 
   // Modal / Form state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAddCandidateModal, setShowAddCandidateModal] = useState(false);
+  const [showManageGenresModal, setShowManageGenresModal] = useState(false);
+  const [editingGenreId, setEditingGenreId] = useState(null);
+  const [editGenreForm, setEditGenreForm] = useState({ name: '', emoji: '', color: '' });
+  const [newGenreForm, setNewGenreForm] = useState({ name: '', emoji: '🍿', color: '#f59e0b' });
+  const [genreActionMsg, setGenreActionMsg] = useState('');
 
   // Candidate TMDB Search
   const [candidateSearchQuery, setCandidateSearchQuery] = useState('');
   const [candidateSearchResults, setCandidateSearchResults] = useState([]);
   const [isSearchingTmdb, setIsSearchingTmdb] = useState(false);
 
+  useEffect(() => {
+    const handleSync = () => {
+      const g = getGenreOptions();
+      setGenres(g);
+      if (!g.some(item => item.id === activeGenreTab) && g[0]) {
+        setActiveGenreTab(g[0].id);
+      }
+    };
+    window.addEventListener('cinemascope_genres_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('cinemascope_genres_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, [activeGenreTab]);
+
   const reloadData = () => {
     const updated = getAllRounds();
     setRounds(updated);
+    setGenres(getGenreOptions());
     if (!selectedRoundId && updated[0]) {
       setSelectedRoundId(updated[0].id);
     }
@@ -76,7 +107,7 @@ export default function WeekendVotingAdminTab() {
   const handleCreateRoundSubmit = (e) => {
     e.preventDefault();
     const activeGenresObj = {};
-    GENRE_OPTIONS.forEach(g => {
+    genres.forEach(g => {
       activeGenresObj[g.id] = {
         genreId: g.id,
         genreName: g.name,
@@ -137,7 +168,7 @@ export default function WeekendVotingAdminTab() {
 
   const handleResetGenrePolling = (genreId) => {
     if (!currentRound) return;
-    const genreName = GENRE_OPTIONS.find(g => g.id === genreId)?.name || genreId;
+    const genreName = genres.find(g => g.id === genreId)?.name || genreId;
     if (window.confirm(`Reset all votes and winner status for "${genreName}" in "${currentRound.name}"?`)) {
       resetGenrePolling(currentRound.id, genreId);
       reloadData();
@@ -153,12 +184,91 @@ export default function WeekendVotingAdminTab() {
     }
   };
 
+  // Genre Management Handlers
+  const handleStartEditGenre = (g) => {
+    setEditingGenreId(g.id);
+    setEditGenreForm({ name: g.name, emoji: g.emoji || '🎬', color: g.color || '#eab308' });
+  };
+
+  const handleSaveEditGenre = (genreId) => {
+    if (!editGenreForm.name.trim()) return;
+    updateGenreOption(genreId, {
+      name: editGenreForm.name.trim(),
+      emoji: editGenreForm.emoji || '🎬',
+      color: editGenreForm.color || '#eab308',
+    });
+    setEditingGenreId(null);
+    reloadData();
+    setGenreActionMsg(`Genre "${editGenreForm.name.trim()}" updated successfully!`);
+    setTimeout(() => setGenreActionMsg(''), 3000);
+  };
+
+  const handleAddNewGenre = (e) => {
+    e.preventDefault();
+    if (!newGenreForm.name.trim()) return;
+    try {
+      const added = addGenreOption({
+        name: newGenreForm.name.trim(),
+        emoji: newGenreForm.emoji || '🎬',
+        color: newGenreForm.color || '#eab308',
+      });
+      setNewGenreForm({ name: '', emoji: '🍿', color: '#f59e0b' });
+      reloadData();
+      setActiveGenreTab(added.id);
+      setGenreActionMsg(`Added new genre: ${added.emoji} ${added.name}!`);
+      setTimeout(() => setGenreActionMsg(''), 3000);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteGenre = (genreId) => {
+    const genre = genres.find(g => g.id === genreId);
+    if (!genre) return;
+    if (genres.length <= 1) {
+      alert('You must have at least 1 voting genre.');
+      return;
+    }
+    const candCount = currentRound?.genreRounds?.[genreId]?.candidates?.length || 0;
+    if (window.confirm(`Delete the "${genre.name}" genre?${candCount > 0 ? ` (${candCount} candidates in active round will also be archived)` : ''}`)) {
+      deleteGenreOption(genreId);
+      reloadData();
+      const remaining = getGenreOptions();
+      if (activeGenreTab === genreId && remaining[0]) {
+        setActiveGenreTab(remaining[0].id);
+      }
+      setGenreActionMsg(`Deleted genre "${genre.name}".`);
+      setTimeout(() => setGenreActionMsg(''), 3000);
+    }
+  };
+
+  const handleMoveGenre = (index, direction) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= genres.length) return;
+    const reordered = [...genres];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, moved);
+    reorderGenreOptions(reordered);
+    reloadData();
+  };
+
+  const handleResetGenresDefault = () => {
+    if (window.confirm('Reset all genres to the default 8 categories (Action, Comedy, Horror, Sci-Fi, Thriller, Romance, Animation, Drama)?')) {
+      resetGenreOptionsToDefault();
+      reloadData();
+      setActiveGenreTab('action');
+      setGenreActionMsg('Genres reset to default 8 categories!');
+      setTimeout(() => setGenreActionMsg(''), 3000);
+    }
+  };
+
   // Add Candidate handler
   const handleAddCandidate = (movieData) => {
     if (!currentRound) return;
+    const currentGenreObj = genres.find(g => g.id === activeGenreTab);
     const genreRound = currentRound.genreRounds?.[activeGenreTab] || {
       genreId: activeGenreTab,
-      genreName: GENRE_OPTIONS.find(g => g.id === activeGenreTab)?.name || activeGenreTab,
+      genreName: currentGenreObj?.name || activeGenreTab,
       candidates: [],
     };
 
@@ -398,10 +508,10 @@ export default function WeekendVotingAdminTab() {
       {/* Genre Candidate Manager */}
       {currentRound && (
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 4, padding: 20 }}>
-          {/* Genre Tabs */}
+          {/* Genre Tabs & Management */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 12, flexWrap: 'wrap', gap: 10 }}>
-            <div style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
-              {GENRE_OPTIONS.map(g => {
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', alignItems: 'center' }}>
+              {genres.map(g => {
                 const isSelected = activeGenreTab === g.id;
                 const candidateCount = currentRound.genreRounds?.[g.id]?.candidates?.length || 0;
                 return (
@@ -421,6 +531,7 @@ export default function WeekendVotingAdminTab() {
                       display: 'flex',
                       alignItems: 'center',
                       gap: 5,
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     <span>{g.emoji}</span>
@@ -429,9 +540,49 @@ export default function WeekendVotingAdminTab() {
                   </button>
                 );
               })}
+
+              {/* Quick Manage Genres Button on the tab bar */}
+              <button
+                type="button"
+                onClick={() => setShowManageGenresModal(true)}
+                className="btn btn-outline btn-sm"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  fontSize: 11,
+                  padding: '5px 12px',
+                  borderRadius: 20,
+                  borderColor: 'var(--gold)',
+                  color: 'var(--gold)',
+                  background: 'rgba(201,168,76,0.08)',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                }}
+                title="Add, rename, delete or reorder genres"
+              >
+                <Edit3 size={12} /> Edit Genres
+              </button>
             </div>
 
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const currentG = genres.find(g => g.id === activeGenreTab);
+                  if (currentG) {
+                    setEditingGenreId(currentG.id);
+                    setEditGenreForm({ name: currentG.name, emoji: currentG.emoji, color: currentG.color });
+                    setShowManageGenresModal(true);
+                  }
+                }}
+                className="btn btn-ghost btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--gold)' }}
+                title="Edit name, emoji or color of this genre"
+              >
+                <Edit3 size={12} /> Edit "{genres.find(g => g.id === activeGenreTab)?.name || activeGenreTab}"
+              </button>
+
               <button
                 type="button"
                 onClick={() => handleResetGenrePolling(activeGenreTab)}
@@ -441,13 +592,14 @@ export default function WeekendVotingAdminTab() {
               >
                 <RotateCcw size={11} /> Reset {genreResults?.genreName || activeGenreTab} Votes
               </button>
+
               <button
                 type="button"
                 onClick={() => setShowAddCandidateModal(true)}
                 className="btn btn-outline btn-sm"
                 style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}
               >
-                <Plus size={13} /> Add Candidate in {GENRE_OPTIONS.find(g => g.id === activeGenreTab)?.name}
+                <Plus size={13} /> Add Candidate in {genres.find(g => g.id === activeGenreTab)?.name}
               </button>
             </div>
           </div>
@@ -686,7 +838,7 @@ export default function WeekendVotingAdminTab() {
         }}>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 4, maxWidth: 580, width: '100%', maxHeight: '85vh', overflowY: 'auto', padding: 24 }}>
             <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--gold)', marginBottom: 8 }}>
-              Add Candidate in {GENRE_OPTIONS.find(g => g.id === activeGenreTab)?.name}
+              Add Candidate in {genres.find(g => g.id === activeGenreTab)?.name || activeGenreTab}
             </h3>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
               Search TMDB to select an official movie or TV series candidate.
@@ -753,6 +905,323 @@ export default function WeekendVotingAdminTab() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
               <button type="button" onClick={() => setShowAddCandidateModal(false)} className="btn btn-ghost btn-sm">
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manage / Edit Genres Modal */}
+      {showManageGenresModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 4000,
+          background: 'rgba(0,0,0,0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 16,
+        }}>
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: 6,
+            maxWidth: 640,
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: 24,
+            boxShadow: 'var(--shadow-card)',
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 10, fontFamily: 'var(--font-serif)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                  Category Configuration
+                </div>
+                <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', margin: '4px 0 0' }}>
+                  Manage & Edit Genres
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowManageGenresModal(false);
+                  setEditingGenreId(null);
+                }}
+                className="btn btn-ghost btn-sm"
+                style={{ padding: 4 }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {genreActionMsg && (
+              <div style={{
+                padding: '8px 12px',
+                background: 'rgba(34,197,94,0.12)',
+                border: '1px solid rgba(34,197,94,0.3)',
+                borderRadius: 4,
+                color: '#4ade80',
+                fontSize: 12,
+                marginBottom: 16,
+              }}>
+                {genreActionMsg}
+              </div>
+            )}
+
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.5 }}>
+              Rename genres, customize their emoji and accent color, add new voting categories, or reorder them. Changes immediately apply to the Weekend Poll, Discover Hero, and Winner Archives.
+            </p>
+
+            {/* List of Genres */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+              {genres.map((g, idx) => {
+                const isEditing = editingGenreId === g.id;
+                const candCount = currentRound?.genreRounds?.[g.id]?.candidates?.length || 0;
+
+                if (isEditing) {
+                  return (
+                    <div
+                      key={g.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: 10,
+                        background: 'rgba(201,168,76,0.08)',
+                        border: '1px solid var(--gold)',
+                        borderRadius: 4,
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <input
+                        type="text"
+                        value={editGenreForm.emoji}
+                        onChange={e => setEditGenreForm({ ...editGenreForm, emoji: e.target.value })}
+                        style={{
+                          width: 44,
+                          textAlign: 'center',
+                          fontSize: 16,
+                          background: '#18140e',
+                          color: '#fff',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 4,
+                          padding: '6px 4px',
+                        }}
+                        placeholder="Emoji"
+                        title="Emoji icon"
+                      />
+                      <input
+                        type="text"
+                        value={editGenreForm.name}
+                        onChange={e => setEditGenreForm({ ...editGenreForm, name: e.target.value })}
+                        className="input"
+                        style={{ flex: 1, minWidth: 140, fontSize: 13, padding: '6px 10px' }}
+                        placeholder="Genre Name"
+                        autoFocus
+                      />
+                      <input
+                        type="color"
+                        value={editGenreForm.color}
+                        onChange={e => setEditGenreForm({ ...editGenreForm, color: e.target.value })}
+                        style={{ width: 36, height: 34, border: 'none', background: 'transparent', cursor: 'pointer', borderRadius: 4 }}
+                        title="Accent Color"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSaveEditGenre(g.id)}
+                        className="btn btn-primary btn-sm"
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}
+                      >
+                        <Check size={13} /> Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingGenreId(null)}
+                        className="btn btn-ghost btn-sm"
+                        style={{ fontSize: 11 }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div
+                    key={g.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      background: 'rgba(255,255,255,0.02)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 4,
+                      gap: 10,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 18 }}>{g.emoji}</span>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span>{g.name}</span>
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              width: 9,
+                              height: 9,
+                              borderRadius: '50%',
+                              backgroundColor: g.color || '#eab308',
+                            }}
+                            title={`Color: ${g.color}`}
+                          />
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                          ID: <code style={{ color: 'var(--text-secondary)' }}>{g.id}</code> · {candCount} candidates in active round
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <button
+                        type="button"
+                        disabled={idx === 0}
+                        onClick={() => handleMoveGenre(idx, -1)}
+                        className="btn btn-ghost btn-sm"
+                        style={{ padding: '4px 6px', fontSize: 11, opacity: idx === 0 ? 0.3 : 1 }}
+                        title="Move Up"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        disabled={idx === genres.length - 1}
+                        onClick={() => handleMoveGenre(idx, 1)}
+                        className="btn btn-ghost btn-sm"
+                        style={{ padding: '4px 6px', fontSize: 11, opacity: idx === genres.length - 1 ? 0.3 : 1 }}
+                        title="Move Down"
+                      >
+                        ▼
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleStartEditGenre(g)}
+                        className="btn btn-ghost btn-sm"
+                        style={{ padding: '4px 8px', fontSize: 11, color: 'var(--gold)' }}
+                        title="Edit Genre"
+                      >
+                        <Edit3 size={13} /> Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteGenre(g.id)}
+                        className="btn btn-ghost btn-sm"
+                        style={{ padding: '4px 8px', fontSize: 11, color: '#f87171' }}
+                        title="Delete Genre"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Add New Genre Section */}
+            <div style={{
+              background: 'rgba(0,0,0,0.25)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 4,
+              padding: 14,
+              marginBottom: 20,
+            }}>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--gold)', textTransform: 'uppercase', marginBottom: 10, fontWeight: 600 }}>
+                + Add New Genre
+              </div>
+
+              <form onSubmit={handleAddNewGenre} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  type="text"
+                  value={newGenreForm.emoji}
+                  onChange={e => setNewGenreForm({ ...newGenreForm, emoji: e.target.value })}
+                  style={{
+                    width: 44,
+                    textAlign: 'center',
+                    fontSize: 16,
+                    background: '#18140e',
+                    color: '#fff',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 4,
+                    padding: '6px 4px',
+                  }}
+                  placeholder="Emoji"
+                  title="Emoji"
+                />
+                <input
+                  type="text"
+                  value={newGenreForm.name}
+                  onChange={e => setNewGenreForm({ ...newGenreForm, name: e.target.value })}
+                  className="input"
+                  style={{ flex: 1, minWidth: 150, fontSize: 12, padding: '6px 10px' }}
+                  placeholder="Genre Name (e.g. Anime, Documentary, Classics...)"
+                />
+                <input
+                  type="color"
+                  value={newGenreForm.color}
+                  onChange={e => setNewGenreForm({ ...newGenreForm, color: e.target.value })}
+                  style={{ width: 36, height: 34, border: 'none', background: 'transparent', cursor: 'pointer', borderRadius: 4 }}
+                  title="Pick Color"
+                />
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}
+                >
+                  <Plus size={13} /> Add Genre
+                </button>
+              </form>
+
+              {/* Quick emoji suggestions */}
+              <div style={{ display: 'flex', gap: 6, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Quick icons:</span>
+                {['🍿', '🎬', '🎌', '🛸', '🤠', '🦇', '🎸', '🏆', '📚', '🧩', '⚡', '💣'].map(emoji => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => setNewGenreForm(f => ({ ...f, emoji }))}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 2 }}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Modal Bottom Actions */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-subtle)', paddingTop: 14, flexWrap: 'wrap', gap: 8 }}>
+              <button
+                type="button"
+                onClick={handleResetGenresDefault}
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: 11, color: 'var(--text-muted)' }}
+              >
+                Reset to Default 8 Genres
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowManageGenresModal(false);
+                  setEditingGenreId(null);
+                }}
+                className="btn btn-primary btn-sm"
+                style={{ fontSize: 11 }}
+              >
+                Done
               </button>
             </div>
           </div>

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Heart, Flag, Edit3, Trash2, Check } from 'lucide-react';
 import { useApp } from '../../AppContext';
+import ShareButton from '../social/ShareButton';
+import { SOCIAL_CONTENT_TYPES } from '../../services/socialSharingService';
 
 const REVIEW_PARAMS = [
   { key: 'direction',  label: 'Direction',   emoji: '🎬' },
@@ -39,6 +41,7 @@ export default function ReviewCard({ review, onEdit, onDelete }) {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('Spam');
   const [showParams, setShowParams] = useState(false);
+  const [showFullText, setShowFullText] = useState(false);
 
   if (!review) return null;
 
@@ -159,11 +162,39 @@ export default function ReviewCard({ review, onEdit, onDelete }) {
         </div>
       )}
 
-      {/* Optional note */}
+      {/* Review Text with Read More */}
       {review.reviewText ? (
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
-          {review.reviewText}
-        </p>
+        <div>
+          <p style={{
+            fontSize: 13,
+            color: 'var(--text-secondary)',
+            lineHeight: 1.65,
+            whiteSpace: 'pre-wrap',
+            ...((review.reviewText.length > 280 && !showFullText) ? {
+              display: '-webkit-box',
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            } : {})
+          }}>
+            {review.reviewText}
+          </p>
+          {review.reviewText.length > 280 && (
+            <button
+              type="button"
+              onClick={() => setShowFullText(!showFullText)}
+              style={{
+                fontSize: 11,
+                color: 'var(--gold)',
+                fontWeight: 600,
+                marginTop: 4,
+                cursor: 'pointer',
+              }}
+            >
+              {showFullText ? 'Show less ▲' : 'Read more ▼'}
+            </button>
+          )}
+        </div>
       ) : null}
 
       {/* Footer actions */}
@@ -185,6 +216,15 @@ export default function ReviewCard({ review, onEdit, onDelete }) {
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Aesthetic Review Share Button */}
+          <ShareButton
+            contentType={SOCIAL_CONTENT_TYPES.REVIEW}
+            data={review}
+            variant="ghost"
+            size="sm"
+            customLabel="✨ Share"
+          />
+
           {isOwnReview ? (
             <>
               <button type="button" onClick={() => onEdit && onEdit(review)}

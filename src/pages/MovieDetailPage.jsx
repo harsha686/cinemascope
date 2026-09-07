@@ -11,6 +11,9 @@ import ReviewComposer from '../components/reviews/ReviewComposer';
 import MovieStatusBar from '../components/library/MovieStatusBar';
 import OttStreamingInfo from '../components/movies/OttStreamingInfo';
 import WeekendWinnerBadge from '../components/weekend/WeekendWinnerBadge';
+import ShareButton from '../components/social/ShareButton';
+import SocialMetaTags from '../components/social/SocialMetaTags';
+import { SOCIAL_CONTENT_TYPES } from '../services/socialSharingService';
 import { getMovieWinningHistory } from '../services/weekendPickService';
 import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
 
@@ -228,7 +231,12 @@ export default function MovieDetailPage() {
   const embedTrailer = getEmbedUrl(movie.trailerUrl);
 
   return (
-    <div className="page-enter">
+    <div className="page-enter" style={{ minHeight: '100vh', paddingBottom: 60 }}>
+      {/* Dynamic Open Graph Meta Tags */}
+      <SocialMetaTags
+        contentType={SOCIAL_CONTENT_TYPES.MOVIE}
+        data={movie}
+      />
       {/* Backdrop Hero Header */}
       <div style={{
         position: 'relative',
@@ -508,7 +516,7 @@ export default function MovieDetailPage() {
               </div>
 
               {/* Primary Action Button */}
-              <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap', alignItems: 'center' }}>
                 <button
                   type="button"
                   onClick={handleWriteClick}
@@ -518,6 +526,16 @@ export default function MovieDetailPage() {
                   <MessageSquare size={16} />
                   {userExistingReview ? 'Edit Your Review' : 'Write a Review'}
                 </button>
+
+                {/* Aesthetic Social Card Generator Button */}
+                <ShareButton
+                  contentType={SOCIAL_CONTENT_TYPES.MOVIE}
+                  data={movie}
+                  variant="outline"
+                  size="md"
+                  customLabel="✨ Create Aesthetic"
+                />
+
                 {movie.trailerUrl && (
                   <a
                     href={movie.trailerUrl}
@@ -556,8 +574,14 @@ export default function MovieDetailPage() {
               alignItems: 'center',
               gap: 8,
               borderBottom: '1px solid var(--border-subtle)',
-              paddingBottom: 14,
+              padding: '10px 0 14px',
               flexWrap: 'wrap',
+              position: 'sticky',
+              top: 'var(--nav-height)',
+              background: 'rgba(10, 8, 6, 0.95)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              zIndex: 15,
             }}>
               {[
                 { id: 'reviews', label: 'What People Think', icon: <MessageSquare size={14} />, count: allReviews.length },
@@ -965,11 +989,50 @@ export default function MovieDetailPage() {
         </div>
       </div>
 
+      {/* Mobile Quick Action Sticky Floating Bar */}
+      <div className="mobile-detail-quick-bar" style={{
+        display: 'none',
+        position: 'fixed',
+        bottom: '64px',
+        left: '12px',
+        right: '12px',
+        zIndex: 90,
+        backgroundColor: 'rgba(24, 20, 14, 0.95)',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-md)',
+        padding: '8px 12px',
+        boxShadow: '0 8px 30px rgba(0,0,0,0.85)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={handleWriteClick}
+            className="btn btn-primary btn-sm"
+            style={{ flex: 1, justifyContent: 'center', fontSize: '11px', padding: '6px 8px' }}
+          >
+            <MessageSquare size={13} /> {userExistingReview ? 'Edit Review' : 'Rate & Review'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const el = document.getElementById('streaming-section');
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            className="btn btn-outline btn-sm"
+            style={{ fontSize: '11px', padding: '6px 10px', color: '#10b981', borderColor: 'rgba(16,185,129,0.4)' }}
+          >
+            <Tv size={13} /> Watch
+          </button>
+        </div>
+      </div>
+
       <style>{`
         @media (max-width: 768px) {
           .hero-grid { grid-template-columns: 1fr !important; }
           .detail-layout { grid-template-columns: 1fr !important; }
           .rating-summary-grid { grid-template-columns: 1fr !important; }
+          .mobile-detail-quick-bar { display: block !important; }
         }
       `}</style>
     </div>

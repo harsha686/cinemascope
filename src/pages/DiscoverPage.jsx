@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Search, Filter, X, Film, Star, Clock, Heart, Plus, Flame, ShieldAlert, Zap, Skull, Compass, Tv, Sparkles } from 'lucide-react';
+import { Search, Filter, X, Film, Star, Clock, Heart, Plus, Flame, ShieldAlert, Zap, Skull, Compass, Tv, Sparkles, SlidersHorizontal, ChevronRight, ChevronLeft } from 'lucide-react';
 import { 
   searchTmdbMovies,
   searchTmdbTv,
@@ -31,6 +31,8 @@ import GlobalMovieCard from '../components/discovery/GlobalMovieCard';
 import SearchAutocomplete from '../components/discovery/SearchAutocomplete';
 import DecadeShelf from '../components/discovery/DecadeShelf';
 import WeekendRecommendationHero from '../components/weekend/WeekendRecommendationHero';
+import FilterDrawerModal from '../components/discovery/FilterDrawerModal';
+import { MovieShelfSkeleton, MovieCardSkeleton } from '../components/common/SkeletonLoader';
 
 export default function DiscoverPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -38,9 +40,11 @@ export default function DiscoverPage() {
 
   const [genres, setGenres] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [shelvesLoading, setShelvesLoading] = useState(true);
   const [results, setResults] = useState([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
   // Movie shelves
   const [trending, setTrending] = useState([]);
@@ -68,6 +72,17 @@ export default function DiscoverPage() {
 
   const hasFilters = activeGenre || activeLang || activeDecade || query || (activeType !== 'all' && activeSort !== 'popularity.desc');
 
+  // Count active filter pills
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (activeGenre) count++;
+    if (activeLang) count++;
+    if (activeDecade) count++;
+    if (activeSort && activeSort !== 'popularity.desc') count++;
+    if (activeType && activeType !== 'all') count++;
+    return count;
+  }, [activeGenre, activeLang, activeDecade, activeSort, activeType]);
+
   useEffect(() => {
     if (activeType === 'tv') {
       fetchTvGenres().then(setGenres).catch(console.error);
@@ -76,26 +91,33 @@ export default function DiscoverPage() {
     }
     
     if (!hasFilters) {
+      setShelvesLoading(true);
+      const promises = [];
+
       // Load Movies
       if (activeType === 'all' || activeType === 'movie') {
-        fetchTrendingMovies().then(res => setTrending(res.results.slice(0, 15))).catch(console.error);
-        fetchTopRatedMovies().then(res => setTopRated(res.results.slice(0, 15))).catch(console.error);
-        discoverRecentIndianMovies().then(res => setIndian(res.results.slice(0, 15))).catch(console.error);
-        fetchTeluguMovies().then(res => setTelugu(res.results.slice(0, 15))).catch(console.error);
-        fetchHorrorMovies().then(res => setHorror(res.results.slice(0, 15))).catch(console.error);
-        fetchCrimeSuspenseMovies().then(res => setCrimeSuspense(res.results.slice(0, 15))).catch(console.error);
-        fetchActionMovies().then(res => setActionMovies(res.results.slice(0, 15))).catch(console.error);
+        promises.push(fetchTrendingMovies().then(res => setTrending(res.results.slice(0, 15))).catch(console.error));
+        promises.push(fetchTopRatedMovies().then(res => setTopRated(res.results.slice(0, 15))).catch(console.error));
+        promises.push(discoverRecentIndianMovies().then(res => setIndian(res.results.slice(0, 15))).catch(console.error));
+        promises.push(fetchTeluguMovies().then(res => setTelugu(res.results.slice(0, 15))).catch(console.error));
+        promises.push(fetchHorrorMovies().then(res => setHorror(res.results.slice(0, 15))).catch(console.error));
+        promises.push(fetchCrimeSuspenseMovies().then(res => setCrimeSuspense(res.results.slice(0, 15))).catch(console.error));
+        promises.push(fetchActionMovies().then(res => setActionMovies(res.results.slice(0, 15))).catch(console.error));
       }
 
       // Load TV Shows & Web Series
       if (activeType === 'all' || activeType === 'tv') {
-        fetchTrendingTv().then(res => setTrendingTv(res.results.slice(0, 15))).catch(console.error);
-        fetchTopRatedTv().then(res => setTopRatedTv(res.results.slice(0, 15))).catch(console.error);
-        discoverRecentIndianTv().then(res => setIndianTv(res.results.slice(0, 15))).catch(console.error);
-        fetchTeluguTv().then(res => setTeluguTv(res.results.slice(0, 15))).catch(console.error);
-        fetchCrimeSuspenseTv().then(res => setCrimeTv(res.results.slice(0, 15))).catch(console.error);
-        fetchSciFiFantasyTv().then(res => setSciFiTv(res.results.slice(0, 15))).catch(console.error);
+        promises.push(fetchTrendingTv().then(res => setTrendingTv(res.results.slice(0, 15))).catch(console.error));
+        promises.push(fetchTopRatedTv().then(res => setTopRatedTv(res.results.slice(0, 15))).catch(console.error));
+        promises.push(discoverRecentIndianTv().then(res => setIndianTv(res.results.slice(0, 15))).catch(console.error));
+        promises.push(fetchTeluguTv().then(res => setTeluguTv(res.results.slice(0, 15))).catch(console.error));
+        promises.push(fetchCrimeSuspenseTv().then(res => setCrimeTv(res.results.slice(0, 15))).catch(console.error));
+        promises.push(fetchSciFiFantasyTv().then(res => setSciFiTv(res.results.slice(0, 15))).catch(console.error));
       }
+
+      Promise.allSettled(promises).finally(() => {
+        setShelvesLoading(false);
+      });
     }
   }, [hasFilters, activeType]);
 
@@ -167,6 +189,10 @@ export default function DiscoverPage() {
     setSearchParams(newParams);
   };
 
+  const resetAllFilters = () => {
+    setSearchParams(new URLSearchParams());
+  };
+
   const handleSearchSelect = (item) => {
     const isTv = item.mediaType === 'tv' || item.isTv || String(item.id).includes('-tv-');
     const rawId = item.tmdbId || (typeof item.id === 'string' ? item.id.replace(/^tmdb-(tv-)?/, '') : item.id);
@@ -178,8 +204,8 @@ export default function DiscoverPage() {
     { code: 'te', label: 'Telugu' },
     { code: 'hi', label: 'Hindi' },
     { code: 'ta', label: 'Tamil' },
-    { code: 'kn', label: 'Kannada' },
     { code: 'ml', label: 'Malayalam' },
+    { code: 'kn', label: 'Kannada' },
     { code: 'en', label: 'English' },
     { code: 'ko', label: 'Korean' },
     { code: 'ja', label: 'Japanese' }
@@ -202,13 +228,18 @@ export default function DiscoverPage() {
   ];
 
   const renderMovieShelf = (title, icon, movieList, onSeeAll) => {
-    if (!movieList || movieList.length === 0) return null;
+    if (!movieList || movieList.length === 0) {
+      if (shelvesLoading) {
+        return <MovieShelfSkeleton key={title} count={6} />;
+      }
+      return null;
+    }
     return (
       <section style={{ marginBottom: '2.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <h2 style={{ 
             fontFamily: 'var(--font-sans)',
-            fontSize: '1.4rem',
+            fontSize: '1.35rem',
             fontWeight: '700',
             color: 'var(--text-primary)',
             display: 'flex',
@@ -227,13 +258,17 @@ export default function DiscoverPage() {
             </button>
           )}
         </div>
-        <div style={{
-          display: 'flex',
-          gap: '1.25rem',
-          overflowX: 'auto',
-          paddingBottom: '1rem',
-          scrollbarWidth: 'thin'
-        }} className="hide-scrollbar">
+        <div 
+          className="shelf-scroll-container hide-scrollbar"
+          style={{
+            display: 'flex',
+            gap: '1.25rem',
+            overflowX: 'auto',
+            paddingBottom: '1rem',
+            paddingRight: '20px',
+            scrollbarWidth: 'thin'
+          }}
+        >
           {movieList.map(movie => (
             <div key={movie.id || movie.tmdbId} style={{ minWidth: '170px', width: '170px', flexShrink: 0 }}>
               <GlobalMovieCard movie={movie} />
@@ -249,24 +284,24 @@ export default function DiscoverPage() {
       {/* Hero Section */}
       <div style={{
         background: 'linear-gradient(to bottom, var(--bg-card), var(--bg))',
-        padding: '4rem 1rem 2rem',
+        padding: '3.5rem 1rem 2rem',
         textAlign: 'center',
         borderBottom: '1px solid var(--border-subtle)'
       }}>
         <div className="container" style={{ maxWidth: '800px', margin: '0 auto' }}>
           <h1 style={{ 
-            fontSize: 'clamp(2rem, 5vw, 3rem)', 
+            fontSize: 'clamp(1.8rem, 4.5vw, 2.8rem)', 
             fontFamily: 'var(--font-sans)', 
             fontWeight: '800',
             color: 'var(--gold)',
-            marginBottom: '1rem'
+            marginBottom: '0.8rem'
           }}>
             Discover every movie, TV show & web series.
           </h1>
           <p style={{ 
             color: 'var(--text-secondary)', 
-            fontSize: '1.15rem',
-            marginBottom: '2rem'
+            fontSize: '1.05rem',
+            marginBottom: '1.75rem'
           }}>
             Explore Indian Cinema, Web Series, Telugu Shows, Horror, Crime Thrillers, and worldwide releases.
           </p>
@@ -280,25 +315,27 @@ export default function DiscoverPage() {
       {/* Filters Toolbar */}
       <div style={{ 
         borderBottom: '1px solid var(--border-subtle)',
-        padding: '1rem',
+        padding: '0.75rem 1rem',
         position: 'sticky',
         top: 'var(--nav-height)',
         background: 'rgba(10, 8, 6, 0.95)',
-        backdropFilter: 'blur(10px)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
         zIndex: 10
       }}>
         <div className="container" style={{ 
           display: 'flex', 
-          gap: '0.85rem', 
+          gap: '0.75rem', 
           flexWrap: 'wrap',
-          alignItems: 'center'
+          alignItems: 'center',
+          justifyContent: 'space-between'
         }}>
           {/* Media Type Switcher */}
-          <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.05)', padding: '3px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', gap: '4px' }}>
+          <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.05)', padding: '3px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', gap: '3px' }}>
             {[
-              { id: 'all', label: 'All Media', icon: Compass },
+              { id: 'all', label: 'All', icon: Compass },
               { id: 'movie', label: 'Movies', icon: Film },
-              { id: 'tv', label: 'TV Shows & Series', icon: Tv },
+              { id: 'tv', label: 'Series', icon: Tv },
             ].map(tab => {
               const Icon = tab.icon;
               const isActive = activeType === tab.id;
@@ -309,12 +346,11 @@ export default function DiscoverPage() {
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
+                    gap: '5px',
+                    padding: '5px 10px',
                     borderRadius: 'var(--radius-sm)',
                     fontSize: '12px',
                     fontWeight: isActive ? 600 : 500,
-                    letterSpacing: '0.04em',
                     background: isActive ? 'var(--gold)' : 'transparent',
                     color: isActive ? 'var(--bg-primary)' : 'var(--text-secondary)',
                     transition: 'all var(--transition-fast)',
@@ -322,61 +358,99 @@ export default function DiscoverPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  <Icon size={14} />
+                  <Icon size={13} />
                   <span>{tab.label}</span>
                 </button>
               );
             })}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Filter size={18} color="var(--text-muted)" />
-            
+          {/* Desktop Filter Dropdowns */}
+          <div className="desktop-filters" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
             <select 
               className="input" 
-              style={{ width: 'auto', minWidth: '135px', background: '#18140e', color: '#ffffff', padding: '6px 12px', fontSize: '13px' }}
+              style={{ width: 'auto', minWidth: '125px', background: '#18140e', color: '#ffffff', padding: '5px 10px', fontSize: '12px' }}
               value={activeSort}
               onChange={(e) => updateFilter('sort', e.target.value)}
             >
               {sorts.map(s => <option key={s.val} value={s.val} style={{ background: '#18140e', color: '#ffffff' }}>{s.label}</option>)}
             </select>
+
+            <select 
+              className="input" 
+              style={{ width: 'auto', minWidth: '125px', background: '#18140e', color: '#ffffff', padding: '5px 10px', fontSize: '12px' }}
+              value={activeGenre}
+              onChange={(e) => updateFilter('genre', e.target.value)}
+            >
+              <option value="" style={{ background: '#18140e', color: '#ffffff' }}>All Genres</option>
+              {genres.map(g => <option key={g.id} value={g.id} style={{ background: '#18140e', color: '#ffffff' }}>{g.name}</option>)}
+            </select>
+
+            <select 
+              className="input" 
+              style={{ width: 'auto', minWidth: '120px', background: '#18140e', color: '#ffffff', padding: '5px 10px', fontSize: '12px' }}
+              value={activeLang}
+              onChange={(e) => updateFilter('language', e.target.value)}
+            >
+              {languages.map(l => <option key={l.code} value={l.code} style={{ background: '#18140e', color: '#ffffff' }}>{l.label}</option>)}
+            </select>
+
+            <select 
+              className="input" 
+              style={{ width: 'auto', minWidth: '110px', background: '#18140e', color: '#ffffff', padding: '5px 10px', fontSize: '12px' }}
+              value={activeDecade}
+              onChange={(e) => updateFilter('decade', e.target.value)}
+            >
+              {decades.map(d => <option key={d.val} value={d.val} style={{ background: '#18140e', color: '#ffffff' }}>{d.label}</option>)}
+            </select>
           </div>
 
-          <select 
-            className="input" 
-            style={{ width: 'auto', minWidth: '135px', background: '#18140e', color: '#ffffff', padding: '6px 12px', fontSize: '13px' }}
-            value={activeGenre}
-            onChange={(e) => updateFilter('genre', e.target.value)}
-          >
-            <option value="" style={{ background: '#18140e', color: '#ffffff' }}>All Genres</option>
-            {genres.map(g => <option key={g.id} value={g.id} style={{ background: '#18140e', color: '#ffffff' }}>{g.name}</option>)}
-          </select>
-
-          <select 
-            className="input" 
-            style={{ width: 'auto', minWidth: '135px', background: '#18140e', color: '#ffffff', padding: '6px 12px', fontSize: '13px' }}
-            value={activeLang}
-            onChange={(e) => updateFilter('language', e.target.value)}
-          >
-            {languages.map(l => <option key={l.code} value={l.code} style={{ background: '#18140e', color: '#ffffff' }}>{l.label}</option>)}
-          </select>
-
-          <select 
-            className="input" 
-            style={{ width: 'auto', minWidth: '120px', background: '#18140e', color: '#ffffff', padding: '6px 12px', fontSize: '13px' }}
-            value={activeDecade}
-            onChange={(e) => updateFilter('decade', e.target.value)}
-          >
-            {decades.map(d => <option key={d.val} value={d.val} style={{ background: '#18140e', color: '#ffffff' }}>{d.label}</option>)}
-          </select>
+          {/* Mobile Filter Button trigger */}
+          <div className="mobile-filter-trigger" style={{ display: 'none' }}>
+            <button
+              type="button"
+              onClick={() => setFilterDrawerOpen(true)}
+              className="btn btn-outline btn-sm"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '12px',
+                padding: '5px 12px',
+                borderColor: activeFilterCount > 0 ? 'var(--gold)' : 'var(--border-subtle)',
+                color: activeFilterCount > 0 ? 'var(--gold)' : 'var(--text-primary)',
+              }}
+            >
+              <SlidersHorizontal size={13} />
+              <span>Filters</span>
+              {activeFilterCount > 0 && (
+                <span
+                  style={{
+                    backgroundColor: 'var(--gold)',
+                    color: 'var(--bg-primary)',
+                    borderRadius: '50%',
+                    width: '18px',
+                    height: '18px',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+          </div>
 
           {hasFilters && (
             <button 
               className="btn btn-ghost btn-sm"
-              onClick={() => setSearchParams(new URLSearchParams())}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--gold)' }}
+              onClick={resetAllFilters}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--gold)', fontSize: '12px', padding: '4px 8px' }}
             >
-              <X size={16} /> Clear Filters
+              <X size={14} /> Clear
             </button>
           )}
         </div>
@@ -386,7 +460,7 @@ export default function DiscoverPage() {
       <div className="container" style={{ padding: '2rem 1rem' }}>
         {hasFilters ? (
           <div>
-            <h2 style={{ marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
+            <h2 style={{ marginBottom: '1.5rem', color: 'var(--text-primary)', fontSize: '1.3rem' }}>
               {query 
                 ? `Search Results for "${query}"` 
                 : (activeType === 'tv' 
@@ -396,9 +470,35 @@ export default function DiscoverPage() {
                       : 'Filtered Titles')}
             </h2>
             
-            {results.length === 0 && !loading ? (
-              <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--text-muted)' }}>
-                No titles found. Try adjusting your filters.
+            {loading && results.length === 0 ? (
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', 
+                gap: '1.5rem',
+                marginBottom: '2rem'
+              }}>
+                {Array.from({ length: 12 }).map((_, idx) => (
+                  <MovieCardSkeleton key={idx} width="100%" />
+                ))}
+              </div>
+            ) : results.length === 0 && !loading ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '4rem 1rem',
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px dashed var(--border-subtle)',
+                borderRadius: 'var(--radius-md)'
+              }}>
+                <Compass size={40} color="var(--gold)" style={{ opacity: 0.5, marginBottom: '12px' }} />
+                <h3 style={{ fontFamily: 'var(--font-serif)', color: 'var(--text-primary)', fontSize: '18px', marginBottom: '6px' }}>
+                  No Titles Match Your Filters
+                </h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '16px' }}>
+                  Try resetting some filters or switching to another category.
+                </p>
+                <button onClick={resetAllFilters} className="btn btn-primary btn-sm">
+                  Reset All Filters
+                </button>
               </div>
             ) : (
               <>
@@ -486,6 +586,30 @@ export default function DiscoverPage() {
           </div>
         )}
       </div>
+
+      {/* Mobile Filters Drawer Modal */}
+      <FilterDrawerModal
+        isOpen={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        activeType={activeType}
+        activeGenre={activeGenre}
+        activeLang={activeLang}
+        activeDecade={activeDecade}
+        activeSort={activeSort}
+        genres={genres}
+        languages={languages}
+        decades={decades}
+        sorts={sorts}
+        onUpdateFilter={updateFilter}
+        onResetFilters={resetAllFilters}
+      />
+
+      <style>{`
+        @media (max-width: 768px) {
+          .desktop-filters { display: none !important; }
+          .mobile-filter-trigger { display: block !important; }
+        }
+      `}</style>
     </div>
   );
 }

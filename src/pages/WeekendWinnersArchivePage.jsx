@@ -4,7 +4,7 @@ import { Trophy, Search, Filter, Share2, Star, ArrowRight, Bookmark, Heart, Eye,
 import {
   getAllWinners,
   getHistoricalWinners,
-  GENRE_OPTIONS,
+  getGenreOptions,
 } from '../services/weekendPickService';
 import { toggleWatchlist, toggleFavorite, toggleWatched, getMovieStatusSync } from '../services/movieLibraryService';
 import { useApp } from '../AppContext';
@@ -190,6 +190,7 @@ function WinnerArchiveCard({ winner, onShare }) {
 export default function WeekendWinnersArchivePage() {
   const navigate = useNavigate();
 
+  const [genres, setGenres] = useState(() => getGenreOptions());
   const [genreFilter, setGenreFilter] = useState('all');
   const [yearFilter, setYearFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -197,6 +198,16 @@ export default function WeekendWinnersArchivePage() {
 
   const [shareData, setShareData] = useState(null);
   const [showPickModal, setShowPickModal] = useState(false);
+
+  useEffect(() => {
+    const handleUpdate = () => setGenres(getGenreOptions());
+    window.addEventListener('storage', handleUpdate);
+    window.addEventListener('cinemascope_genres_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('cinemascope_genres_updated', handleUpdate);
+    };
+  }, []);
 
   const filteredWinners = useMemo(() => {
     return getHistoricalWinners({
@@ -302,7 +313,7 @@ export default function WeekendWinnersArchivePage() {
             onChange={e => setGenreFilter(e.target.value)}
           >
             <option value="all">All Genres</option>
-            {GENRE_OPTIONS.map(g => (
+            {genres.map(g => (
               <option key={g.id} value={g.id}>{g.emoji} {g.name}</option>
             ))}
           </select>
