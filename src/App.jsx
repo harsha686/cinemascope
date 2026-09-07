@@ -23,6 +23,7 @@ import DiaryPage from './pages/DiaryPage';
 import WatchlistPage from './pages/WatchlistPage';
 import CollectionPage from './pages/CollectionPage';
 import ProReviewerApplyPage from './pages/ProReviewerApplyPage';
+import ProReviewerProfilePage from './pages/ProReviewerProfilePage';
 import WeekendPickPage from './pages/WeekendPickPage';
 import WeekendWinnersArchivePage from './pages/WeekendWinnersArchivePage';
 import PublicReviewPage from './pages/PublicReviewPage';
