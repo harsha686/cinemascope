@@ -779,7 +779,11 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody>
                       {state.users.map(u => {
-                        const revCount = state.reviews.filter(r => r.userId === u.id).length;
+                        const revCount = state.reviews.filter(r => 
+                          (r.userId && u.id && r.userId === u.id) || 
+                          (r.userDisplayName && u.displayName && r.userDisplayName.trim().toLowerCase() === u.displayName.trim().toLowerCase()) ||
+                          (u.email && r.userEmail && r.userEmail.toLowerCase() === u.email.toLowerCase())
+                        ).length;
                         return (
                           <tr key={u.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                             <td style={{ padding: '10px 16px', color: 'var(--text-primary)', fontWeight: 600 }}>{u.displayName}</td>

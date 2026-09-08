@@ -16,6 +16,13 @@ export default function AestheticCardRenderer({
     showMeta = true,
     customHeadline = '',
     customQuote = '',
+    customAppName = '',
+    customRating = '',
+    customTitle = '',
+    customSubtitle = '',
+    customGenreBadge = '',
+    customBottomLeft = '',
+    customBottomRight = '',
   } = options;
 
   if (!content) return null;
@@ -27,6 +34,8 @@ export default function AestheticCardRenderer({
 
   const headline = customHeadline || content.headline;
   const quote = customQuote !== undefined && customQuote !== '' ? customQuote : content.quote;
+  // Use user's personal rating first, then content rating
+  const effectiveRating = customRating !== '' ? customRating : (content.userRating ?? content.rating ?? 5);
   const ratingNum = Math.round((content.rating || 5) * 10) / 10;
   const fullStars = Math.floor(content.rating || 5);
 
@@ -87,24 +96,25 @@ export default function AestheticCardRenderer({
 
         {/* ================= TOP SECTION: STUDIO ACCOLADE MASTHEAD ================= */}
         <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', width: '100%' }}>
+          {/* App Name — centered, smaller */}
           <h1 style={{
-            fontSize: isStory ? 'clamp(20px, 5vw, 32px)' : isLandscape ? '22px' : 'clamp(18px, 4.5vw, 24px)',
-            fontWeight: 900,
-            letterSpacing: '0.14em',
+            fontSize: isStory ? 15 : isLandscape ? 13 : 14,
+            fontWeight: 800,
+            letterSpacing: '0.28em',
             textTransform: 'uppercase',
-            margin: '0 0 6px',
+            margin: '0 0 8px',
             color: '#ffffff',
-            textShadow: '0 2px 14px rgba(0,0,0,0.95), 0 4px 28px rgba(0,0,0,0.95)',
-            whiteSpace: 'nowrap',
+            textAlign: 'center',
+            textShadow: '0 2px 10px rgba(0,0,0,0.95)',
           }}>
-            CINEMASCOPE
+            {customAppName || 'CINEMASCOPE'}
           </h1>
 
           {/* Underline Rule */}
           <div style={{
             width: '80%',
             height: 2,
-            margin: '0 auto 8px',
+            margin: '0 auto 10px',
             background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.95) 20%, rgba(255,255,255,0.95) 80%, transparent 100%)',
           }} />
 
@@ -115,27 +125,31 @@ export default function AestheticCardRenderer({
             textTransform: 'uppercase',
             letterSpacing: '0.12em',
             color: '#ffffff',
-            margin: '0 0 4px',
+            margin: '0 0 6px',
             textShadow: '0 2px 8px rgba(0,0,0,0.9)',
           }}>
             {headline || 'FEATURE FILM OF THE YEAR'}
           </p>
 
-          {/* Review excerpt or Nominee Line */}
-          <p style={{
-            fontSize: isStory ? 11 : 10,
-            fontWeight: 500,
-            letterSpacing: '0.08em',
-            color: 'rgba(255,255,255,0.9)',
-            textTransform: 'uppercase',
-            margin: 0,
-            textShadow: '0 2px 8px rgba(0,0,0,0.9)',
-          }}>
-            {quote ? `“${quote}”` : 'CRITICS CHOICE CERTIFIED FRESH'}
-          </p>
+          {/* Review excerpt / Quote line */}
+          {quote && (
+            <p style={{
+              fontSize: isStory ? 11 : 10,
+              fontWeight: 500,
+              letterSpacing: '0.06em',
+              color: 'rgba(255,255,255,0.88)',
+              margin: '0 auto',
+              textShadow: '0 2px 8px rgba(0,0,0,0.9)',
+              maxWidth: '90%',
+              lineHeight: 1.5,
+              fontStyle: 'italic',
+            }}>
+              {`"${quote}"`}
+            </p>
+          )}
         </div>
 
-        {/* ================= CENTER ACCENT (OPTIONAL RATING PILL) ================= */}
+        {/* ================= CENTER ACCENT: RATING PILL ================= */}
         {showRating && (
           <div style={{
             position: 'relative',
@@ -148,7 +162,7 @@ export default function AestheticCardRenderer({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              padding: '5px 14px',
+              padding: '5px 16px',
               borderRadius: 20,
               background: 'rgba(0,0,0,0.75)',
               backdropFilter: 'blur(12px)',
@@ -156,8 +170,9 @@ export default function AestheticCardRenderer({
               boxShadow: '0 6px 20px rgba(0,0,0,0.8)',
             }}>
               <span style={{ color: '#fce08b', fontSize: 13 }}>★</span>
-              <span style={{ fontSize: 12, fontWeight: 800, color: '#ffffff', letterSpacing: '0.05em' }}>
-                {ratingNum} <span style={{ fontSize: 10, opacity: 0.7 }}>/ 5.0</span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#ffffff', letterSpacing: '0.05em' }}>
+                {effectiveRating}
+                <span style={{ fontSize: 10, opacity: 0.65, marginLeft: 2 }}> / 5.0</span>
               </span>
             </div>
           </div>
@@ -165,20 +180,20 @@ export default function AestheticCardRenderer({
 
         {/* ================= BOTTOM SECTION: STUDIO TITLE & BRANDING ================= */}
         <div style={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
-          {/* Studio Mini Badge */}
+          {/* Genre / Studio Mini Badge */}
           <div style={{
             display: 'inline-block',
-            padding: '3px 10px',
+            padding: '3px 12px',
             border: '1px solid rgba(255,255,255,0.85)',
             fontSize: 9,
             fontWeight: 800,
             letterSpacing: '0.22em',
             textTransform: 'uppercase',
             color: '#ffffff',
-            marginBottom: 8,
+            marginBottom: 10,
             backdropFilter: 'blur(6px)',
           }}>
-            {content.genres && content.genres.length > 0 ? content.genres[0] : 'CINEMASCOPE SELECTION'}
+            {customGenreBadge || (content.genres && content.genres.length > 0 ? content.genres[0] : 'CINEMASCOPE SELECTION')}
           </div>
 
           {/* Movie Title */}
@@ -194,48 +209,46 @@ export default function AestheticCardRenderer({
               lineHeight: 1.1,
               textShadow: '0 2px 16px rgba(0,0,0,0.95)',
             }}>
-              {content.title}
+              {customTitle || content.title}
             </h2>
 
             {/* Title Underline Separator */}
             <div style={{
               width: '65%',
               height: 1,
-              margin: '0 auto 6px',
+              margin: '0 auto 8px',
               background: 'rgba(255,255,255,0.7)',
             }} />
 
             {/* Subtitle / Release Info */}
-            {content.subtitle && (
-              <p style={{
-                fontSize: 10,
-                letterSpacing: '0.22em',
-                textTransform: 'uppercase',
-                color: 'rgba(255,255,255,0.9)',
-                margin: 0,
-                fontWeight: 600,
-              }}>
-                {content.subtitle}
-              </p>
-            )}
+            <p style={{
+              fontSize: 10,
+              letterSpacing: '0.22em',
+              textTransform: 'uppercase',
+              color: 'rgba(255,255,255,0.85)',
+              margin: 0,
+              fontWeight: 600,
+            }}>
+              {customSubtitle || content.subtitle || ''}
+            </p>
           </div>
 
-          {/* Bottom Bar: Exclusivity & Now Streaming */}
+          {/* Bottom Bar: Left & Right labels */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            marginTop: 18,
+            marginTop: 16,
             paddingTop: 10,
             borderTop: '1px solid rgba(255,255,255,0.2)',
             fontSize: 9,
             fontWeight: 800,
           }}>
             <span style={{ letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.9)' }}>
-              CINEMASCOPE EXCLUSIVE
+              {customBottomLeft || 'CINEMASCOPE EXCLUSIVE'}
             </span>
             <span style={{ letterSpacing: '0.14em', textTransform: 'uppercase', color: '#fce08b' }}>
-              NOW STREAMING
+              {customBottomRight || 'NOW STREAMING'}
             </span>
           </div>
         </div>

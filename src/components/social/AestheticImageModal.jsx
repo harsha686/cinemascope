@@ -49,6 +49,15 @@ export default function AestheticImageModal({
   const [showBranding, setShowBranding] = useState(true);
   const [showMeta, setShowMeta] = useState(true);
 
+  // Key-Art poster text customization
+  const [customAppName, setCustomAppName] = useState('');
+  const [customRating, setCustomRating] = useState('');
+  const [customTitle, setCustomTitle] = useState('');
+  const [customSubtitle, setCustomSubtitle] = useState('');
+  const [customGenreBadge, setCustomGenreBadge] = useState('');
+  const [customBottomLeft, setCustomBottomLeft] = useState('');
+  const [customBottomRight, setCustomBottomRight] = useState('');
+
   // Helper to convert an image URL to Data URL (base64) using fetch with CORS
   const urlToDataUrl = async (url) => {
     if (!url || typeof url !== 'string' || url.startsWith('data:')) return url;
@@ -406,6 +415,13 @@ export default function AestheticImageModal({
                   showMeta,
                   customHeadline,
                   customQuote,
+                  customAppName,
+                  customRating,
+                  customTitle,
+                  customSubtitle,
+                  customGenreBadge,
+                  customBottomLeft,
+                  customBottomRight,
                 }}
               />
             </div>
@@ -473,31 +489,90 @@ export default function AestheticImageModal({
                 </div>
               </div>
 
-              {/* Text Customization controls */}
-              <div style={{ marginBottom: 20 }}>
+              {/* ---- Text Customization Controls ---- */}
+              <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 6 }}>
-                  Headline / Tagline
+                  Headline / Accolade
                 </label>
                 <input
                   type="text"
                   className="input"
-                  style={{ width: '100%', fontSize: 12, marginBottom: 12 }}
+                  style={{ width: '100%', fontSize: 12, marginBottom: 10 }}
                   value={customHeadline}
                   onChange={e => setCustomHeadline(e.target.value)}
-                  placeholder="Custom headline..."
+                  placeholder="e.g. FEATURE FILM OF THE YEAR"
                 />
 
                 <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 6 }}>
-                  Review Quote / Excerpt
+                  Quote / Review Excerpt
                 </label>
                 <textarea
                   className="input"
-                  rows={3}
-                  style={{ width: '100%', fontSize: 12, lineHeight: 1.5, resize: 'none' }}
+                  rows={2}
+                  style={{ width: '100%', fontSize: 12, lineHeight: 1.5, resize: 'none', marginBottom: 10 }}
                   value={customQuote}
                   onChange={e => setCustomQuote(e.target.value)}
-                  placeholder="Add your movie quote or thoughts..."
+                  placeholder="Add your thoughts or tagline..."
                 />
+
+                {/* Studio Accolade extra fields */}
+                {selectedTemplate.isKeyArt && (
+                  <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--gold)', marginBottom: 2 }}>
+                      🏆 Poster Text Fields
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>App Name (top center)</label>
+                      <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
+                        value={customAppName} onChange={e => setCustomAppName(e.target.value)}
+                        placeholder="CINEMASCOPE" />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Movie Title</label>
+                      <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
+                        value={customTitle} onChange={e => setCustomTitle(e.target.value)}
+                        placeholder={normalized?.title || 'Movie Title'} />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Subtitle (year · language)</label>
+                      <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
+                        value={customSubtitle} onChange={e => setCustomSubtitle(e.target.value)}
+                        placeholder={normalized?.subtitle || '2026 · ENGLISH'} />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Genre Badge</label>
+                      <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
+                        value={customGenreBadge} onChange={e => setCustomGenreBadge(e.target.value)}
+                        placeholder="ACTION · ADVENTURE" />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Rating (your score)</label>
+                      <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
+                        value={customRating} onChange={e => setCustomRating(e.target.value)}
+                        placeholder={String(normalized?.userRating ?? normalized?.rating ?? '4.5')} />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Bottom Left</label>
+                        <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
+                          value={customBottomLeft} onChange={e => setCustomBottomLeft(e.target.value)}
+                          placeholder="CINEMASCOPE EXCLUSIVE" />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Bottom Right</label>
+                        <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
+                          value={customBottomRight} onChange={e => setCustomBottomRight(e.target.value)}
+                          placeholder="NOW STREAMING" />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Toggle Switches */}
