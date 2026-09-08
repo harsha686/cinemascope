@@ -96,6 +96,13 @@ export default function AestheticImageModal({
     if (normalized) {
       setCustomHeadline(normalized.headline || '');
       setCustomQuote(normalized.quote || '');
+      setCustomAppName('CINEMASCOPE');
+      setCustomTitle(normalized.title || '');
+      setCustomSubtitle(normalized.subtitle || '');
+      setCustomGenreBadge(normalized.genres && normalized.genres.length > 0 ? normalized.genres.join(' · ') : 'CINEMASCOPE SELECTION');
+      setCustomRating(normalized.userRating != null ? String(normalized.userRating) : (normalized.rating != null ? String(normalized.rating) : '5.0'));
+      setCustomBottomLeft('CINEMASCOPE EXCLUSIVE');
+      setCustomBottomRight('NOW STREAMING');
       setResolvedContent(normalized);
 
       // Pre-convert poster and backdrop to base64 Data URLs

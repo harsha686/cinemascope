@@ -530,7 +530,10 @@ export default function MovieDetailPage() {
                 {/* Aesthetic Social Card Generator Button */}
                 <ShareButton
                   contentType={SOCIAL_CONTENT_TYPES.MOVIE}
-                  data={movie}
+                  data={{
+                    ...movie,
+                    personalRating: userExistingReview?.rating || movie.personalRating || null,
+                  }}
                   variant="outline"
                   size="md"
                   customLabel="✨ Create Aesthetic"

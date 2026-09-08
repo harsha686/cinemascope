@@ -199,7 +199,7 @@ export default function AestheticCardRenderer({
           {/* Movie Title */}
           <div>
             <h2 style={{
-              fontSize: isStory ? 'clamp(22px, 5vw, 34px)' : isLandscape ? '22px' : '26px',
+              fontSize: isStory ? 28 : isLandscape ? 22 : 26,
               fontWeight: 700,
               letterSpacing: '0.16em',
               textTransform: 'uppercase',
@@ -393,7 +393,7 @@ export default function AestheticCardRenderer({
         {isStats ? (
           <div style={{ width: '100%', maxWidth: 540 }}>
             <h2 style={{
-              fontSize: 'clamp(20px, 3.5vw, 32px)',
+              fontSize: isStory ? 22 : isLandscape ? 26 : 24,
               margin: '0 0 4px',
               textAlign: 'center',
               color: template.textColor,
@@ -454,7 +454,7 @@ export default function AestheticCardRenderer({
           /* Scenario 2: Multi-movie collage (Collection / Watchlist / Top Picks) */
           <div style={{ width: '100%', textAlign: 'center' }}>
             <h2 style={{
-              fontSize: 'clamp(18px, 3vw, 28px)',
+              fontSize: isStory ? 20 : isLandscape ? 24 : 22,
               margin: '0 0 4px',
               color: template.textColor,
             }}>
@@ -503,8 +503,8 @@ export default function AestheticCardRenderer({
             {content.posterUrl && (
               <div style={{
                 position: 'relative',
-                width: isLandscape ? 150 : isStory ? 200 : 160,
-                maxHeight: isStory ? 300 : 230,
+                width: isLandscape ? 140 : '45%',
+                maxWidth: isStory ? 160 : 130,
                 aspectRatio: '2/3',
                 flexShrink: 0,
                 borderRadius: template.isScrapbook ? 3 : 8,
@@ -561,7 +561,7 @@ export default function AestheticCardRenderer({
               alignItems: isLandscape ? 'flex-start' : 'center',
             }}>
               <h2 style={{
-                fontSize: isStory ? 'clamp(20px, 3.8vw, 34px)' : 'clamp(17px, 2.8vw, 26px)',
+                fontSize: isStory ? 20 : isLandscape ? 22 : 18,
                 lineHeight: 1.2,
                 margin: '0 0 4px',
                 color: template.textColor,
@@ -605,17 +605,17 @@ export default function AestheticCardRenderer({
               {quote && (
                 <div style={{
                   position: 'relative',
-                  fontSize: isStory ? 14 : 13,
+                  fontSize: isStory ? 13 : 12,
                   fontStyle: 'italic',
-                  lineHeight: 1.5,
+                  lineHeight: 1.4,
                   color: template.textColor,
                   opacity: 0.9,
                   background: 'rgba(255,255,255,0.03)',
-                  padding: '10px 16px',
+                  padding: '10px 14px',
                   borderRadius: 6,
                   borderLeft: `3px solid ${template.accentColor}`,
                   display: '-webkit-box',
-                  WebkitLineClamp: isLandscape ? 3 : isStory ? 4 : 3,
+                  WebkitLineClamp: isLandscape ? 3 : isStory ? 5 : 4,
                   WebkitBoxOrient: 'vertical',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
