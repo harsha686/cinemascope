@@ -144,7 +144,26 @@ export const supabaseService = {
     if (review.reviewType) {
       payload.review_type = review.reviewType;
     }
-    const { error } = await supabase.from('reviews').upsert(payload);
+    let { error } = await supabase.from('reviews').upsert(payload);
+    
+    // If foreign key constraint failed on movie_id (e.g. TMDB movie), ensure a minimal movie record exists first
+    if (error && (error.message?.includes('foreign key') || error.message?.includes('reviews_movie_id_fkey') || error.code === '23503')) {
+      try {
+        await supabase.from('movies').upsert({
+          id: review.movieId,
+          title: review.movieTitle || review.movieId,
+          poster_url: review.posterUrl || '',
+          status: 'CURRENTLY_SHOWING',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+        const retryResult = await supabase.from('reviews').upsert(payload);
+        error = retryResult.error;
+      } catch (e) {
+        console.warn('Auto movie stub creation failed:', e);
+      }
+    }
+
     if (error) {
       // If review_type column does not exist on remote schema, retry without it
       if (error.message && error.message.includes('review_type')) {
@@ -164,6 +183,49 @@ export const supabaseService = {
     if (!supabase) return false;
     const { error } = await supabase.from('reviews').delete().eq('id', id);
     return !error;
+  },
+
+  // Users
+  async getUsers() {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
+      if (error) {
+        return null;
+      }
+      return (data || []).map(u => ({
+        id: u.id,
+        email: u.email,
+        displayName: u.display_name || u.displayName || u.email?.split('@')[0] || 'User',
+        role: u.role || 'USER',
+        createdAt: u.created_at || u.createdAt || new Date().toISOString(),
+      }));
+    } catch (e) {
+      return null;
+    }
+  },
+
+  async saveUser(user) {
+    const supabase = getSupabaseClient();
+    if (!supabase || !user) return false;
+    try {
+      const payload = {
+        id: user.id,
+        email: user.email,
+        display_name: user.displayName,
+        role: user.role || 'USER',
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await supabase.from('users').upsert(payload);
+      if (error) {
+        console.warn('Supabase saveUser warning:', error.message);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
   },
 
   // User Movies

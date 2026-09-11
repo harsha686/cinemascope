@@ -764,44 +764,72 @@ export default function AdminDashboard() {
             )}
 
             {/* USERS TAB */}
-            {activeTab === 'users' && (
-              <div>
-                <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', marginBottom: 16 }}>Registered Users</h3>
-                <div style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-card)' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead>
-                      <tr style={{ background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontFamily: 'var(--font-serif)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                        <th style={{ padding: '12px 16px' }}>Display Name</th>
-                        <th style={{ padding: '12px 16px' }}>Email (Private Admin View)</th>
-                        <th style={{ padding: '12px 16px' }}>Role</th>
-                        <th style={{ padding: '12px 16px' }}>Reviews Written</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {state.users.map(u => {
-                        const revCount = state.reviews.filter(r => 
-                          (r.userId && u.id && r.userId === u.id) || 
-                          (r.userDisplayName && u.displayName && r.userDisplayName.trim().toLowerCase() === u.displayName.trim().toLowerCase()) ||
-                          (u.email && r.userEmail && r.userEmail.toLowerCase() === u.email.toLowerCase())
-                        ).length;
-                        return (
-                          <tr key={u.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                            <td style={{ padding: '10px 16px', color: 'var(--text-primary)', fontWeight: 600 }}>{u.displayName}</td>
-                            <td style={{ padding: '10px 16px', color: 'var(--text-secondary)' }}>{u.email}</td>
-                            <td style={{ padding: '10px 16px' }}>
-                              <span className={`badge ${u.role === 'ADMIN' ? 'badge-gold' : 'badge-dim'}`} style={{ fontSize: 9 }}>
-                                {u.role}
-                              </span>
-                            </td>
-                            <td style={{ padding: '10px 16px', color: 'var(--gold)', fontFamily: 'var(--font-serif)' }}>{revCount}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+            {activeTab === 'users' && (() => {
+              const userMap = new Map();
+              (state.users || []).forEach(u => {
+                const key = u.email ? u.email.toLowerCase() : u.id;
+                userMap.set(key, u);
+              });
+              // Also ensure any reviewer in state.reviews is displayed
+              (state.reviews || []).forEach(r => {
+                const key = r.userEmail ? r.userEmail.toLowerCase() : (r.userId || r.userDisplayName);
+                if (key && !Array.from(userMap.values()).some(u => 
+                  (u.id && r.userId && u.id === r.userId) || 
+                  (u.email && r.userEmail && u.email.toLowerCase() === r.userEmail.toLowerCase()) || 
+                  (u.displayName && r.userDisplayName && u.displayName.trim().toLowerCase() === r.userDisplayName.trim().toLowerCase())
+                )) {
+                  userMap.set(key, {
+                    id: r.userId || `user-${Date.now()}`,
+                    displayName: r.userDisplayName || 'User',
+                    email: r.userEmail || '—',
+                    role: 'USER',
+                    createdAt: r.createdAt || new Date().toISOString(),
+                  });
+                }
+              });
+              const displayUsersList = Array.from(userMap.values());
+
+              return (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', margin: 0 }}>Registered Users ({displayUsersList.length})</h3>
+                  </div>
+                  <div style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-card)' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontFamily: 'var(--font-serif)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                          <th style={{ padding: '12px 16px', textAlign: 'left' }}>Display Name</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'left' }}>Email (Private Admin View)</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'left' }}>Role</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'left' }}>Reviews Written</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {displayUsersList.map(u => {
+                          const revCount = (state.reviews || []).filter(r => 
+                            (r.userId && u.id && r.userId === u.id) || 
+                            (r.userDisplayName && u.displayName && r.userDisplayName.trim().toLowerCase() === u.displayName.trim().toLowerCase()) ||
+                            (u.email && r.userEmail && r.userEmail.toLowerCase() === u.email.toLowerCase())
+                          ).length;
+                          return (
+                            <tr key={u.id || u.email} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                              <td style={{ padding: '10px 16px', color: 'var(--text-primary)', fontWeight: 600 }}>{u.displayName}</td>
+                              <td style={{ padding: '10px 16px', color: 'var(--text-secondary)' }}>{u.email}</td>
+                              <td style={{ padding: '10px 16px' }}>
+                                <span className={`badge ${u.role === 'ADMIN' ? 'badge-gold' : 'badge-dim'}`} style={{ fontSize: 9 }}>
+                                  {u.role}
+                                </span>
+                              </td>
+                              <td style={{ padding: '10px 16px', color: 'var(--gold)', fontFamily: 'var(--font-serif)', fontWeight: 700 }}>{revCount}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* CITIES TAB */}
             {activeTab === 'cities' && (

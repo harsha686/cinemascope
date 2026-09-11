@@ -129,11 +129,20 @@ function reducer(state, action) {
       saveStorage('cinemascope_currentUser', action.payload);
       return newState;
 
+    case 'SET_USERS':
+      newState = { ...state, users: action.payload };
+      saveStorage('cinemascope_users', action.payload);
+      return newState;
+
     case 'REGISTER_USER':
-      const updatedUsers = [...state.users, action.payload];
+      const updatedUsers = [
+        ...state.users.filter(u => u.id !== action.payload.id && u.email?.toLowerCase() !== action.payload.email?.toLowerCase()),
+        action.payload
+      ];
       newState = { ...state, users: updatedUsers, currentUser: action.payload };
       saveStorage('cinemascope_users', updatedUsers);
       saveStorage('cinemascope_currentUser', action.payload);
+      if (isSupabaseConfigured()) supabaseService.saveUser(action.payload);
       return newState;
 
     case 'LOGOUT':
@@ -343,9 +352,10 @@ export function AppProvider({ children }) {
 
     const fetchRemoteData = async () => {
       try {
-        const [remoteMovies, remoteReviews] = await Promise.all([
+        const [remoteMovies, remoteReviews, remoteUsers] = await Promise.all([
           supabaseService.getMovies(),
           supabaseService.getReviews(),
+          supabaseService.getUsers(),
         ]);
 
         if (remoteMovies && remoteMovies.length > 0) {
@@ -374,22 +384,45 @@ export function AppProvider({ children }) {
           dispatch({ type: 'SET_MOVIES', payload: formatted });
         }
 
+        if (remoteUsers && remoteUsers.length > 0) {
+          const currentLocalUsers = loadStorage('cinemascope_users', initialUsers);
+          const userMap = new Map();
+          // Seed users
+          initialUsers.forEach(u => userMap.set(u.email ? u.email.toLowerCase() : u.id, u));
+          // Remote users
+          remoteUsers.forEach(u => userMap.set(u.email ? u.email.toLowerCase() : u.id, u));
+          // Local users overlay
+          (Array.isArray(currentLocalUsers) ? currentLocalUsers : []).forEach(u => {
+            const key = u.email ? u.email.toLowerCase() : u.id;
+            userMap.set(key, { ...(userMap.get(key) || {}), ...u });
+          });
+          const mergedUsers = Array.from(userMap.values());
+          dispatch({ type: 'SET_USERS', payload: mergedUsers });
+        }
+
         if (remoteReviews && remoteReviews.length > 0) {
-          // Merge remote reviews with local reviews so local reviews and reviewTypes are never lost on refresh
-          const currentLocal = loadStorage('cinemascope_reviews', []);
+          // Merge remote reviews with local and seed reviews so nothing is lost on refresh
+          const currentLocal = loadStorage('cinemascope_reviews', initialReviews);
           const mergedMap = new Map();
-          // First add remote reviews
+          // 1. Initial seed reviews
+          initialReviews.forEach(seed => {
+            mergedMap.set(seed.id, seed);
+          });
+          // 2. Remote reviews from Supabase
           remoteReviews.forEach(rem => {
             mergedMap.set(rem.id, rem);
           });
-          // Overlay / preserve local reviews
-          currentLocal.forEach(loc => {
+          // 3. Local reviews overlay
+          (Array.isArray(currentLocal) ? currentLocal : []).forEach(loc => {
             if (mergedMap.has(loc.id)) {
               const existing = mergedMap.get(loc.id);
               mergedMap.set(loc.id, {
                 ...existing,
                 ...loc,
                 reviewType: loc.reviewType || existing.reviewType,
+                userDisplayName: loc.userDisplayName || existing.userDisplayName,
+                userId: loc.userId || existing.userId,
+                userEmail: loc.userEmail || existing.userEmail,
               });
             } else {
               mergedMap.set(loc.id, loc);
