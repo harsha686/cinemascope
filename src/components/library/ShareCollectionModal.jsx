@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Copy, Check, Share2, Sparkles, MessageCircle, Send, Globe, Folder, Film } from 'lucide-react';
 import { getCollectionShareUrl } from '../../services/movieLibraryService';
 import AestheticImageModal from '../social/AestheticImageModal';
@@ -13,6 +13,19 @@ export default function ShareCollectionModal({
 }) {
   const [copied, setCopied] = useState(false);
   const [showAestheticModal, setShowAestheticModal] = useState(false);
+  const cardRef = useRef(null);
+
+  // Auto-scroll the share card into clear view upon opening
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        if (cardRef.current) {
+          cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
 
   if (!isOpen || !collection) return null;
 
@@ -166,6 +179,7 @@ export default function ShareCollectionModal({
           <div style={{ padding: '20px' }}>
             {/* Collection Preview Card */}
             <div
+              ref={cardRef}
               style={{
                 background: 'linear-gradient(135deg, rgba(201,168,76,0.08) 0%, rgba(20,20,26,0.95) 100%)',
                 border: '1px solid var(--gold-dim)',

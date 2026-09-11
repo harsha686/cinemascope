@@ -34,12 +34,25 @@ export default function AestheticImageModal({
   const { state } = useApp();
   const currentUser = state.currentUser;
   const cardRef = useRef(null);
+  const cardContainerRef = useRef(null);
 
   const [selectedFormat, setSelectedFormat] = useState(SOCIAL_FORMATS[0]); // 9:16 Story
   const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATE_STYLES[0]); // Cinematic
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [showControls, setShowControls] = useState(false);
+
+  // Auto-scroll the share card into clear view on mount or format switch
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        if (cardContainerRef.current) {
+          cardContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        }
+      }, 120);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, selectedFormat]);
 
   // Customization Options
   const [customHeadline, setCustomHeadline] = useState('');
@@ -402,14 +415,17 @@ export default function AestheticImageModal({
             </div>
 
             {/* Live Interactive Card Container */}
-            <div style={{
-              width: '100%',
-              maxWidth: selectedFormat.id === 'landscape' ? 560 : selectedFormat.id === 'story' ? 320 : 380,
-              boxShadow: '0 16px 48px rgba(0,0,0,0.9)',
-              borderRadius: 6,
-              overflow: 'hidden',
-              transition: 'max-width 200ms ease',
-            }}>
+            <div
+              ref={cardContainerRef}
+              style={{
+                width: '100%',
+                maxWidth: selectedFormat.id === 'landscape' ? 560 : selectedFormat.id === 'story' ? 320 : 380,
+                boxShadow: '0 16px 48px rgba(0,0,0,0.9)',
+                borderRadius: 6,
+                overflow: 'hidden',
+                transition: 'max-width 200ms ease',
+              }}
+            >
               <AestheticCardRenderer
                 cardRef={cardRef}
                 content={resolvedContent || normalized}
