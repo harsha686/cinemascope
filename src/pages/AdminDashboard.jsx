@@ -12,7 +12,7 @@ import { getApplications, updateApplicationStatus } from '../services/proReviewe
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { state, dispatch, allCities, allTheaters, getMovieRating } = useApp();
+  const { state, dispatch, allCities, allTheaters, getMovieRating, refreshData, isRefreshing } = useApp();
 
   const currentUser = state.currentUser;
   const isAdmin = currentUser && currentUser.role === 'ADMIN';
@@ -20,6 +20,20 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('movies'); // 'movies' | 'reviews' | 'users' | 'cities' | 'pro-reviewers'
   const [movieSearch, setMovieSearch] = useState('');
   const [movieStatusFilter, setMovieStatusFilter] = useState('all');
+  const [refreshFeedback, setRefreshFeedback] = useState('');
+
+  const handleFullRefresh = async () => {
+    if (refreshData) {
+      setRefreshFeedback('Syncing with database...');
+      const res = await refreshData();
+      if (res?.success) {
+        setRefreshFeedback('✓ All data in sync!');
+      } else {
+        setRefreshFeedback('Synced local data');
+      }
+      setTimeout(() => setRefreshFeedback(''), 3000);
+    }
+  };
 
   // Add / Edit Movie Modal & Wizard State
   const [showMovieForm, setShowMovieForm] = useState(false);
@@ -357,7 +371,23 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          {refreshFeedback && (
+            <span style={{ fontSize: 11, color: refreshFeedback.includes('✓') ? '#4ade80' : 'var(--gold)', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-serif)', fontWeight: 600 }}>
+              {refreshFeedback}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleFullRefresh}
+            disabled={isRefreshing}
+            className="btn btn-outline btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, borderColor: 'var(--gold-dim)', color: 'var(--gold)' }}
+            title="Fetch latest movies, reviews, and users from cloud database"
+          >
+            <RefreshCw size={14} style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
+            {isRefreshing ? 'Syncing...' : 'Refresh All Data'}
+          </button>
           <button type="button" onClick={handleOpenAddTheater} className="btn btn-outline btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Building2 size={14} /> Add Theater
           </button>

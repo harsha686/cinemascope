@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useState } from 'react';
 import theaterDB from './data/theaters.json';
 import initialMovies from './data/movies.json';
 import initialReviews from './data/reviews.json';
@@ -346,12 +346,13 @@ export function AppProvider({ children }) {
     saveStorage('cinemascope_theaters', state.theatersList);
   }, [state.theatersList]);
 
-  // Sync from Supabase on load if configured
-  useEffect(() => {
-    if (!isSupabaseConfigured()) return;
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const fetchRemoteData = async () => {
-      try {
+  // Sync from Supabase on load or when manually requested
+  const refreshData = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      if (isSupabaseConfigured()) {
         const [remoteMovies, remoteReviews, remoteUsers] = await Promise.all([
           supabaseService.getMovies(),
           supabaseService.getReviews(),
@@ -431,13 +432,19 @@ export function AppProvider({ children }) {
           const mergedList = Array.from(mergedMap.values());
           dispatch({ type: 'SET_REVIEWS', payload: mergedList });
         }
-      } catch (e) {
-        console.warn('Supabase remote sync skipped:', e);
       }
-    };
-
-    fetchRemoteData();
+      return { success: true };
+    } catch (e) {
+      console.warn('Supabase remote sync skipped or failed:', e);
+      return { success: false, error: e };
+    } finally {
+      setIsRefreshing(false);
+    }
   }, []);
+
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   // Derived data helpers for Movies & Reviews
   const getMovie = useCallback((movieId) => {
@@ -597,6 +604,9 @@ export function AppProvider({ children }) {
       getMovieUserReviews,
       getMovieProfessionalReviews,
       getProfessionalRating,
+      // Global Sync / Refresh
+      refreshData,
+      isRefreshing,
     }}>
       {children}
     </AppContext.Provider>

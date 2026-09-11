@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Film, Menu, X, ChevronRight, User, LogOut, ShieldAlert, MapPin } from 'lucide-react';
+import { Film, Menu, X, ChevronRight, User, LogOut, ShieldAlert, MapPin, RefreshCw } from 'lucide-react';
 import { useApp } from '../../AppContext';
 
 export default function Navbar() {
@@ -9,7 +9,7 @@ export default function Navbar() {
   const [userDropdown, setUserDropdown] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { state, dispatch, allCities } = useApp();
+  const { state, dispatch, allCities, refreshData, isRefreshing } = useApp();
   const dropdownRef = useRef(null);
 
   const currentUser = state.currentUser;
@@ -86,8 +86,38 @@ export default function Navbar() {
           ))}
         </div>
 
-        {/* Right Action Controls (Auth Menu) */}
+        {/* Right Action Controls (Sync & Auth Menu) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+
+          {/* Cloud Sync Refresh Button */}
+          <button
+            type="button"
+            onClick={() => refreshData && refreshData()}
+            disabled={isRefreshing}
+            title={isRefreshing ? 'Syncing...' : 'Sync and refresh live data with cloud'}
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '50%',
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: isRefreshing ? 'var(--gold)' : 'var(--text-muted)',
+              cursor: isRefreshing ? 'default' : 'pointer',
+              transition: 'all 150ms ease',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--gold-dim)'; e.currentTarget.style.color = 'var(--gold)'; }}
+            onMouseLeave={e => {
+              if (!isRefreshing) {
+                e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                e.currentTarget.style.color = 'var(--text-muted)';
+              }
+            }}
+          >
+            <RefreshCw size={14} style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
+          </button>
 
           {/* User Auth Section */}
           {currentUser ? (
