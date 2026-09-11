@@ -199,7 +199,7 @@ export default function AestheticCardRenderer({
           {/* Movie Title */}
           <div>
             <h2 style={{
-              fontSize: isStory ? 28 : isLandscape ? 22 : 26,
+              fontSize: isStory ? 'clamp(22px, 5vw, 34px)' : isLandscape ? '22px' : '26px',
               fontWeight: 700,
               letterSpacing: '0.16em',
               textTransform: 'uppercase',
@@ -269,9 +269,19 @@ export default function AestheticCardRenderer({
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        padding: isStory ? '48px 36px' : isLandscape ? '28px 36px' : '32px 28px',
+        padding: isStory
+          ? (template.isFilmRoll ? '28px 36px' : '28px 24px')
+          : isLandscape
+          ? (template.isFilmRoll ? '20px 42px' : '20px 32px')
+          : isSquare
+          ? (template.isFilmRoll ? '22px 38px' : '22px 24px')
+          : (template.isFilmRoll ? '22px 34px' : '22px 20px'),
         boxSizing: 'border-box',
-        fontFamily: template.fontFamily === 'serif' ? 'var(--font-serif, "Cinzel", Georgia, serif)' : 'var(--font-sans, "Inter", sans-serif)',
+        fontFamily: template.fontFamily === 'serif'
+          ? 'var(--font-serif, "Cinzel", Georgia, serif)'
+          : template.fontFamily === 'monospace'
+          ? 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
+          : 'var(--font-sans, "Inter", sans-serif)',
         border: `1px solid ${template.borderColor}`,
       }}
     >
@@ -296,17 +306,17 @@ export default function AestheticCardRenderer({
           top: 0,
           bottom: 0,
           left: 0,
-          width: 24,
+          width: 22,
           background: '#000',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-around',
           alignItems: 'center',
-          padding: '8px 0',
+          padding: '6px 0',
           zIndex: 3,
         }}>
-          {Array.from({ length: 14 }).map((_, i) => (
-            <div key={i} style={{ width: 12, height: 16, background: 'rgba(255,255,255,0.25)', borderRadius: 2 }} />
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} style={{ width: 10, height: 14, background: 'rgba(255,255,255,0.22)', borderRadius: 2 }} />
           ))}
         </div>
       )}
@@ -316,17 +326,17 @@ export default function AestheticCardRenderer({
           top: 0,
           bottom: 0,
           right: 0,
-          width: 24,
+          width: 22,
           background: '#000',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-around',
           alignItems: 'center',
-          padding: '8px 0',
+          padding: '6px 0',
           zIndex: 3,
         }}>
-          {Array.from({ length: 14 }).map((_, i) => (
-            <div key={i} style={{ width: 12, height: 16, background: 'rgba(255,255,255,0.25)', borderRadius: 2 }} />
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} style={{ width: 10, height: 14, background: 'rgba(255,255,255,0.22)', borderRadius: 2 }} />
           ))}
         </div>
       )}
@@ -335,41 +345,46 @@ export default function AestheticCardRenderer({
       {template.isScrapbook && (
         <div style={{
           position: 'absolute',
-          top: 18,
+          top: 10,
           left: '50%',
           transform: 'translateX(-50%) rotate(-2deg)',
-          width: 120,
-          height: 28,
+          width: 90,
+          height: 20,
           background: 'rgba(255, 235, 180, 0.45)',
           border: '1px dashed rgba(200, 180, 120, 0.5)',
           boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
-          zIndex: 4,
+          zIndex: 1,
+          pointerEvents: 'none',
         }} />
       )}
 
       {/* ================= HEADER SECTION ================= */}
-      <div style={{ position: 'relative', zIndex: 2 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+      <div style={{ position: 'relative', zIndex: 2, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: isStory ? 8 : 4 }}>
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 6,
-            padding: '4px 12px',
+            gap: 5,
+            padding: '3px 10px',
             borderRadius: template.isScrapbook ? 0 : 20,
             background: template.badgeBg,
             border: `1px solid ${template.borderColor}`,
-            fontSize: 11,
+            fontSize: isStory ? 10.5 : 10,
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '0.12em',
             color: template.accentColor,
+            maxWidth: '75%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
           }}>
-            {isWeekendWinner ? <Trophy size={13} /> : <Film size={13} />}
-            <span>{headline}</span>
+            {isWeekendWinner ? <Trophy size={12} style={{ flexShrink: 0 }} /> : <Film size={12} style={{ flexShrink: 0 }} />}
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{headline}</span>
           </div>
 
           {content.dateStr && (
-            <span style={{ fontSize: 11, opacity: 0.6, letterSpacing: '0.05em' }}>
+            <span style={{ fontSize: 10, opacity: 0.6, letterSpacing: '0.05em', whiteSpace: 'nowrap', flexShrink: 0 }}>
               {content.dateStr}
             </span>
           )}
@@ -382,45 +397,46 @@ export default function AestheticCardRenderer({
         zIndex: 2,
         flex: 1,
         display: 'flex',
-        flexDirection: isLandscape ? 'row' : 'column',
+        flexDirection: isLandscape || isSquare ? 'row' : 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: isLandscape ? 24 : isStory ? 20 : 14,
-        margin: '8px 0',
+        gap: isLandscape ? 18 : isSquare ? 16 : isStory ? 14 : 10,
+        margin: '6px 0',
         minHeight: 0,
+        overflow: 'hidden',
       }}>
         {/* Scenario 1: User Stats Cards */}
         {isStats ? (
-          <div style={{ width: '100%', maxWidth: 540 }}>
+          <div style={{ width: '100%', maxWidth: 540, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <h2 style={{
-              fontSize: isStory ? 22 : isLandscape ? 26 : 24,
-              margin: '0 0 4px',
+              fontSize: isStory ? 'clamp(18px, 3.5vw, 26px)' : 'clamp(15px, 2.8vw, 22px)',
+              margin: '0 0 2px',
               textAlign: 'center',
               color: template.textColor,
             }}>
               {content.title}
             </h2>
-            <div style={{ textAlign: 'center', fontSize: 12, color: template.accentColor, marginBottom: 16 }}>
+            <div style={{ textAlign: 'center', fontSize: 11, color: template.accentColor, marginBottom: 10 }}>
               {content.subtitle}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 10 }}>
               {content.statsList?.map((s, idx) => (
                 <div key={idx} style={{
                   background: 'rgba(255,255,255,0.04)',
                   border: `1px solid ${template.borderColor}`,
                   borderRadius: 6,
-                  padding: '10px 12px',
+                  padding: '8px 10px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 10,
+                  gap: 8,
                 }}>
-                  <span style={{ fontSize: 20 }}>{s.emoji}</span>
+                  <span style={{ fontSize: 16 }}>{s.emoji}</span>
                   <div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: template.accentColor }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: template.accentColor }}>
                       {s.value}
                     </div>
-                    <div style={{ fontSize: 10, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <div style={{ fontSize: 9, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       {s.label}
                     </div>
                   </div>
@@ -429,7 +445,7 @@ export default function AestheticCardRenderer({
             </div>
 
             {content.posters && content.posters.length > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 4 }}>
                 {content.posters.slice(0, 4).map((p, i) => (
                   <img
                     key={i}
@@ -437,7 +453,7 @@ export default function AestheticCardRenderer({
                     alt="film"
                     crossOrigin="anonymous"
                     style={{
-                      width: 46,
+                      width: 40,
                       aspectRatio: '2/3',
                       objectFit: 'cover',
                       borderRadius: 3,
@@ -452,15 +468,15 @@ export default function AestheticCardRenderer({
           </div>
         ) : hasMultiplePosters ? (
           /* Scenario 2: Multi-movie collage (Collection / Watchlist / Top Picks) */
-          <div style={{ width: '100%', textAlign: 'center' }}>
+          <div style={{ width: '100%', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
             <h2 style={{
-              fontSize: isStory ? 20 : isLandscape ? 24 : 22,
-              margin: '0 0 4px',
+              fontSize: isStory ? 'clamp(17px, 3vw, 24px)' : 'clamp(14px, 2.5vw, 20px)',
+              margin: '0 0 2px',
               color: template.textColor,
             }}>
               {content.title}
             </h2>
-            <div style={{ fontSize: 12, color: template.accentColor, marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: template.accentColor, marginBottom: 10 }}>
               {content.subtitle}
             </div>
 
@@ -468,18 +484,19 @@ export default function AestheticCardRenderer({
             <div style={{
               display: 'grid',
               gridTemplateColumns: content.posters.length <= 3 ? `repeat(${content.posters.length}, 1fr)` : 'repeat(3, 1fr)',
-              gap: 10,
-              maxWidth: 440,
-              margin: '0 auto 12px',
+              gap: 8,
+              maxWidth: isLandscape ? 360 : 320,
+              margin: '0 auto 4px',
             }}>
               {content.posters.slice(0, 6).map((p, i) => (
                 <div key={i} style={{
                   position: 'relative',
                   aspectRatio: '2/3',
-                  borderRadius: template.isScrapbook ? 2 : 6,
+                  maxHeight: isLandscape ? 110 : isSquare ? 110 : 130,
+                  borderRadius: template.isScrapbook ? 2 : 5,
                   overflow: 'hidden',
                   border: `1px solid ${template.borderColor}`,
-                  boxShadow: '0 6px 18px rgba(0,0,0,0.6)',
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.6)',
                   background: 'rgba(0,0,0,0.5)',
                   transform: template.isScrapbook ? `rotate(${i % 2 === 0 ? '-2deg' : '2deg'})` : 'none',
                 }}>
@@ -503,16 +520,20 @@ export default function AestheticCardRenderer({
             {content.posterUrl && (
               <div style={{
                 position: 'relative',
-                width: isLandscape ? 140 : '45%',
-                maxWidth: isStory ? 160 : 130,
+                height: isStory ? 180 : isLandscape ? 145 : isSquare ? 155 : 138,
                 aspectRatio: '2/3',
                 flexShrink: 0,
                 borderRadius: template.isScrapbook ? 3 : 8,
-                padding: template.isScrapbook ? 6 : 0,
+                padding: template.isScrapbook ? 5 : 0,
                 background: template.isScrapbook ? '#fff' : 'transparent',
                 border: `1px solid ${template.isScrapbook ? '#ddd' : template.borderColor}`,
-                boxShadow: '0 10px 30px rgba(0,0,0,0.7)',
+                boxShadow: template.id === 'neon'
+                  ? '0 6px 20px rgba(56,189,248,0.35)'
+                  : '0 8px 24px rgba(0,0,0,0.7)',
                 transform: template.isScrapbook ? 'rotate(-1.5deg)' : 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}>
                 <img
                   src={content.posterUrl}
@@ -522,7 +543,7 @@ export default function AestheticCardRenderer({
                     width: '100%',
                     height: '100%',
                     objectFit: 'cover',
-                    borderRadius: template.isScrapbook ? 1 : 8,
+                    borderRadius: template.isScrapbook ? 1 : 7,
                     display: 'block',
                   }}
                   onError={e => {
@@ -532,20 +553,20 @@ export default function AestheticCardRenderer({
                 {isWeekendWinner && (
                   <div style={{
                     position: 'absolute',
-                    top: -8,
-                    right: -8,
+                    top: -6,
+                    right: -6,
                     background: 'linear-gradient(135deg, #c9a84c, #fbbf24)',
                     color: '#000',
                     fontWeight: 800,
-                    fontSize: 9,
-                    padding: '3px 8px',
-                    borderRadius: 12,
+                    fontSize: 8.5,
+                    padding: '2px 7px',
+                    borderRadius: 10,
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 4,
+                    gap: 3,
                     boxShadow: '0 4px 10px rgba(0,0,0,0.6)',
                   }}>
-                    <Trophy size={11} /> #1 PICK
+                    <Trophy size={10} /> #1 PICK
                   </div>
                 )}
               </div>
@@ -553,25 +574,48 @@ export default function AestheticCardRenderer({
 
             {/* Info and Quote */}
             <div style={{
-              textAlign: isLandscape ? 'left' : 'center',
-              maxWidth: 540,
-              width: '100%',
+              textAlign: isLandscape || isSquare ? 'left' : 'center',
+              flex: isLandscape || isSquare ? 1 : undefined,
+              maxWidth: isLandscape || isSquare ? '100%' : 440,
+              width: isLandscape || isSquare ? 'auto' : '100%',
+              minWidth: 0,
               display: 'flex',
               flexDirection: 'column',
-              alignItems: isLandscape ? 'flex-start' : 'center',
+              alignItems: isLandscape || isSquare ? 'flex-start' : 'center',
+              justifyContent: 'center',
             }}>
               <h2 style={{
-                fontSize: isStory ? 20 : isLandscape ? 22 : 18,
-                lineHeight: 1.2,
-                margin: '0 0 4px',
+                fontSize: isStory
+                  ? 'clamp(18px, 3.8vw, 24px)'
+                  : isLandscape
+                  ? 'clamp(16px, 2.6vw, 21px)'
+                  : isSquare
+                  ? 'clamp(15px, 2.5vw, 19px)'
+                  : 'clamp(15px, 3vw, 19px)',
+                lineHeight: 1.15,
+                margin: '0 0 3px',
                 color: template.textColor,
                 letterSpacing: template.fontFamily === 'serif' ? '0.03em' : '-0.01em',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                width: '100%',
               }}>
                 {content.title}
               </h2>
 
               {showMeta && content.subtitle && (
-                <div style={{ fontSize: 12, color: template.accentColor, marginBottom: 8, opacity: 0.9 }}>
+                <div style={{
+                  fontSize: 10.5,
+                  color: template.accentColor,
+                  marginBottom: 6,
+                  opacity: 0.9,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: '100%',
+                }}>
                   {content.subtitle}
                 </div>
               )}
@@ -581,22 +625,22 @@ export default function AestheticCardRenderer({
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: isLandscape ? 'flex-start' : 'center',
-                  gap: 6,
-                  marginBottom: 10,
+                  justifyContent: isLandscape || isSquare ? 'flex-start' : 'center',
+                  gap: 5,
+                  marginBottom: 6,
                 }}>
                   <div style={{ display: 'flex', gap: 2, color: template.accentColor }}>
                     {Array.from({ length: 5 }).map((_, idx) => (
                       <Star
                         key={idx}
-                        size={17}
+                        size={14}
                         fill={idx < fullStars ? template.accentColor : 'none'}
                         color={template.accentColor}
                       />
                     ))}
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: template.textColor }}>
-                    {ratingNum} <span style={{ fontSize: 11, opacity: 0.6 }}>/ 5</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: template.textColor }}>
+                    {ratingNum} <span style={{ fontSize: 10, opacity: 0.6 }}>/ 5</span>
                   </span>
                 </div>
               )}
@@ -605,20 +649,22 @@ export default function AestheticCardRenderer({
               {quote && (
                 <div style={{
                   position: 'relative',
-                  fontSize: isStory ? 13 : 12,
+                  fontSize: isStory ? 12 : 11,
                   fontStyle: 'italic',
                   lineHeight: 1.4,
                   color: template.textColor,
-                  opacity: 0.9,
-                  background: 'rgba(255,255,255,0.03)',
-                  padding: '10px 14px',
-                  borderRadius: 6,
+                  opacity: 0.92,
+                  background: 'rgba(255,255,255,0.035)',
+                  padding: '6px 10px',
+                  borderRadius: 5,
                   borderLeft: `3px solid ${template.accentColor}`,
                   display: '-webkit-box',
-                  WebkitLineClamp: isLandscape ? 3 : isStory ? 5 : 4,
+                  WebkitLineClamp: isStory ? 3 : 2,
                   WebkitBoxOrient: 'vertical',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box',
                 }}>
                   “{quote}”
                 </div>
@@ -632,20 +678,20 @@ export default function AestheticCardRenderer({
       <div style={{
         position: 'relative',
         zIndex: 2,
+        flexShrink: 0,
         borderTop: `1px solid ${template.borderColor}`,
-        paddingTop: 16,
+        paddingTop: isStory ? 10 : 8,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 12,
+        gap: 8,
       }}>
         {/* Author / Reviewer Info */}
         {showAuthor && content.authorName && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
             <div style={{
-              width: 32,
-              height: 32,
+              width: 26,
+              height: 26,
               borderRadius: '50%',
               background: template.badgeBg,
               border: `1px solid ${template.borderColor}`,
@@ -654,20 +700,21 @@ export default function AestheticCardRenderer({
               alignItems: 'center',
               justifyContent: 'center',
               fontWeight: 800,
-              fontSize: 13,
+              fontSize: 11,
+              flexShrink: 0,
             }}>
               {content.authorName.charAt(0).toUpperCase()}
             </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span>{content.authorName}</span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{content.authorName}</span>
                 {content.isPro && (
-                  <span title="Verified Professional Critic" style={{ color: '#10b981', display: 'flex' }}>
-                    <ShieldCheck size={14} />
+                  <span title="Verified Professional Critic" style={{ color: '#10b981', display: 'flex', flexShrink: 0 }}>
+                    <ShieldCheck size={12} />
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: 11, opacity: 0.6 }}>
+              <div style={{ fontSize: 9.5, opacity: 0.6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {content.authorHandle || '@cinemascope'}
               </div>
             </div>
@@ -679,15 +726,16 @@ export default function AestheticCardRenderer({
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 6,
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: '0.1em',
+            gap: 5,
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '0.12em',
             color: template.accentColor,
             textTransform: 'uppercase',
             marginLeft: 'auto',
+            flexShrink: 0,
           }}>
-            <Film size={13} />
+            <Film size={12} />
             <span>CINEMASCOPE</span>
           </div>
         )}
