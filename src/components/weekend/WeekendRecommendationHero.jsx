@@ -10,6 +10,7 @@ import {
   setUserPreferredGenre,
   hasUserVotedInAllGenres,
   getUserVotedGenresCount,
+  syncWeekendPickDataFromCloud,
 } from '../../services/weekendPickService';
 import { toggleWatchlist, toggleFavorite, toggleWatched, getMovieStatusSync } from '../../services/movieLibraryService';
 import { useApp } from '../../AppContext';
@@ -31,19 +32,21 @@ export default function WeekendRecommendationHero() {
   const [revision, setRevision] = useState(0);
 
   useEffect(() => {
+    syncWeekendPickDataFromCloud();
     const syncData = () => {
       setActiveRound(getActiveRound());
       setGenres(getGenreOptions());
       setRevision(r => r + 1);
     };
     window.addEventListener('storage', syncData);
-    window.addEventListener('focus', syncData);
+    window.addEventListener('focus', () => { syncData(); syncWeekendPickDataFromCloud(); });
     window.addEventListener('cinemascope_genres_updated', syncData);
     window.addEventListener('cinemascope_round_updated', syncData);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         syncData();
+        syncWeekendPickDataFromCloud();
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);

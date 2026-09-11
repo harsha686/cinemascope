@@ -39,6 +39,8 @@ import {
   deleteGenreOption,
   resetGenreOptionsToDefault,
   reorderGenreOptions,
+  pushWeekendPickDataToCloud,
+  syncWeekendPickDataFromCloud,
 } from '../../services/weekendPickService';
 import { searchTmdbMovies, fetchFullTmdbMovieDetails } from '../../services/tmdbService';
 
@@ -80,6 +82,12 @@ export default function WeekendVotingAdminTab() {
       window.removeEventListener('storage', handleSync);
     };
   }, [activeGenreTab]);
+
+  useEffect(() => {
+    syncWeekendPickDataFromCloud().then(synced => {
+      if (synced) reloadData();
+    });
+  }, []);
 
   const reloadData = () => {
     const updated = getAllRounds();
@@ -349,14 +357,43 @@ export default function WeekendVotingAdminTab() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowCreateModal(true)}
-          className="btn btn-primary btn-sm"
-          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-        >
-          <Plus size={14} /> Create New Round
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={async () => {
+              const res = await syncWeekendPickDataFromCloud({ force: true });
+              reloadData();
+              alert(res ? 'Successfully fetched latest weekend data from cloud!' : 'Cloud data is already up to date.');
+            }}
+            className="btn btn-outline btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
+            title="Download latest weekend round and candidate data from cloud database"
+          >
+            <RefreshCw size={13} /> Sync from Cloud
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              pushWeekendPickDataToCloud();
+              alert('Pushed local weekend data to Cloud! All mobile and desktop devices will now see these modifications.');
+            }}
+            className="btn btn-outline btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, borderColor: 'var(--gold)', color: 'var(--gold)' }}
+            title="Upload local modifications to cloud database so mobile view and other devices update immediately"
+          >
+            ☁️ Push to Cloud / Mobile
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowCreateModal(true)}
+            className="btn btn-primary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <Plus size={14} /> Create New Round
+          </button>
+        </div>
       </div>
 
       {/* Rounds Selector & Status Bar */}

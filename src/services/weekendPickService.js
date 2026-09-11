@@ -48,6 +48,94 @@ export function notifyWeekendUpdates() {
   } catch (e) {}
 }
 
+const UPDATED_AT_KEY = 'cinemascope_weekend_updated_at';
+
+let pushCloudTimeout = null;
+
+/**
+ * Push current weekend state (rounds, candidates, genres, winners, votes) to Supabase cloud
+ * so it immediately synchronizes across all devices (Desktop, Mobile, Tablet)
+ */
+export function pushWeekendPickDataToCloud() {
+  if (typeof window === 'undefined' || !isSupabaseConfigured()) return;
+  if (pushCloudTimeout) clearTimeout(pushCloudTimeout);
+  pushCloudTimeout = setTimeout(async () => {
+    try {
+      const now = new Date().toISOString();
+      saveStorage(UPDATED_AT_KEY, now);
+      const payload = {
+        version: 1,
+        updatedAt: now,
+        rounds: loadStorage(ROUNDS_KEY, []),
+        genres: loadStorage(GENRES_KEY, []),
+        winners: loadStorage(WINNERS_KEY, []),
+        votes: loadStorage(VOTES_KEY, []),
+      };
+      await supabaseService.saveWeekendPickData(payload);
+    } catch (e) {
+      console.warn('Could not push weekend pick data to cloud:', e);
+    }
+  }, 400);
+}
+
+/**
+ * Fetch and synchronize weekend state from Supabase cloud into local device storage
+ */
+export async function syncWeekendPickDataFromCloud({ force = false } = {}) {
+  if (typeof window === 'undefined' || !isSupabaseConfigured()) return false;
+  try {
+    const cloud = await supabaseService.getWeekendPickData();
+    if (!cloud || !cloud.rounds || cloud.rounds.length === 0) {
+      // Cloud is uninitialized; if we have local rounds/genres, initialize cloud
+      const localRounds = loadStorage(ROUNDS_KEY, null);
+      if (localRounds && localRounds.length > 0) {
+        pushWeekendPickDataToCloud();
+      }
+      return false;
+    }
+
+    const localUpdatedAt = loadStorage(UPDATED_AT_KEY, '');
+    // If local has edits newer than cloud, push local instead of overwriting unless forced
+    if (!force && localUpdatedAt && cloud.updatedAt && new Date(localUpdatedAt) > new Date(cloud.updatedAt)) {
+      pushWeekendPickDataToCloud();
+      return false;
+    }
+
+    // Apply cloud data to local storage
+    if (cloud.rounds && Array.isArray(cloud.rounds)) {
+      saveStorage(ROUNDS_KEY, cloud.rounds);
+    }
+    if (cloud.genres && Array.isArray(cloud.genres)) {
+      saveStorage(GENRES_KEY, cloud.genres);
+      GENRE_OPTIONS.length = 0;
+      GENRE_OPTIONS.push(...cloud.genres);
+      try {
+        window.dispatchEvent(new Event('cinemascope_genres_updated'));
+      } catch (e) {}
+    }
+    if (cloud.winners && Array.isArray(cloud.winners)) {
+      saveStorage(WINNERS_KEY, cloud.winners);
+    }
+    if (cloud.votes && Array.isArray(cloud.votes)) {
+      saveStorage(VOTES_KEY, cloud.votes);
+    }
+
+    saveStorage(UPDATED_AT_KEY, cloud.updatedAt || new Date().toISOString());
+    notifyWeekendUpdates();
+    return true;
+  } catch (e) {
+    console.warn('Error syncing weekend pick data from cloud:', e);
+    return false;
+  }
+}
+
+// Auto-sync from cloud on initial script load in browser
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    syncWeekendPickDataFromCloud();
+  }, 200);
+}
+
 /**
  * Get dynamic list of genres
  */
@@ -75,6 +163,7 @@ export function saveGenreOptions(genres) {
     window.dispatchEvent(new Event('cinemascope_genres_updated'));
   } catch (e) {}
   notifyWeekendUpdates();
+  pushWeekendPickDataToCloud();
 }
 
 /**
@@ -659,6 +748,7 @@ export function getAllRounds() {
 export function saveRounds(rounds) {
   saveStorage(ROUNDS_KEY, rounds);
   notifyWeekendUpdates();
+  pushWeekendPickDataToCloud();
 }
 
 /**
@@ -750,6 +840,7 @@ export function getAllVotes() {
 export function saveVotes(votes) {
   saveStorage(VOTES_KEY, votes);
   notifyWeekendUpdates();
+  pushWeekendPickDataToCloud();
 }
 
 /**
@@ -925,6 +1016,7 @@ export function getAllWinners() {
 export function saveWinners(winners) {
   saveStorage(WINNERS_KEY, winners);
   notifyWeekendUpdates();
+  pushWeekendPickDataToCloud();
 }
 
 /**
@@ -1055,6 +1147,7 @@ export function factoryResetWeekendData() {
   saveStorage(VOTES_KEY, []);
   saveStorage(WINNERS_KEY, getSeedWinners());
   notifyWeekendUpdates();
+  pushWeekendPickDataToCloud();
   return true;
 }
 

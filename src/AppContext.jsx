@@ -4,6 +4,7 @@ import initialMovies from './data/movies.json';
 import initialReviews from './data/reviews.json';
 import initialUsers from './data/users.json';
 import { supabaseService, isSupabaseConfigured } from './services/supabase';
+import { syncWeekendPickDataFromCloud } from './services/weekendPickService';
 import { DEFAULT_PRO_APPLICATIONS, getUserApplication as getProAppFromService } from './services/proReviewerService';
 
 const AppContext = createContext(null);
@@ -357,6 +358,7 @@ export function AppProvider({ children }) {
           supabaseService.getMovies(),
           supabaseService.getReviews(),
           supabaseService.getUsers(),
+          syncWeekendPickDataFromCloud(),
         ]);
 
         if (remoteMovies && remoteMovies.length > 0) {

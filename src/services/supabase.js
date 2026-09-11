@@ -312,4 +312,47 @@ export const supabaseService = {
     }
     return data;
   },
+
+  // Weekend Pick Cloud Sync across all devices (Desktop, Mobile, Tablet)
+  async getWeekendPickData() {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('collections')
+        .select('*')
+        .eq('id', 'system_weekend_pick_data')
+        .maybeSingle();
+
+      if (error || !data || !data.description) return null;
+      return JSON.parse(data.description);
+    } catch (e) {
+      console.warn('Supabase getWeekendPickData error:', e);
+      return null;
+    }
+  },
+
+  async saveWeekendPickData(payload) {
+    const supabase = getSupabaseClient();
+    if (!supabase || !payload) return false;
+    try {
+      const { error } = await supabase.from('collections').upsert({
+        id: 'system_weekend_pick_data',
+        user_id: 'system',
+        name: 'weekend_state',
+        description: JSON.stringify(payload),
+        visibility: 'public',
+        movie_ids: [],
+        updated_at: new Date().toISOString(),
+      });
+      if (error) {
+        console.warn('Supabase saveWeekendPickData error:', error);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.warn('Supabase saveWeekendPickData error:', e);
+      return false;
+    }
+  },
 };

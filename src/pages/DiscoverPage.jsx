@@ -555,10 +555,10 @@ export default function DiscoverPage() {
                 {renderMovieShelf("Crime & Suspense Thrillers", "🔍", crimeSuspense, () => updateFilter('genre', '80'))}
                 {renderMovieShelf("Action Movies", "💥", actionMovies, () => updateFilter('genre', '28'))}
                 {renderMovieShelf("Top Rated Movies All Time", "⭐", topRated)}
-                <DecadeShelf decade={2010} label="2010s" />
-                <DecadeShelf decade={2000} label="2000s" />
-                <DecadeShelf decade={1990} label="1990s" />
-                <DecadeShelf decade={1980} label="1980s" />
+                <DecadeShelf decade={2010} />
+                <DecadeShelf decade={2000} />
+                <DecadeShelf decade={1990} />
+                <DecadeShelf decade={1980} />
               </>
             )}
 
@@ -576,10 +576,10 @@ export default function DiscoverPage() {
                 {renderMovieShelf("Horror & Dark Thrillers", "👻", horror, () => updateFilter('genre', '27'))}
                 {renderMovieShelf("Top Rated Series All-Time", "⭐", topRatedTv)}
                 {renderMovieShelf("Top Rated Movies All Time", "🏆", topRated)}
-                <DecadeShelf decade={2010} label="2010s" />
-                <DecadeShelf decade={2000} label="2000s" />
-                <DecadeShelf decade={1990} label="1990s" />
-                <DecadeShelf decade={1980} label="1980s" />
+                <DecadeShelf decade={2010} />
+                <DecadeShelf decade={2000} />
+                <DecadeShelf decade={1990} />
+                <DecadeShelf decade={1980} />
               </>
             )}
 
