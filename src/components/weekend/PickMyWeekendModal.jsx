@@ -40,9 +40,11 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
     const handleUpdate = () => setGenres(getGenreOptions());
     window.addEventListener('storage', handleUpdate);
     window.addEventListener('cinemascope_genres_updated', handleUpdate);
+    window.addEventListener('cinemascope_round_updated', handleUpdate);
     return () => {
       window.removeEventListener('storage', handleUpdate);
       window.removeEventListener('cinemascope_genres_updated', handleUpdate);
+      window.removeEventListener('cinemascope_round_updated', handleUpdate);
     };
   }, []);
 

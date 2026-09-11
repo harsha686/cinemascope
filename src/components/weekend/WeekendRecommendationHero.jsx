@@ -39,12 +39,39 @@ export default function WeekendRecommendationHero() {
     window.addEventListener('storage', syncData);
     window.addEventListener('focus', syncData);
     window.addEventListener('cinemascope_genres_updated', syncData);
+    window.addEventListener('cinemascope_round_updated', syncData);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       window.removeEventListener('storage', syncData);
       window.removeEventListener('focus', syncData);
       window.removeEventListener('cinemascope_genres_updated', syncData);
+      window.removeEventListener('cinemascope_round_updated', syncData);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
+
+  // Synchronize preferred genre on user change or genres update
+  useEffect(() => {
+    if (currentUser?.id) {
+      const pref = getUserPreferredGenre(currentUser.id);
+      if (pref && genres.some(g => g.id === pref)) {
+        setSelectedGenre(pref);
+      }
+    }
+  }, [currentUser?.id, genres]);
+
+  useEffect(() => {
+    if (genres.length > 0 && !genres.some(g => g.id === selectedGenre)) {
+      setSelectedGenre(genres[0].id);
+    }
+  }, [genres, selectedGenre]);
 
   // Update preferred genre in storage when user changes it
   const handleGenreChange = (newGenreId) => {
@@ -157,7 +184,7 @@ export default function WeekendRecommendationHero() {
   const genreObj = genres.find(g => g.id === selectedGenre) || genres[0] || { id: selectedGenre, name: selectedGenre, emoji: '🎬' };
 
   return (
-    <section style={{
+    <section className="weekend-hero-container" style={{
       margin: '32px 0',
       background: 'linear-gradient(135deg, rgba(20,20,26,0.95) 0%, rgba(12,12,16,0.98) 100%)',
       border: '1px solid var(--border)',
@@ -180,7 +207,7 @@ export default function WeekendRecommendationHero() {
       }} />
 
       {/* Top Header Row */}
-      <div style={{
+      <div className="weekend-hero-header" style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -221,9 +248,9 @@ export default function WeekendRecommendationHero() {
         </div>
 
         {/* Action triggers & Side-wise Genre Select Menu */}
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="weekend-hero-actions" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Select Genre Menu Side-Wise */}
-          <div style={{
+          <div className="weekend-genre-select-wrap" style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: 8,
@@ -245,7 +272,7 @@ export default function WeekendRecommendationHero() {
             <select
               value={selectedGenre}
               onChange={(e) => handleGenreChange(e.target.value)}
-              className="input"
+              className="input weekend-genre-select"
               style={{
                 width: 'auto',
                 minWidth: '135px',
@@ -271,7 +298,7 @@ export default function WeekendRecommendationHero() {
           <button
             type="button"
             onClick={() => setShowPickModal(true)}
-            className="btn btn-outline btn-sm"
+            className="btn btn-outline btn-sm weekend-hero-btn"
             style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}
           >
             <Dices size={13} /> Pick My Weekend
@@ -280,7 +307,7 @@ export default function WeekendRecommendationHero() {
           <button
             type="button"
             onClick={() => navigate('/weekend')}
-            className="btn btn-primary btn-sm"
+            className="btn btn-primary btn-sm weekend-hero-btn"
             style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}
           >
             <Trophy size={13} /> Vote in This Weekend's Poll →
@@ -290,12 +317,13 @@ export default function WeekendRecommendationHero() {
 
       {/* Winner Spotlight Card or Vote-Gated Teaser */}
       {(() => {
+        const isAdmin = currentUser && currentUser.role === 'ADMIN';
         const hasVotedAll = currentUser && activeRound?.id
           ? hasUserVotedInAllGenres(currentUser.id, activeRound.id)
           : false;
 
-        // If polling is active and user hasn't voted in all genres, show teaser prompt
-        if (activeRound?.status === 'ACTIVE' && !hasVotedAll) {
+        // If polling is active and user hasn't voted in all genres, show teaser prompt (unless admin)
+        if (activeRound?.status === 'ACTIVE' && !hasVotedAll && !isAdmin) {
           const voteProgress = getUserVotedGenresCount(currentUser?.id, activeRound.id);
 
           return (
@@ -381,7 +409,7 @@ export default function WeekendRecommendationHero() {
                 </div>
               )}
 
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div className="weekend-teaser-actions" style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => navigate('/weekend')}
@@ -417,6 +445,7 @@ export default function WeekendRecommendationHero() {
             }} className="weekend-winner-spotlight">
               {/* Poster */}
               <div
+                className="spotlight-poster-wrap"
                 onClick={() => navigate(`/movie/${formattedUrl}`)}
                 style={{ cursor: 'pointer', position: 'relative' }}
               >
@@ -436,8 +465,8 @@ export default function WeekendRecommendationHero() {
               </div>
 
               {/* Details */}
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+              <div className="spotlight-content-wrap">
+                <div className="spotlight-badges-row" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                   {isLeading ? (
                     <span className="badge" style={{ background: 'linear-gradient(135deg, #c9a84c, #eab308)', color: '#000', fontWeight: 700, fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 12 }}>
                       <Flame size={11} /> CURRENT POLL LEADER · {winner.genreName || genreObj.name}
@@ -469,7 +498,7 @@ export default function WeekendRecommendationHero() {
                 </h3>
 
                 {/* Stats row */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, fontSize: 12, color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                <div className="spotlight-stats-row" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, fontSize: 12, color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--gold)', fontWeight: 600 }}>
                     <Star size={13} fill="var(--gold)" color="var(--gold)" />
                     <span>{winner.communityScore ? `${winner.communityScore}% Community Score` : '4.8 rating'}</span>
@@ -497,7 +526,7 @@ export default function WeekendRecommendationHero() {
                 </p>
 
                 {/* Action Bar */}
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div className="spotlight-actions-row" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                   <button
                     type="button"
                     onClick={() => navigate(`/movie/${formattedUrl}`)}

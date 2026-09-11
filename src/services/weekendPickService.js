@@ -37,6 +37,18 @@ const saveStorage = (key, val) => {
 };
 
 /**
+ * Dispatch cross-component and window update events for weekend data modifications
+ */
+export function notifyWeekendUpdates() {
+  try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('cinemascope_round_updated'));
+      window.dispatchEvent(new Event('storage'));
+    }
+  } catch (e) {}
+}
+
+/**
  * Get dynamic list of genres
  */
 export function getGenreOptions() {
@@ -62,6 +74,7 @@ export function saveGenreOptions(genres) {
   try {
     window.dispatchEvent(new Event('cinemascope_genres_updated'));
   } catch (e) {}
+  notifyWeekendUpdates();
 }
 
 /**
@@ -100,6 +113,7 @@ export function updateGenreOption(genreId, updates) {
       });
       if (modified) {
         saveStorage(ROUNDS_KEY, updatedRounds);
+        notifyWeekendUpdates();
       }
     } catch (e) {
       console.warn('Could not sync genre name across rounds:', e);
@@ -155,6 +169,7 @@ export function addGenreOption(genreData) {
     });
     if (modified) {
       saveStorage(ROUNDS_KEY, updatedRounds);
+      notifyWeekendUpdates();
     }
   } catch (e) {
     console.warn('Could not add genre to existing rounds:', e);
@@ -643,6 +658,7 @@ export function getAllRounds() {
  */
 export function saveRounds(rounds) {
   saveStorage(ROUNDS_KEY, rounds);
+  notifyWeekendUpdates();
 }
 
 /**
@@ -733,6 +749,7 @@ export function getAllVotes() {
  */
 export function saveVotes(votes) {
   saveStorage(VOTES_KEY, votes);
+  notifyWeekendUpdates();
 }
 
 /**
@@ -907,6 +924,7 @@ export function getAllWinners() {
  */
 export function saveWinners(winners) {
   saveStorage(WINNERS_KEY, winners);
+  notifyWeekendUpdates();
 }
 
 /**
@@ -1036,9 +1054,7 @@ export function factoryResetWeekendData() {
   saveStorage(ROUNDS_KEY, getSeedRounds());
   saveStorage(VOTES_KEY, []);
   saveStorage(WINNERS_KEY, getSeedWinners());
-  try {
-    window.dispatchEvent(new Event('storage'));
-  } catch (e) {}
+  notifyWeekendUpdates();
   return true;
 }
 
@@ -1085,6 +1101,7 @@ export function setUserPreferredGenre(userId, genreId) {
     updatedAt: new Date().toISOString(),
   };
   saveStorage(USER_PREFS_KEY, prefs);
+  notifyWeekendUpdates();
 }
 
 /**

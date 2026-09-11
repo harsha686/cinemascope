@@ -301,7 +301,7 @@ export default function LibraryPage() {
         {/* Main */}
         <main style={{ flex: 1, minWidth: 300 }}>
           {/* Toolbar */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ position: 'relative', display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
             {activeSection !== 'collections' && (
               <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
                 <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -324,7 +324,7 @@ export default function LibraryPage() {
               </select>
             )}
             {loadingMovies && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--gold)', fontSize: 11, padding: '5px 10px', background: 'rgba(201,168,76,0.08)', borderRadius: 4, border: '1px solid var(--gold-dim)' }}>
+              <div style={{ position: 'absolute', right: 100, top: 2, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--gold)', fontSize: 11, padding: '5px 10px', background: 'rgba(201,168,76,0.08)', borderRadius: 4, border: '1px solid var(--gold-dim)', zIndex: 10 }}>
                 <RefreshCw size={12} className="animate-spin" style={{ animation: 'spin 1.2s linear infinite' }} />
                 <span>Syncing details…</span>
               </div>

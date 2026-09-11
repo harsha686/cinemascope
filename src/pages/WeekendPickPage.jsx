@@ -56,12 +56,29 @@ export default function WeekendPickPage() {
     window.addEventListener('storage', syncData);
     window.addEventListener('focus', syncData);
     window.addEventListener('cinemascope_genres_updated', syncData);
+    window.addEventListener('cinemascope_round_updated', syncData);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       window.removeEventListener('storage', syncData);
       window.removeEventListener('focus', syncData);
       window.removeEventListener('cinemascope_genres_updated', syncData);
+      window.removeEventListener('cinemascope_round_updated', syncData);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (genres.length > 0 && !genres.some(g => g.id === selectedGenre)) {
+      setSelectedGenre(genres[0].id);
+    }
+  }, [genres, selectedGenre]);
 
   const isRoundActive = activeRound?.status === 'ACTIVE';
   const isWinnersDeclared = activeRound?.status === 'WINNER_DECLARED';
@@ -126,7 +143,7 @@ export default function WeekendPickPage() {
             <span style={{ color: 'var(--gold)' }}>Weekend Pick</span>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 20 }}>
+          <div className="weekend-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 20 }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <span className="badge badge-gold" style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -167,7 +184,7 @@ export default function WeekendPickPage() {
             </div>
 
             {/* Quick Actions */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
+            <div className="weekend-page-quick-actions" style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
                   type="button"
@@ -278,7 +295,7 @@ export default function WeekendPickPage() {
         )}
 
         {/* Genre Selector Pills */}
-        <div style={{
+        <div className="weekend-genre-pills" style={{
           display: 'flex',
           gap: 8,
           overflowX: 'auto',
@@ -390,9 +407,9 @@ export default function WeekendPickPage() {
             </p>
           </div>
         ) : (
-          <div style={{
+          <div className="weekend-candidates-grid" style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
             gap: 20,
           }}>
             {genreResults?.candidates?.map((candidate, idx) => (

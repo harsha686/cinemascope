@@ -198,14 +198,29 @@ export default function WeekendWinnersArchivePage() {
 
   const [shareData, setShareData] = useState(null);
   const [showPickModal, setShowPickModal] = useState(false);
+  const [revision, setRevision] = useState(0);
 
   useEffect(() => {
-    const handleUpdate = () => setGenres(getGenreOptions());
+    const handleUpdate = () => {
+      setGenres(getGenreOptions());
+      setRevision(r => r + 1);
+    };
     window.addEventListener('storage', handleUpdate);
     window.addEventListener('cinemascope_genres_updated', handleUpdate);
+    window.addEventListener('cinemascope_round_updated', handleUpdate);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleUpdate();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       window.removeEventListener('storage', handleUpdate);
       window.removeEventListener('cinemascope_genres_updated', handleUpdate);
+      window.removeEventListener('cinemascope_round_updated', handleUpdate);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
@@ -216,7 +231,7 @@ export default function WeekendWinnersArchivePage() {
       type: typeFilter,
       query: searchQuery,
     });
-  }, [genreFilter, yearFilter, typeFilter, searchQuery]);
+  }, [genreFilter, yearFilter, typeFilter, searchQuery, revision]);
 
   return (
     <div className="page-enter" style={{ minHeight: '90vh', paddingBottom: 60 }}>

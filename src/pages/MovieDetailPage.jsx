@@ -115,7 +115,7 @@ export default function MovieDetailPage() {
       const relDate = new Date(movie.releaseDate);
       if (!isNaN(relDate.getTime())) {
         const daysSinceRelease = (now.getTime() - relDate.getTime()) / (1000 * 60 * 60 * 24);
-        if (daysSinceRelease > 60 && (movie.status !== 'CURRENTLY_SHOWING' || !movie.theaters || movie.theaters.length === 0)) {
+        if (daysSinceRelease > 60) {
           return true;
         }
       }

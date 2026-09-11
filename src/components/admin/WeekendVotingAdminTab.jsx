@@ -66,14 +66,17 @@ export default function WeekendVotingAdminTab() {
     const handleSync = () => {
       const g = getGenreOptions();
       setGenres(g);
+      setRounds(getAllRounds());
       if (!g.some(item => item.id === activeGenreTab) && g[0]) {
         setActiveGenreTab(g[0].id);
       }
     };
     window.addEventListener('cinemascope_genres_updated', handleSync);
+    window.addEventListener('cinemascope_round_updated', handleSync);
     window.addEventListener('storage', handleSync);
     return () => {
       window.removeEventListener('cinemascope_genres_updated', handleSync);
+      window.removeEventListener('cinemascope_round_updated', handleSync);
       window.removeEventListener('storage', handleSync);
     };
   }, [activeGenreTab]);
