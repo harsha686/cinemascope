@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck, Tv, Film, Users, Layers } from 'lucide-react';
 import { useApp } from '../AppContext';
@@ -45,6 +45,9 @@ export default function MovieDetailPage() {
   const [tmdbLoading, setTmdbLoading] = useState(false);
   const [tmdbError, setTmdbError] = useState(null);
 
+  const mainContentRef = useRef(null);
+  const reviewsSectionRef = useRef(null);
+
   // Fetch TMDB data when ID starts with "tmdb-" or "tv-"
   useEffect(() => {
     if (!isTmdbMovie || !tmdbId) return;
@@ -66,6 +69,24 @@ export default function MovieDetailPage() {
   const [reviewTab, setReviewTab] = useState('all'); // 'all' | 'audience' | 'professional'
   const [submitAsPro, setSubmitAsPro] = useState(currentUserIsPro);
   const [activeSectionTab, setActiveSectionTab] = useState('reviews'); // 'reviews' | 'about' | 'cast' | 'all'
+
+  // Auto-scroll directly to reviews section after clicking a movie
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (reviewsSectionRef.current) {
+        reviewsSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else if (mainContentRef.current) {
+        mainContentRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        const target = document.getElementById('main-content-tabs') || document.getElementById('reviews-section');
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    }, 180);
+
+    return () => clearTimeout(timer);
+  }, [movieId, tmdbLoading]);
 
   useEffect(() => {
     if (currentUserIsPro) {
@@ -572,7 +593,7 @@ export default function MovieDetailPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
 
             {/* Sub-Navigation Tabs */}
-            <div id="main-content-tabs" style={{
+            <div id="main-content-tabs" ref={mainContentRef} style={{
               display: 'flex',
               alignItems: 'center',
               gap: 8,
@@ -743,7 +764,7 @@ export default function MovieDetailPage() {
 
             {/* WHAT PEOPLE THINK (REVIEWS SECTION) */}
             {(activeSectionTab === 'reviews' || activeSectionTab === 'all') && (
-              <div id="reviews-section">
+              <div id="reviews-section" ref={reviewsSectionRef}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
                 <div>
                   <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', letterSpacing: '0.04em' }}>
