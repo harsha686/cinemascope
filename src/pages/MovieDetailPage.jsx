@@ -193,9 +193,16 @@ export default function MovieDetailPage() {
   };
 
   const handleEditClick = (rev) => {
+    setActiveSectionTab('reviews');
     setEditingReview(rev);
     setSubmitAsPro(rev.reviewType === 'PROFESSIONAL' || (currentUserIsPro && rev.reviewType !== 'USER'));
     setShowComposer(true);
+    setTimeout(() => {
+      const elem = document.getElementById('review-composer-form') || document.getElementById('reviews-section');
+      if (elem) {
+        elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 60);
   };
 
   const handleWriteClick = () => {
@@ -798,7 +805,7 @@ export default function MovieDetailPage() {
 
               {/* Review Composer */}
               {showComposer && (
-                <div style={{ marginBottom: 32 }}>
+                <div id="review-composer-form" style={{ marginBottom: 32 }}>
                   {/* Pro toggle for verified reviewers */}
                   {currentUserIsPro && (
                     <div style={{ marginBottom: 12, padding: '10px 14px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>

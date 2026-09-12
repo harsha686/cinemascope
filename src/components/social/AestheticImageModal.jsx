@@ -344,11 +344,19 @@ export default function AestheticImageModal({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
               type="button"
-              onClick={() => setShowControls(!showControls)}
+              onClick={() => {
+                const nextState = !showControls;
+                setShowControls(nextState);
+                if (nextState) {
+                  setTimeout(() => {
+                    document.querySelector('.modal-studio-sidebar')?.scrollIntoView({ behavior: 'smooth' });
+                  }, 50);
+                }
+              }}
               className="btn btn-ghost btn-sm"
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: showControls ? 'var(--gold)' : 'var(--text-secondary)' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--gold)' }}
             >
-              <Sliders size={14} /> {showControls ? 'Hide Options' : 'Customize Content'}
+              <Sliders size={14} /> Customize Content
             </button>
             <button
               type="button"
@@ -417,13 +425,19 @@ export default function AestheticImageModal({
             {/* Live Interactive Card Container */}
             <div
               ref={cardContainerRef}
+              className="modal-studio-card-wrapper"
               style={{
                 width: '100%',
-                maxWidth: selectedFormat.id === 'landscape' ? 560 : selectedFormat.id === 'story' ? 320 : 380,
+                maxWidth: selectedFormat.id === 'landscape' ? 560 : selectedFormat.id === 'story' ? 310 : 380,
+                aspectRatio: selectedFormat.aspectRatio,
+                minHeight: selectedFormat.id === 'story' ? 480 : selectedFormat.id === 'portrait' ? 380 : selectedFormat.id === 'square' ? 280 : 180,
                 boxShadow: '0 16px 48px rgba(0,0,0,0.9)',
                 borderRadius: 6,
                 overflow: 'hidden',
-                transition: 'max-width 200ms ease',
+                transition: 'max-width 200ms ease, min-height 200ms ease',
+                flexShrink: 0,
+                display: 'flex',
+                flexDirection: 'column',
               }}
             >
               <AestheticCardRenderer

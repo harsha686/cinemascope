@@ -52,9 +52,13 @@ export default function AestheticCardRenderer({
     return (
       <div
         ref={cardRef}
+        className="modal-studio-rendered-card"
         style={{
           width: '100%',
+          height: '100%',
+          flex: 1,
           aspectRatio: format.aspectRatio,
+          minHeight: isStory ? 480 : isPortrait ? 380 : isSquare ? 280 : 180,
           background: '#000000',
           color: '#ffffff',
           position: 'relative',
@@ -62,10 +66,11 @@ export default function AestheticCardRenderer({
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
-          padding: isStory ? '48px 32px' : isLandscape ? '28px 40px' : '36px 30px',
+          padding: isStory ? '36px 20px' : isLandscape ? '24px 36px' : '28px 22px',
           boxSizing: 'border-box',
           fontFamily: 'var(--font-sans, "Montserrat", -apple-system, sans-serif)',
           border: '1px solid rgba(255,255,255,0.15)',
+          flexShrink: 0,
         }}
       >
         {/* Full Bleed Movie Key-Art / Backdrop Image */}
@@ -95,7 +100,7 @@ export default function AestheticCardRenderer({
         }} />
 
         {/* ================= TOP SECTION: STUDIO ACCOLADE MASTHEAD ================= */}
-        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', width: '100%' }}>
+        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', width: '100%', flexShrink: 0 }}>
           {/* App Name — centered, smaller */}
           <h1 style={{
             fontSize: isStory ? 15 : isLandscape ? 13 : 14,
@@ -157,6 +162,7 @@ export default function AestheticCardRenderer({
             display: 'flex',
             justifyContent: 'center',
             margin: 'auto 0',
+            flexShrink: 0,
           }}>
             <div style={{
               display: 'inline-flex',
@@ -179,7 +185,7 @@ export default function AestheticCardRenderer({
         )}
 
         {/* ================= BOTTOM SECTION: STUDIO TITLE & BRANDING ================= */}
-        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
+        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', width: '100%', flexShrink: 0, boxSizing: 'border-box' }}>
           {/* Genre / Studio Mini Badge */}
           <div style={{
             display: 'inline-block',
@@ -199,14 +205,14 @@ export default function AestheticCardRenderer({
           {/* Movie Title */}
           <div>
             <h2 style={{
-              fontSize: isStory ? 'clamp(22px, 5vw, 34px)' : isLandscape ? '22px' : '26px',
+              fontSize: isStory ? 'clamp(18px, 4.8vw, 28px)' : isLandscape ? '22px' : '24px',
               fontWeight: 700,
               letterSpacing: '0.16em',
               textTransform: 'uppercase',
               fontFamily: 'var(--font-serif, "Cinzel", Georgia, serif)',
               color: '#ffffff',
               margin: '0 0 6px',
-              lineHeight: 1.1,
+              lineHeight: 1.15,
               textShadow: '0 2px 16px rgba(0,0,0,0.95)',
             }}>
               {customTitle || content.title}
@@ -259,9 +265,13 @@ export default function AestheticCardRenderer({
   return (
     <div
       ref={cardRef}
+      className="modal-studio-rendered-card"
       style={{
         width: '100%',
+        height: '100%',
+        flex: 1,
         aspectRatio: format.aspectRatio,
+        minHeight: isStory ? 480 : isPortrait ? 380 : isSquare ? 280 : 180,
         background: template.bg,
         color: template.textColor,
         position: 'relative',
@@ -270,12 +280,12 @@ export default function AestheticCardRenderer({
         flexDirection: 'column',
         justifyContent: 'space-between',
         padding: isStory
-          ? (template.isFilmRoll ? '28px 36px' : '28px 24px')
+          ? (template.isFilmRoll ? '26px 28px' : '26px 18px')
           : isLandscape
           ? (template.isFilmRoll ? '20px 42px' : '20px 32px')
           : isSquare
-          ? (template.isFilmRoll ? '22px 38px' : '22px 24px')
-          : (template.isFilmRoll ? '22px 34px' : '22px 20px'),
+          ? (template.isFilmRoll ? '22px 34px' : '22px 20px')
+          : (template.isFilmRoll ? '22px 28px' : '22px 18px'),
         boxSizing: 'border-box',
         fontFamily: template.fontFamily === 'serif'
           ? 'var(--font-serif, "Cinzel", Georgia, serif)'
@@ -283,6 +293,7 @@ export default function AestheticCardRenderer({
           ? 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
           : 'var(--font-sans, "Inter", sans-serif)',
         border: `1px solid ${template.borderColor}`,
+        flexShrink: 0,
       }}
     >
       {/* Background Ambience / Backdrop if available */}

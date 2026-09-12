@@ -517,6 +517,7 @@ select optgroup {
     flex-direction: column !important;
     overflow-y: auto !important;
     height: auto !important;
+    -webkit-overflow-scrolling: touch !important;
   }
   .modal-studio-preview {
     padding: 16px 10px !important;
@@ -525,6 +526,18 @@ select optgroup {
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
+    flex-shrink: 0 !important;
+  }
+  .modal-studio-card-wrapper {
+    width: 100% !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+  .modal-studio-rendered-card {
+    width: 100% !important;
+    flex-shrink: 0 !important;
   }
   .modal-studio-sidebar {
     border-left: none !important;
@@ -532,6 +545,7 @@ select optgroup {
     padding: 16px 14px 24px !important;
     width: 100% !important;
     box-sizing: border-box !important;
+    flex-shrink: 0 !important;
   }
 }
 

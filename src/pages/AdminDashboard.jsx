@@ -1165,10 +1165,18 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
-                    <button type="button" onClick={() => setFormStep(2)} className="btn btn-primary btn-sm">
-                      Next: Poster Discovery →
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-subtle)' }}>
+                    <button type="button" onClick={() => setShowMovieForm(false)} className="btn btn-ghost btn-sm">
+                      Cancel
                     </button>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button type="submit" className="btn btn-outline btn-sm">
+                        {editingMovieId ? 'Save & Close' : 'Quick Save'}
+                      </button>
+                      <button type="button" onClick={() => setFormStep(2)} className="btn btn-primary btn-sm">
+                        Next: Poster Discovery →
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1254,13 +1262,21 @@ export default function AdminDashboard() {
                   </div>
 
                   {/* Navigation Buttons */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-subtle)' }}>
                     <button type="button" onClick={() => setFormStep(1)} className="btn btn-ghost btn-sm">
                       ← Back to Metadata
                     </button>
-                    <button type="button" onClick={() => setFormStep(3)} className="btn btn-primary btn-sm">
-                      Next: Cities & Status →
-                    </button>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button type="button" onClick={() => setShowMovieForm(false)} className="btn btn-ghost btn-sm">
+                        Cancel
+                      </button>
+                      <button type="submit" className="btn btn-outline btn-sm">
+                        {editingMovieId ? 'Save & Close' : 'Quick Save'}
+                      </button>
+                      <button type="button" onClick={() => setFormStep(3)} className="btn btn-primary btn-sm">
+                        Next: Cities & Status →
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

@@ -456,8 +456,9 @@ export default function AdminTheaterFormModal({
               2. Features & Highlights
             </h4>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-              {COMMON_FEATURES.map(feat => {
-                const isSelected = formData.features.includes(feat);
+              {Array.from(new Set([...COMMON_FEATURES, ...(formData.features || [])])).map(feat => {
+                const isSelected = (formData.features || []).includes(feat);
+                const isCustom = !COMMON_FEATURES.includes(feat);
                 return (
                   <button
                     key={feat}
@@ -475,20 +476,44 @@ export default function AdminTheaterFormModal({
                       display: 'flex',
                       alignItems: 'center',
                       gap: 5,
+                      transition: 'all 120ms ease',
                     }}
                   >
                     {isSelected && <Check size={11} />}
-                    {feat}
+                    <span>{feat}</span>
+                    {isCustom && isSelected && (
+                      <span
+                        title="Remove custom tag"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFormData(prev => ({
+                            ...prev,
+                            features: prev.features.filter(f => f !== feat)
+                          }));
+                        }}
+                        style={{
+                          marginLeft: 4,
+                          fontSize: 13,
+                          lineHeight: 1,
+                          opacity: 0.7,
+                          cursor: 'pointer',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                        onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
+                      >
+                        ×
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
 
-            <div style={{ display: 'flex', gap: 8, maxWidth: 360 }}>
+            <div style={{ display: 'flex', gap: 8, maxWidth: 380 }}>
               <input
                 className="input"
-                style={{ fontSize: 11, padding: '4px 10px' }}
-                placeholder="Add custom tag (e.g. RGB Laser)..."
+                style={{ fontSize: 11, padding: '6px 12px', flex: 1 }}
+                placeholder="Add custom tag (e.g. RGB Laser, 7.1 Sound)..."
                 value={newFeatureInput}
                 onChange={e => setNewFeatureInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomFeature(e); } }}
@@ -497,9 +522,9 @@ export default function AdminTheaterFormModal({
                 type="button"
                 onClick={handleAddCustomFeature}
                 className="btn btn-outline btn-sm"
-                style={{ fontSize: 11, padding: '4px 10px' }}
+                style={{ fontSize: 11, padding: '6px 14px', whiteSpace: 'nowrap' }}
               >
-                + Add
+                + Add Tag
               </button>
             </div>
           </div>
