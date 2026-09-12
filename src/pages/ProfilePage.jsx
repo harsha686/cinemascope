@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2 } from 'lucide-react';
+import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import ReviewCard from '../components/reviews/ReviewCard';
 import * as LibService from '../services/movieLibraryService';
@@ -12,7 +12,8 @@ import { SOCIAL_CONTENT_TYPES } from '../services/socialSharingService';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { state, dispatch, getMovie, isVerifiedPro } = useApp();
+  const { state, dispatch, getMovie, getTheater, isVerifiedPro } = useApp();
+
   const currentUser = state.currentUser;
 
   const [libStats, setLibStats] = useState({ totalWatchlist: 0, totalWatched: 0, totalFavorites: 0, totalRated: 0, avgRating: 0 });
@@ -310,22 +311,32 @@ export default function ProfilePage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {userReviews.map(rev => {
-                const targetMovie = getMovie(rev.movieId);
+                const isTheater = !!rev.theaterId;
+                const targetMovie = !isTheater && rev.movieId ? getMovie(rev.movieId) : null;
+                const targetTheater = isTheater ? getTheater(rev.theaterId) : null;
+                const targetUrl = isTheater ? `/theater/${rev.theaterId}` : `/movie/${rev.movieId}`;
+                const targetTitle = isTheater
+                  ? (targetTheater?.name || rev.theaterName || 'Theater')
+                  : (targetMovie?.title || rev.movieId);
+
                 return (
                   <div key={rev.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', padding: 20, borderRadius: 4 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--border-subtle)' }}>
-                      <Link to={`/movie/${rev.movieId}`} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-                        <Film size={16} color="var(--gold)" />
+                      <Link to={targetUrl} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+                        {isTheater ? <Building2 size={16} color="var(--gold)" /> : <Film size={16} color="var(--gold)" />}
                         <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', fontWeight: 600 }}>
-                          {targetMovie?.title || rev.movieId}
+                          {targetTitle}
                         </span>
+                        {isTheater && (
+                          <span className="badge badge-dim" style={{ fontSize: 9 }}>Theater</span>
+                        )}
                         <ChevronRight size={14} color="var(--gold)" />
                       </Link>
                       <span className="badge badge-verified" style={{ fontSize: 9 }}>{rev.status}</span>
                     </div>
                     <ReviewCard
                       review={rev}
-                      onEdit={() => navigate(`/movie/${rev.movieId}`)}
+                      onEdit={() => navigate(targetUrl)}
                       onDelete={(id) => dispatch({ type: 'DELETE_REVIEW', payload: id })}
                     />
                   </div>

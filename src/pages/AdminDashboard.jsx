@@ -7,12 +7,13 @@ import XPosterDiscoveryModal from '../components/admin/XPosterDiscoveryModal';
 import AdminTheaterFormModal from '../components/admin/AdminTheaterFormModal';
 import WeekendVotingAdminTab from '../components/admin/WeekendVotingAdminTab';
 import SocialPreviewTestPage from './SocialPreviewTestPage';
-import { isSupabaseConfigured, setCustomSupabaseCredentials, supabaseService } from '../services/supabase';
+import { isSupabaseConfigured, setCustomSupabaseCredentials, supabaseService, getSupabaseClient } from '../services/supabase';
 import { getApplications, updateApplicationStatus } from '../services/proReviewerService';
+import CloudSyncButton from '../components/common/CloudSyncButton';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { state, dispatch, allCities, allTheaters, getMovieRating, refreshData, isRefreshing } = useApp();
+  const { state, dispatch, allCities, allTheaters, getMovieRating, refreshData, syncCloudData, isRefreshing, lastSyncedAt } = useApp();
 
   const currentUser = state.currentUser;
   const isAdmin = currentUser && currentUser.role === 'ADMIN';
@@ -80,6 +81,9 @@ export default function AdminDashboard() {
   const [sbKey, setSbKey] = useState(localStorage.getItem('cinemascope_supabase_key') || import.meta.env.VITE_SUPABASE_ANON_KEY || '');
   const [sbStatusMsg, setSbStatusMsg] = useState('');
   const [sbLoading, setSbLoading] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
 
   // Theater Management State
   const [theaterSearch, setTheaterSearch] = useState('');
@@ -377,17 +381,7 @@ export default function AdminDashboard() {
               {refreshFeedback}
             </span>
           )}
-          <button
-            type="button"
-            onClick={handleFullRefresh}
-            disabled={isRefreshing}
-            className="btn btn-outline btn-sm"
-            style={{ display: 'flex', alignItems: 'center', gap: 6, borderColor: 'var(--gold-dim)', color: 'var(--gold)' }}
-            title="Fetch latest movies, reviews, and users from cloud database"
-          >
-            <RefreshCw size={14} style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
-            {isRefreshing ? 'Syncing...' : 'Refresh All Data'}
-          </button>
+          <CloudSyncButton variant="pill" />
           <button type="button" onClick={handleOpenAddTheater} className="btn btn-outline btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Building2 size={14} /> Add Theater
           </button>
@@ -732,7 +726,7 @@ export default function AdminDashboard() {
                     <thead>
                       <tr style={{ background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontFamily: 'var(--font-serif)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                         <th style={{ padding: '12px 16px' }}>User</th>
-                        <th style={{ padding: '12px 16px' }}>Movie ID</th>
+                        <th style={{ padding: '12px 16px' }}>Target (Movie / Theater)</th>
                         <th style={{ padding: '12px 16px' }}>Rating</th>
                         <th style={{ padding: '12px 16px' }}>Review Snippet</th>
                         <th style={{ padding: '12px 16px' }}>Status</th>
@@ -740,13 +734,37 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {state.reviews.map(rev => (
+                      {state.reviews.map(rev => {
+                        const isTheater = !!rev.theaterId;
+                        return (
                         <tr key={rev.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                          <td style={{ padding: '10px 16px', fontWeight: 500, color: 'var(--text-primary)' }}>{rev.userDisplayName}</td>
-                          <td style={{ padding: '10px 16px', fontSize: 11, color: 'var(--gold)' }}>{rev.movieId}</td>
+                          <td style={{ padding: '10px 16px', fontWeight: 500, color: 'var(--text-primary)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span>{rev.userDisplayName}</span>
+                              {rev.reviewType === 'PROFESSIONAL' && (
+                                <span className="badge badge-gold" style={{ fontSize: 8 }}>PRO</span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ padding: '10px 16px', fontSize: 11 }}>
+                            {isTheater ? (
+                              <Link to={`/theater/${rev.theaterId}`} style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#38bdf8', textDecoration: 'none' }}>
+                                <Building2 size={12} />
+                                <span>{rev.theaterName || rev.theaterId}</span>
+                                {rev.screenName && (
+                                  <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>· {rev.screenName}</span>
+                                )}
+                              </Link>
+                            ) : (
+                              <Link to={`/movie/${rev.movieId}`} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--gold)', textDecoration: 'none' }}>
+                                <Film size={12} />
+                                <span>{rev.movieId}</span>
+                              </Link>
+                            )}
+                          </td>
                           <td style={{ padding: '10px 16px', color: 'var(--gold)', fontFamily: 'var(--font-serif)' }}>★ {rev.rating}</td>
                           <td style={{ padding: '10px 16px', fontSize: 12, color: 'var(--text-secondary)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {rev.reviewText}
+                            {rev.reviewText || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No comment</span>}
                           </td>
                           <td style={{ padding: '10px 16px' }}>
                             <span className={`badge ${rev.status === 'PUBLISHED' ? 'badge-verified' : 'badge-dim'}`} style={{ fontSize: 9 }}>
@@ -786,7 +804,8 @@ export default function AdminDashboard() {
                             </div>
                           </td>
                         </tr>
-                      ))}
+                      );
+                    })}
                     </tbody>
                   </table>
                 </div>
@@ -942,7 +961,7 @@ export default function AdminDashboard() {
                   <div>
                     <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)' }}>Cloud Database (Supabase)</h3>
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                      Enable real-time shared persistence so all visitors across the internet see the same movies and reviews.
+                      Real-time cloud database synchronization for movies, reviews, users, weekend picks, and personal diaries.
                     </p>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px', borderRadius: 20, background: isSupabaseConfigured() ? 'rgba(74,222,128,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${isSupabaseConfigured() ? 'rgba(74,222,128,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
@@ -954,9 +973,117 @@ export default function AdminDashboard() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  {/* Test Connection Alert if tested */}
+                  {testResult && (
+                    <div style={{
+                      padding: '12px 16px',
+                      borderRadius: 4,
+                      fontSize: 12,
+                      background: testResult.success ? 'rgba(74,222,128,0.1)' : 'rgba(239,68,68,0.1)',
+                      border: `1px solid ${testResult.success ? 'rgba(74,222,128,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                      color: testResult.success ? '#4ade80' : '#f87171',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                    }}>
+                      {testResult.success ? <Check size={16} /> : <AlertCircle size={16} />}
+                      <div style={{ flex: 1 }}>{testResult.message}</div>
+                      <button type="button" onClick={() => setTestResult(null)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 14 }}>×</button>
+                    </div>
+                  )}
+
+                  {/* Sync Tools Card */}
+                  <div style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', padding: 24, borderRadius: 4, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Live Cloud Data Synchronization</h4>
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                          {lastSyncedAt ? `Last synchronized at ${new Date(lastSyncedAt).toLocaleString()}` : 'Never synced in this session.'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={testingConnection}
+                        onClick={async () => {
+                          setTestingConnection(true);
+                          setTestResult(null);
+                          try {
+                            const client = getSupabaseClient();
+                            if (!client) {
+                              setTestResult({ success: false, message: 'Supabase client is not configured.' });
+                              return;
+                            }
+                            const { error } = await client.from('movies').select('id').limit(1);
+                            if (error) {
+                              setTestResult({ success: false, message: `Connected to Supabase endpoint, but table error: ${error.message}` });
+                            } else {
+                              setTestResult({ success: true, message: 'Connection Verified! Connected to live Supabase project.' });
+                            }
+                          } catch (e) {
+                            setTestResult({ success: false, message: `Connection failed: ${e.message}` });
+                          } finally {
+                            setTestingConnection(false);
+                          }
+                        }}
+                        className="btn btn-outline btn-sm"
+                      >
+                        {testingConnection ? 'Testing...' : 'Test Connection'}
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        disabled={isRefreshing || sbLoading}
+                        onClick={async () => {
+                          setSbLoading(true);
+                          setSbStatusMsg('Running bidirectional 2-way sync with Supabase...');
+                          const res = await syncCloudData({ forcePush: false });
+                          if (res?.success) {
+                            setSbStatusMsg(`✓ Cloud sync complete! Synced ${state.movies.length} movies & ${state.reviews.length} reviews.`);
+                          } else {
+                            setSbStatusMsg(`Sync issue: ${res?.error?.message || 'Check database settings'}`);
+                          }
+                          setSbLoading(false);
+                        }}
+                        className="btn btn-primary"
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px' }}
+                      >
+                        <RefreshCw size={14} style={{ animation: isRefreshing || sbLoading ? 'spin 1s linear infinite' : 'none' }} />
+                        {isRefreshing || sbLoading ? 'Synchronizing...' : '⚡ Sync All Data (2-Way Merge)'}
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isRefreshing || sbLoading}
+                        onClick={async () => {
+                          setSbLoading(true);
+                          setSbStatusMsg('Force pushing all local movies, reviews, and weekend votes to Supabase...');
+                          const res = await syncCloudData({ forcePush: true });
+                          if (res?.success) {
+                            setSbStatusMsg(`✓ Successfully pushed all local data (${state.movies.length} movies) to Supabase!`);
+                          } else {
+                            setSbStatusMsg(`Push issue: ${res?.error?.message || 'Check database connection'}`);
+                          }
+                          setSbLoading(false);
+                        }}
+                        className="btn btn-outline"
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px' }}
+                      >
+                        <RefreshCw size={14} /> Force Push Local to Cloud
+                      </button>
+                    </div>
+
+                    {sbStatusMsg && (
+                      <div style={{ padding: '8px 12px', background: 'rgba(220,182,91,0.1)', border: '1px solid var(--gold-dim)', borderRadius: 3, color: 'var(--gold)', fontSize: 12 }}>
+                        {sbStatusMsg}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Credentials Box */}
                   <div style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', padding: 24, borderRadius: 4, display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Supabase Credentials</h4>
+                    <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Supabase Credentials & Configuration</h4>
 
                     <div>
                       <label style={{ display: 'block', fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 4 }}>
@@ -988,7 +1115,7 @@ export default function AdminDashboard() {
                         type="button"
                         onClick={() => {
                           setCustomSupabaseCredentials(sbUrl, sbKey);
-                          setSbStatusMsg('Credentials saved! Reload the page to connect.');
+                          setSbStatusMsg('Credentials saved! You can now sync or test connection.');
                         }}
                         className="btn btn-primary btn-sm"
                       >
@@ -1000,62 +1127,60 @@ export default function AdminDashboard() {
                           setCustomSupabaseCredentials('', '');
                           setSbUrl('');
                           setSbKey('');
-                          setSbStatusMsg('Credentials cleared. Reverted to local storage.');
+                          setSbStatusMsg('Credentials reset to default configuration.');
                         }}
                         className="btn btn-ghost btn-sm"
                       >
-                        Disconnect Cloud
+                        Reset to Default
                       </button>
                     </div>
-
-                    {sbStatusMsg && (
-                      <div style={{ padding: '8px 12px', background: 'rgba(220,182,91,0.1)', border: '1px solid var(--gold-dim)', borderRadius: 3, color: 'var(--gold)', fontSize: 12 }}>
-                        {sbStatusMsg}
-                      </div>
-                    )}
                   </div>
 
-                  {/* Sync Tools */}
-                  {isSupabaseConfigured() && (
-                    <div style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', padding: 24, borderRadius: 4, display: 'flex', flexDirection: 'column', gap: 16 }}>
-                      <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Data Sync Tools</h4>
-                      <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                        Push your {state.movies.length} local movies or pull remote reviews to verify live sync.
-                      </p>
-
-                      <div style={{ display: 'flex', gap: 12 }}>
-                        <button
-                          type="button"
-                          disabled={sbLoading}
-                          onClick={async () => {
-                            setSbLoading(true);
-                            setSbStatusMsg('Pushing local movies to Supabase...');
-                            try {
-                              for (const m of state.movies) {
-                                await supabaseService.saveMovie(m);
-                              }
-                              setSbStatusMsg(`Successfully pushed ${state.movies.length} movies to Supabase!`);
-                            } catch (e) {
-                              setSbStatusMsg(`Error pushing movies: ${e.message}`);
-                            }
-                            setSbLoading(false);
-                          }}
-                          className="btn btn-outline btn-sm"
-                          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-                        >
-                          <RefreshCw size={13} /> Push All Local Movies to Supabase
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Schema Quick Guide */}
+                  {/* Schema Quick Guide & Copy Button */}
                   <div style={{ border: '1px solid var(--border-subtle)', background: 'rgba(0,0,0,0.3)', padding: 20, borderRadius: 4 }}>
-                    <h5 style={{ fontSize: 12, color: 'var(--gold)', textTransform: 'uppercase', marginBottom: 8 }}>
-                      Quick Setup: Run SQL in Supabase
-                    </h5>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <h5 style={{ fontSize: 12, color: 'var(--gold)', textTransform: 'uppercase', margin: 0 }}>
+                        Database SQL Schema (v3)
+                      </h5>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const sql = `CREATE TABLE IF NOT EXISTS public.movies (id TEXT PRIMARY KEY, title TEXT NOT NULL, original_title TEXT, poster_url TEXT, poster_source TEXT DEFAULT 'TMDB', poster_source_type TEXT DEFAULT 'OFFICIAL', backdrop_url TEXT, language TEXT DEFAULT 'Telugu', runtime TEXT DEFAULT '2h 30m', release_date DATE, genres JSONB DEFAULT '[]'::jsonb, overview TEXT, cast_list JSONB DEFAULT '[]'::jsonb, director TEXT, certificate TEXT DEFAULT 'U/A', trailer_url TEXT, aspect_ratio TEXT DEFAULT '2.39:1', status TEXT DEFAULT 'CURRENTLY_SHOWING', cities JSONB DEFAULT '["visakhapatnam"]'::jsonb, theaters JSONB DEFAULT '[]'::jsonb, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS public.reviews (id TEXT PRIMARY KEY, movie_id TEXT, theater_id TEXT, theater_name TEXT, screen_id TEXT, screen_name TEXT, target_type TEXT DEFAULT 'MOVIE', user_id TEXT NOT NULL, user_display_name TEXT DEFAULT 'Anonymous', rating NUMERIC(3,1) NOT NULL, parameter_ratings JSONB DEFAULT '{}'::jsonb, review_text TEXT, review_type TEXT DEFAULT 'USER', status TEXT DEFAULT 'PUBLISHED', likes_count INT DEFAULT 0, report_count INT DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS public.users (id TEXT PRIMARY KEY, email TEXT UNIQUE, display_name TEXT, role TEXT DEFAULT 'USER', created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS public.user_movies (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tmdb_id TEXT NOT NULL, in_watchlist BOOLEAN DEFAULT false, is_watched BOOLEAN DEFAULT false, is_favorite BOOLEAN DEFAULT false, personal_rating NUMERIC(3,1), notes TEXT, watch_count INT DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(user_id, tmdb_id));
+CREATE TABLE IF NOT EXISTS public.diary_entries (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tmdb_id TEXT NOT NULL, movie_title TEXT, poster_url TEXT, watched_on DATE DEFAULT CURRENT_DATE, personal_rating NUMERIC(3,1), review_text TEXT, is_rewatch BOOLEAN DEFAULT false, tags JSONB DEFAULT '[]'::jsonb, created_at TIMESTAMPTZ DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS public.collections (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, description TEXT, visibility TEXT DEFAULT 'public', movie_ids JSONB DEFAULT '[]'::jsonb, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());
+ALTER TABLE public.movies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_movies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.diary_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.collections ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public all movies" ON public.movies;
+CREATE POLICY "Public all movies" ON public.movies FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public all reviews" ON public.reviews;
+CREATE POLICY "Public all reviews" ON public.reviews FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public all users" ON public.users;
+CREATE POLICY "Public all users" ON public.users FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public all user_movies" ON public.user_movies;
+CREATE POLICY "Public all user_movies" ON public.user_movies FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public all diary_entries" ON public.diary_entries;
+CREATE POLICY "Public all diary_entries" ON public.diary_entries FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public all collections" ON public.collections;
+CREATE POLICY "Public all collections" ON public.collections FOR ALL USING (true) WITH CHECK (true);`;
+                          navigator.clipboard.writeText(sql);
+                          setCopiedSql(true);
+                          setTimeout(() => setCopiedSql(false), 2000);
+                        }}
+                        className="btn btn-outline btn-sm"
+                        style={{ fontSize: 11 }}
+                      >
+                        {copiedSql ? '✓ SQL Copied!' : 'Copy SQL Script'}
+                      </button>
+                    </div>
                     <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                      In your Supabase Dashboard, go to <strong>SQL Editor</strong> and run the contents of <code>supabase-schema.sql</code> (included in your project root). That will create the <code>movies</code> and <code>reviews</code> tables with public read/write policies.
+                      In your Supabase Dashboard, open <strong>SQL Editor</strong>, paste the copied script, and click <strong>Run</strong>. That will create all 6 tables (<code>movies</code>, <code>reviews</code>, <code>users</code>, <code>user_movies</code>, <code>diary_entries</code>, <code>collections</code>) with permissive public RLS policies.
                     </p>
                   </div>
                 </div>

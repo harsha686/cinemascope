@@ -1,25 +1,16 @@
 import React, { useState } from "react";
-import { Heart, Flag, Edit3, Trash2, Check, ShieldCheck, ChevronDown, ChevronUp, ExternalLink, Info } from "lucide-react";
+import { Heart, Flag, Edit3, Trash2, Check, ShieldCheck, ChevronDown, ChevronUp, ExternalLink, Info, Monitor } from "lucide-react";
 import { useApp } from "../../AppContext";
 import ProfessionalRatingBadge from "./ProfessionalRatingBadge";
 import ProfessionalDetailsModal from "../pro/ProfessionalDetailsModal";
-
-const REVIEW_PARAMS = [
-  { key: "direction",  label: "Direction",   emoji: "🎬" },
-  { key: "story",      label: "Story",        emoji: "📖" },
-  { key: "acting",     label: "Acting",       emoji: "🎭" },
-  { key: "screenplay", label: "Screenplay",   emoji: "📝" },
-  { key: "music",      label: "Music",        emoji: "🎵" },
-  { key: "dop",        label: "DOP",          emoji: "📷" },
-  { key: "vfx",        label: "VFX",          emoji: "✨" },
-];
+import { getParamsForReview } from "../../data/reviewParams";
 
 function ScoreBar({ label, emoji, value }) {
   if (!value || value === 0) return null;
   const pct = (value / 5) * 100;
   const color = value >= 4 ? "#10b981" : value >= 3 ? "#fbbf24" : "#f87171";
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 36px", alignItems: "center", gap: 8 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "135px 1fr 36px", alignItems: "center", gap: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--text-muted)" }}>
         <span style={{ fontSize: 13 }}>{emoji}</span>
         <span>{label}</span>
@@ -139,6 +130,11 @@ export default function ProfessionalReviewCard({ review, onEdit, onDelete }) {
                 onClick={() => setShowDetailsModal(true)}
                 title="Click to view verified professional details & credentials"
               />
+              {review.screenName && (
+                <span className="badge badge-dim" style={{ fontSize: 10, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <Monitor size={10} /> {review.screenName}
+                </span>
+              )}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
               {effectiveApp && (effectiveApp.professionalTitle || effectiveApp.organization) && (
@@ -168,41 +164,44 @@ export default function ProfessionalReviewCard({ review, onEdit, onDelete }) {
       </div>
 
       {/* Per-parameter scores */}
-      {hasParams && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {showParams ? (
-            REVIEW_PARAMS.map(p => (
-              <ScoreBar key={p.key} label={p.label} emoji={p.emoji} value={review.parameterRatings[p.key]} />
-            ))
-          ) : (
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {REVIEW_PARAMS.filter(p => (review.parameterRatings[p.key] || 0) > 0).map(p => {
-                const v = review.parameterRatings[p.key];
-                const color = v >= 4 ? "#10b981" : v >= 3 ? "#fbbf24" : "#f87171";
-                return (
-                  <span key={p.key} style={{
-                    fontSize: 11, padding: "2px 8px", borderRadius: 12,
-                    background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)",
-                    color: "var(--text-secondary)",
-                  }}>
-                    {p.emoji} {p.label} <strong style={{ color }}>{v}</strong>
-                  </span>
-                );
-              })}
-              <button type="button" onClick={() => setShowParams(true)}
-                style={{ fontSize: 11, color: "#10b981", background: "none", border: "none", cursor: "pointer", padding: "2px 4px" }}>
-                Details ▸
+      {hasParams && (() => {
+        const activeParams = getParamsForReview(review);
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {showParams ? (
+              activeParams.map(p => (
+                <ScoreBar key={p.key} label={p.label} emoji={p.emoji} value={review.parameterRatings[p.key]} />
+              ))
+            ) : (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {activeParams.filter(p => (review.parameterRatings[p.key] || 0) > 0).map(p => {
+                  const v = review.parameterRatings[p.key];
+                  const color = v >= 4 ? "#10b981" : v >= 3 ? "#fbbf24" : "#f87171";
+                  return (
+                    <span key={p.key} style={{
+                      fontSize: 11, padding: "2px 8px", borderRadius: 12,
+                      background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)",
+                      color: "var(--text-secondary)",
+                    }}>
+                      {p.emoji} {p.label} <strong style={{ color }}>{v}</strong>
+                    </span>
+                  );
+                })}
+                <button type="button" onClick={() => setShowParams(true)}
+                  style={{ fontSize: 11, color: "#10b981", background: "none", border: "none", cursor: "pointer", padding: "2px 4px" }}>
+                  Details ▸
+                </button>
+              </div>
+            )}
+            {showParams && (
+              <button type="button" onClick={() => setShowParams(false)}
+                style={{ fontSize: 11, color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textAlign: "left", marginTop: 2 }}>
+                ▴ Show less
               </button>
-            </div>
-          )}
-          {showParams && (
-            <button type="button" onClick={() => setShowParams(false)}
-              style={{ fontSize: 11, color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textAlign: "left", marginTop: 2 }}>
-              ▴ Show less
-            </button>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        );
+      })()}
 
       {/* Review text */}
       {review.reviewText && (

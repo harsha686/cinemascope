@@ -111,6 +111,11 @@ export const supabaseService = {
     return data.map(r => ({
       id: r.id,
       movieId: r.movie_id,
+      theaterId: r.theater_id || r.parameter_ratings?.theaterId || (r.movie_id?.startsWith('theater-') ? r.movie_id.replace('theater-', '') : null),
+      theaterName: r.theater_name || r.parameter_ratings?.theaterName || null,
+      screenId: r.screen_id || r.parameter_ratings?.screenId || null,
+      screenName: r.screen_name || r.parameter_ratings?.screenName || null,
+      targetType: r.target_type || (r.theater_id || r.parameter_ratings?.theaterId || r.movie_id?.startsWith('theater-') ? 'THEATER' : 'MOVIE'),
       userId: r.user_id,
       userDisplayName: r.user_display_name,
       rating: r.rating,
@@ -128,13 +133,23 @@ export const supabaseService = {
   async saveReview(review) {
     const supabase = getSupabaseClient();
     if (!supabase) return false;
+    const paramRatings = {
+      ...(review.parameterRatings || {}),
+      ...(review.theaterId ? {
+        theaterId: review.theaterId,
+        theaterName: review.theaterName || null,
+        screenId: review.screenId || null,
+        screenName: review.screenName || null,
+        targetType: 'THEATER',
+      } : {}),
+    };
     const payload = {
       id: review.id,
-      movie_id: review.movieId,
+      movie_id: review.movieId || (review.theaterId ? `theater-${review.theaterId}` : null),
       user_id: review.userId,
       user_display_name: review.userDisplayName,
       rating: review.rating,
-      parameter_ratings: review.parameterRatings || {},
+      parameter_ratings: paramRatings,
       review_text: review.reviewText,
       status: review.status || 'PUBLISHED',
       likes_count: review.likesCount || 0,

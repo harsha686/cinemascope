@@ -1,18 +1,9 @@
 import React, { useState } from 'react';
-import { Heart, Flag, Edit3, Trash2, Check } from 'lucide-react';
+import { Heart, Flag, Edit3, Trash2, Check, Monitor, Building2 } from 'lucide-react';
 import { useApp } from '../../AppContext';
 import ShareButton from '../social/ShareButton';
 import { SOCIAL_CONTENT_TYPES } from '../../services/socialSharingService';
-
-const REVIEW_PARAMS = [
-  { key: 'direction',  label: 'Direction',   emoji: '🎬' },
-  { key: 'story',      label: 'Story',        emoji: '📖' },
-  { key: 'acting',     label: 'Acting',       emoji: '🎭' },
-  { key: 'screenplay', label: 'Screenplay',   emoji: '📝' },
-  { key: 'music',      label: 'Music',        emoji: '🎵' },
-  { key: 'dop',        label: 'DOP',          emoji: '📷' },
-  { key: 'vfx',        label: 'VFX',          emoji: '✨' },
-];
+import { getParamsForReview } from '../../data/reviewParams';
 
 function ScoreBar({ label, emoji, value }) {
   if (!value || value === 0) return null;
@@ -20,7 +11,7 @@ function ScoreBar({ label, emoji, value }) {
   const color = value >= 4 ? 'var(--gold)' : value >= 3 ? '#fbbf24' : '#f87171';
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 36px', alignItems: 'center', gap: 8 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '135px 1fr 36px', alignItems: 'center', gap: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--text-muted)' }}>
         <span style={{ fontSize: 13 }}>{emoji}</span>
         <span>{label}</span>
@@ -95,8 +86,15 @@ export default function ReviewCard({ review, onEdit, onDelete }) {
             {(review.userDisplayName || 'A').charAt(0).toUpperCase()}
           </div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-              {review.userDisplayName || 'Anonymous'}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                {review.userDisplayName || 'Anonymous'}
+              </span>
+              {review.screenName && (
+                <span className="badge badge-dim" style={{ fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <Monitor size={10} /> {review.screenName}
+                </span>
+              )}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
               {formatDate(review.createdAt)}{review.updatedAt !== review.createdAt ? ' · Edited' : ''}
@@ -119,48 +117,51 @@ export default function ReviewCard({ review, onEdit, onDelete }) {
       </div>
 
       {/* Per-parameter scores */}
-      {hasParams && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {showParams ? (
-            REVIEW_PARAMS.map(p => (
-              <ScoreBar key={p.key} label={p.label} emoji={p.emoji} value={review.parameterRatings[p.key]} />
-            ))
-          ) : (
-            /* Compact inline badges */
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {REVIEW_PARAMS.filter(p => (review.parameterRatings[p.key] || 0) > 0).map(p => {
-                const v = review.parameterRatings[p.key];
-                const color = v >= 4 ? 'var(--gold)' : v >= 3 ? '#fbbf24' : '#f87171';
-                return (
-                  <span key={p.key} style={{
-                    fontSize: 11, padding: '2px 8px', borderRadius: 12,
-                    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
-                    color: 'var(--text-secondary)',
-                  }}>
-                    {p.emoji} {p.label} <strong style={{ color }}>{v}</strong>
-                  </span>
-                );
-              })}
+      {hasParams && (() => {
+        const activeParams = getParamsForReview(review);
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {showParams ? (
+              activeParams.map(p => (
+                <ScoreBar key={p.key} label={p.label} emoji={p.emoji} value={review.parameterRatings[p.key]} />
+              ))
+            ) : (
+              /* Compact inline badges */
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {activeParams.filter(p => (review.parameterRatings[p.key] || 0) > 0).map(p => {
+                  const v = review.parameterRatings[p.key];
+                  const color = v >= 4 ? 'var(--gold)' : v >= 3 ? '#fbbf24' : '#f87171';
+                  return (
+                    <span key={p.key} style={{
+                      fontSize: 11, padding: '2px 8px', borderRadius: 12,
+                      background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                      color: 'var(--text-secondary)',
+                    }}>
+                      {p.emoji} {p.label} <strong style={{ color }}>{v}</strong>
+                    </span>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setShowParams(true)}
+                  style={{ fontSize: 11, color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
+                >
+                  Details ▸
+                </button>
+              </div>
+            )}
+            {showParams && (
               <button
                 type="button"
-                onClick={() => setShowParams(true)}
-                style={{ fontSize: 11, color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
+                onClick={() => setShowParams(false)}
+                style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', marginTop: 2 }}
               >
-                Details ▸
+                ▴ Show less
               </button>
-            </div>
-          )}
-          {showParams && (
-            <button
-              type="button"
-              onClick={() => setShowParams(false)}
-              style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', marginTop: 2 }}
-            >
-              ▴ Show less
-            </button>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        );
+      })()}
 
       {/* Review Text with Read More */}
       {review.reviewText ? (

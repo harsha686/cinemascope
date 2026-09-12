@@ -776,3 +776,127 @@ export async function updateLibraryEntry(tmdbId, updates, userId) {
   await saveLibrary(lib, uid);
 }
 
+/**
+ * Bidirectionally synchronizes personal movie library, diary logs, and collections with Supabase.
+ */
+export async function syncUserLibraryWithCloud(userId) {
+  const uid = getActiveUserId(userId);
+  if (!isSupabaseConfigured() || !uid || uid === 'guest') {
+    return { success: false, reason: 'unconfigured_or_guest' };
+  }
+
+  try {
+    // 1. Fetch remote user_movies, diary_entries, collections
+    const [remoteMovies, remoteDiary, remoteCollections] = await Promise.all([
+      supabaseService.getUserMovies(uid),
+      supabaseService.getUserDiary(uid),
+      supabaseService.getUserCollections(uid),
+    ]);
+
+    // 2. Sync user_movies
+    const localLib = await getLibrary(uid);
+    const updatedLib = { ...localLib };
+
+    if (remoteMovies && Array.isArray(remoteMovies)) {
+      remoteMovies.forEach(rm => {
+        const cleanId = String(rm.tmdb_id).replace('tmdb-', '');
+        const local = updatedLib[cleanId] || {};
+        updatedLib[cleanId] = {
+          watchlist: rm.in_watchlist ?? local.watchlist ?? false,
+          watched: rm.is_watched ?? local.watched ?? false,
+          favorite: rm.is_favorite ?? local.favorite ?? false,
+          rating: rm.personal_rating ?? local.rating ?? null,
+          notes: rm.notes ?? local.notes ?? '',
+          watchCount: rm.watch_count ?? local.watchCount ?? 0,
+        };
+      });
+    }
+
+    // Push local entries not in remote
+    for (const [tmdbId, status] of Object.entries(localLib)) {
+      const existsInRemote = remoteMovies?.some(rm => String(rm.tmdb_id) === String(tmdbId));
+      if (!existsInRemote && (status.watchlist || status.watched || status.favorite || status.rating || status.notes)) {
+        await supabaseService.upsertUserMovie({
+          id: `${uid}_${tmdbId}`,
+          user_id: uid,
+          tmdb_id: tmdbId,
+          in_watchlist: !!status.watchlist,
+          is_watched: !!status.watched,
+          is_favorite: !!status.favorite,
+          personal_rating: status.rating || null,
+          notes: status.notes || null,
+          watch_count: status.watchCount || 0,
+        }).catch(console.warn);
+      }
+    }
+    await saveLibrary(updatedLib, uid);
+
+    // 3. Sync diary_entries
+    const localDiary = await getDiary(uid);
+    const diaryMap = new Map();
+    (remoteDiary || []).forEach(d => diaryMap.set(d.id, {
+      id: d.id,
+      user_id: d.user_id,
+      tmdb_id: d.tmdb_id,
+      movie_title: d.movie_title,
+      poster_url: d.poster_url,
+      watched_on: d.watched_on,
+      personal_rating: d.personal_rating,
+      review_text: d.review_text,
+      is_rewatch: d.is_rewatch,
+      tags: d.tags || [],
+      created_at: d.created_at,
+    }));
+    localDiary.forEach(d => {
+      if (!diaryMap.has(d.id)) {
+        diaryMap.set(d.id, d);
+        supabaseService.addDiaryEntry({
+          id: d.id,
+          user_id: uid,
+          tmdb_id: d.tmdb_id || d.tmdbId,
+          movie_title: d.movie_title || d.title,
+          poster_url: d.poster_url || d.posterUrl,
+          watched_on: d.watched_on || d.watchedOn,
+          personal_rating: d.personal_rating || d.rating,
+          review_text: d.review_text || d.notes,
+          is_rewatch: d.is_rewatch || d.isRewatch || false,
+          tags: d.tags || [],
+          created_at: d.created_at || d.createdAt || new Date().toISOString(),
+        }).catch(console.warn);
+      }
+    });
+    const mergedDiary = Array.from(diaryMap.values()).sort((a, b) => new Date(b.watched_on || b.created_at) - new Date(a.watched_on || a.created_at));
+    await saveDiary(mergedDiary, uid);
+
+    // 4. Sync collections
+    const localCols = await getCollections(uid);
+    const colMap = new Map();
+    (remoteCollections || []).forEach(c => colMap.set(c.id, c));
+    for (const lc of localCols) {
+      if (!colMap.has(lc.id)) {
+        colMap.set(lc.id, lc);
+        await supabaseService.upsertCollection({
+          id: lc.id,
+          user_id: uid,
+          name: lc.name,
+          description: lc.description || '',
+          visibility: lc.visibility || 'private',
+          movie_ids: lc.movie_ids || lc.movies || [],
+        }).catch(console.warn);
+      }
+    }
+    const mergedCols = Array.from(colMap.values());
+    await saveCollections(mergedCols, uid);
+
+    return {
+      success: true,
+      libraryCount: Object.keys(updatedLib).length,
+      diaryCount: mergedDiary.length,
+      collectionsCount: mergedCols.length,
+    };
+  } catch (e) {
+    console.warn('syncUserLibraryWithCloud error:', e);
+    return { success: false, error: e.message };
+  }
+}
+

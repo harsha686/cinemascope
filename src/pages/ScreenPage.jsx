@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ChevronRight, Maximize2, GitCompare, X } from 'lucide-react';
+import { ChevronRight, Maximize2, GitCompare, X, Star, MessageSquare } from 'lucide-react';
 import { useApp } from '../AppContext';
 import ScreenSimulator from '../components/simulator/ScreenSimulator';
 import FormatSelector from '../components/simulator/FormatSelector';
@@ -12,11 +12,14 @@ import { ASPECT_RATIOS, getFormat } from '../data/formats';
 export default function ScreenPage() {
   const { theaterId, screenId } = useParams();
   const navigate = useNavigate();
-  const { getTheater, getScreen, getCity, dispatch, state } = useApp();
+  const { getTheater, getScreen, getCity, getTheaterRating, getScreenReviews, dispatch, state } = useApp();
 
   const theater = getTheater(theaterId);
   const screen = getScreen(theaterId, screenId);
   const city = theater ? getCity(theater.cityId) : null;
+  const theaterRating = useMemo(() => getTheaterRating ? getTheaterRating(theaterId) : { average: 0, count: 0 }, [getTheaterRating, theaterId]);
+  const screenReviews = useMemo(() => getScreenReviews ? getScreenReviews(theaterId, screenId) : [], [getScreenReviews, theaterId, screenId]);
+
 
   const [simMode, setSimMode] = useState('fit');
   const [isExperience, setIsExperience] = useState(false);
@@ -131,6 +134,27 @@ export default function ScreenPage() {
                       <span className="badge badge-dim">{screen.screenType}</span>
                     </>
                   )}
+                  <Link
+                    to={`/theater/${theaterId}`}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      textDecoration: 'none',
+                      padding: '3px 9px',
+                      background: 'rgba(201,168,76,0.1)',
+                      border: '1px solid var(--gold-dim)',
+                      borderRadius: 20,
+                    }}
+                  >
+                    <Star size={11} fill="var(--gold)" color="var(--gold)" />
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-serif)' }}>
+                      {theaterRating.average > 0 ? theaterRating.average : 'Rate'}
+                    </span>
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                      {screenReviews.length > 0 ? `(${screenReviews.length} screen review${screenReviews.length !== 1 ? 's' : ''})` : `(${theaterRating.count})`}
+                    </span>
+                  </Link>
                 </div>
               </div>
 
@@ -143,6 +167,14 @@ export default function ScreenPage() {
                 >
                   <Maximize2 size={14} />
                   Cinema Experience
+                </button>
+                <button
+                  onClick={() => navigate(`/theater/${theaterId}`)}
+                  className="btn btn-outline"
+                  style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  <MessageSquare size={14} />
+                  Reviews
                 </button>
                 <button
                   onClick={() => navigate('/compare')}

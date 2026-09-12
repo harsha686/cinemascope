@@ -4,7 +4,8 @@ import initialMovies from './data/movies.json';
 import initialReviews from './data/reviews.json';
 import initialUsers from './data/users.json';
 import { supabaseService, isSupabaseConfigured } from './services/supabase';
-import { syncWeekendPickDataFromCloud } from './services/weekendPickService';
+import { syncWeekendPickDataFromCloud, pushWeekendPickDataToCloud } from './services/weekendPickService';
+import { syncUserLibraryWithCloud } from './services/movieLibraryService';
 import { DEFAULT_PRO_APPLICATIONS, getUserApplication as getProAppFromService } from './services/proReviewerService';
 
 const AppContext = createContext(null);
@@ -348,101 +349,143 @@ export function AppProvider({ children }) {
   }, [state.theatersList]);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'success' | 'error'
+  const [syncMessage, setSyncMessage] = useState('');
+  const [lastSyncedAt, setLastSyncedAt] = useState(() => loadStorage('cinemascope_last_synced_at', null));
 
   // Sync from Supabase on load or when manually requested
-  const refreshData = useCallback(async () => {
+  const syncCloudData = useCallback(async ({ forcePush = false, quiet = false } = {}) => {
     setIsRefreshing(true);
+    setSyncStatus('syncing');
+    setSyncMessage('Connecting to Supabase...');
+
+    if (!isSupabaseConfigured()) {
+      setIsRefreshing(false);
+      setSyncStatus('error');
+      setSyncMessage('Cloud database not configured. Working offline with local storage.');
+      return { success: false, reason: 'unconfigured' };
+    }
+
     try {
-      if (isSupabaseConfigured()) {
-        const [remoteMovies, remoteReviews, remoteUsers] = await Promise.all([
-          supabaseService.getMovies(),
-          supabaseService.getReviews(),
-          supabaseService.getUsers(),
-          syncWeekendPickDataFromCloud(),
-        ]);
-
-        if (remoteMovies && remoteMovies.length > 0) {
-          const formatted = remoteMovies.map(m => ({
-            id: m.id,
-            title: m.title,
-            originalTitle: m.original_title || m.title,
-            posterUrl: m.poster_url,
-            posterSource: m.poster_source,
-            posterSourceType: m.poster_source_type,
-            backdropUrl: m.backdrop_url,
-            language: m.language,
-            runtime: m.runtime,
-            releaseDate: m.release_date,
-            genres: m.genres || [],
-            overview: m.overview,
-            cast: m.cast_list || [],
-            director: m.director,
-            certificate: m.certificate,
-            trailerUrl: m.trailer_url,
-            aspectRatio: m.aspect_ratio,
-            status: m.status,
-            cities: m.cities || ['visakhapatnam'],
-            theaters: m.theaters || [],
-          }));
-          dispatch({ type: 'SET_MOVIES', payload: formatted });
+      // If forcePush requested, push current local movies and reviews first
+      if (forcePush) {
+        setSyncMessage('Pushing local movies to Supabase...');
+        for (const m of (state.movies || [])) {
+          await supabaseService.saveMovie(m).catch(console.warn);
         }
-
-        if (remoteUsers && remoteUsers.length > 0) {
-          const currentLocalUsers = loadStorage('cinemascope_users', initialUsers);
-          const userMap = new Map();
-          // Seed users
-          initialUsers.forEach(u => userMap.set(u.email ? u.email.toLowerCase() : u.id, u));
-          // Remote users
-          remoteUsers.forEach(u => userMap.set(u.email ? u.email.toLowerCase() : u.id, u));
-          // Local users overlay
-          (Array.isArray(currentLocalUsers) ? currentLocalUsers : []).forEach(u => {
-            const key = u.email ? u.email.toLowerCase() : u.id;
-            userMap.set(key, { ...(userMap.get(key) || {}), ...u });
-          });
-          const mergedUsers = Array.from(userMap.values());
-          dispatch({ type: 'SET_USERS', payload: mergedUsers });
+        for (const r of (state.reviews || [])) {
+          if (r.status === 'PUBLISHED') {
+            await supabaseService.saveReview(r).catch(console.warn);
+          }
         }
+        pushWeekendPickDataToCloud();
+      }
 
-        if (remoteReviews && remoteReviews.length > 0) {
-          // Merge remote reviews with local and seed reviews so nothing is lost on refresh
-          const currentLocal = loadStorage('cinemascope_reviews', initialReviews);
-          const mergedMap = new Map();
-          // 1. Initial seed reviews
-          initialReviews.forEach(seed => {
-            mergedMap.set(seed.id, seed);
-          });
-          // 2. Remote reviews from Supabase
-          remoteReviews.forEach(rem => {
-            mergedMap.set(rem.id, rem);
-          });
-          // 3. Local reviews overlay
-          (Array.isArray(currentLocal) ? currentLocal : []).forEach(loc => {
-            if (mergedMap.has(loc.id)) {
-              const existing = mergedMap.get(loc.id);
-              mergedMap.set(loc.id, {
-                ...existing,
-                ...loc,
-                reviewType: loc.reviewType || existing.reviewType,
-                userDisplayName: loc.userDisplayName || existing.userDisplayName,
-                userId: loc.userId || existing.userId,
-                userEmail: loc.userEmail || existing.userEmail,
-              });
-            } else {
-              mergedMap.set(loc.id, loc);
-            }
-          });
-          const mergedList = Array.from(mergedMap.values());
-          dispatch({ type: 'SET_REVIEWS', payload: mergedList });
+      setSyncMessage('Fetching remote data from Supabase...');
+      const [remoteMovies, remoteReviews, remoteUsers] = await Promise.all([
+        supabaseService.getMovies(),
+        supabaseService.getReviews(),
+        supabaseService.getUsers(),
+        syncWeekendPickDataFromCloud({ force: forcePush }),
+      ]);
+
+      let moviesCount = 0;
+      let reviewsCount = 0;
+
+      if (remoteMovies && remoteMovies.length > 0) {
+        const formatted = remoteMovies.map(m => ({
+          id: m.id,
+          title: m.title,
+          originalTitle: m.original_title || m.title,
+          posterUrl: m.poster_url,
+          posterSource: m.poster_source,
+          posterSourceType: m.poster_source_type,
+          backdropUrl: m.backdrop_url,
+          language: m.language,
+          runtime: m.runtime,
+          releaseDate: m.release_date,
+          genres: m.genres || [],
+          overview: m.overview,
+          cast: m.cast_list || [],
+          director: m.director,
+          certificate: m.certificate,
+          trailerUrl: m.trailer_url,
+          aspectRatio: m.aspect_ratio,
+          status: m.status,
+          cities: m.cities || ['visakhapatnam'],
+          theaters: m.theaters || [],
+        }));
+        moviesCount = formatted.length;
+        dispatch({ type: 'SET_MOVIES', payload: formatted });
+      } else if (state.movies && state.movies.length > 0) {
+        // Supabase has no movies; auto-seed remote database with local movies!
+        for (const m of state.movies) {
+          supabaseService.saveMovie(m).catch(console.warn);
         }
       }
-      return { success: true };
+
+      if (remoteUsers && remoteUsers.length > 0) {
+        const currentLocalUsers = loadStorage('cinemascope_users', initialUsers);
+        const userMap = new Map();
+        initialUsers.forEach(u => userMap.set(u.email ? u.email.toLowerCase() : u.id, u));
+        remoteUsers.forEach(u => userMap.set(u.email ? u.email.toLowerCase() : u.id, u));
+        (Array.isArray(currentLocalUsers) ? currentLocalUsers : []).forEach(u => {
+          const key = u.email ? u.email.toLowerCase() : u.id;
+          userMap.set(key, { ...(userMap.get(key) || {}), ...u });
+        });
+        const mergedUsers = Array.from(userMap.values());
+        dispatch({ type: 'SET_USERS', payload: mergedUsers });
+      }
+
+      if (remoteReviews && remoteReviews.length > 0) {
+        const currentLocal = loadStorage('cinemascope_reviews', initialReviews);
+        const mergedMap = new Map();
+        initialReviews.forEach(seed => mergedMap.set(seed.id, seed));
+        remoteReviews.forEach(rem => mergedMap.set(rem.id, rem));
+        (Array.isArray(currentLocal) ? currentLocal : []).forEach(loc => {
+          if (mergedMap.has(loc.id)) {
+            const existing = mergedMap.get(loc.id);
+            mergedMap.set(loc.id, {
+              ...existing,
+              ...loc,
+              reviewType: loc.reviewType || existing.reviewType,
+              userDisplayName: loc.userDisplayName || existing.userDisplayName,
+              userId: loc.userId || existing.userId,
+              userEmail: loc.userEmail || existing.userEmail,
+            });
+          } else {
+            mergedMap.set(loc.id, loc);
+          }
+        });
+        const mergedList = Array.from(mergedMap.values());
+        reviewsCount = mergedList.length;
+        dispatch({ type: 'SET_REVIEWS', payload: mergedList });
+      }
+
+      // Sync personal movie library if a user is logged in
+      if (state.currentUser && state.currentUser.id) {
+        await syncUserLibraryWithCloud(state.currentUser.id).catch(console.warn);
+      }
+
+      const now = new Date().toISOString();
+      setLastSyncedAt(now);
+      saveStorage('cinemascope_last_synced_at', now);
+      setSyncStatus('success');
+      setSyncMessage('Cloud synchronized successfully.');
+      return { success: true, timestamp: now, moviesCount, reviewsCount };
     } catch (e) {
       console.warn('Supabase remote sync skipped or failed:', e);
+      setSyncStatus('error');
+      setSyncMessage(e?.message || 'Sync failed.');
       return { success: false, error: e };
     } finally {
       setIsRefreshing(false);
     }
-  }, []);
+  }, [state.movies, state.reviews, state.currentUser]);
+
+  const refreshData = useCallback(() => {
+    return syncCloudData({ quiet: true });
+  }, [syncCloudData]);
 
   useEffect(() => {
     refreshData();
@@ -455,6 +498,7 @@ export function AppProvider({ children }) {
 
   const isMovieMatch = useCallback((r, movieId) => {
     if (!r || !movieId) return false;
+    if (r.theaterId && !r.movieId) return false;
     if (r.movieId === movieId) return true;
     const targetRaw = String(movieId).replace('tmdb-', '');
     const rMovieRaw = r.movieId ? String(r.movieId).replace('tmdb-', '') : null;
@@ -583,6 +627,76 @@ export function AppProvider({ children }) {
     return { average: Math.round((sum / proRevs.length) * 10) / 10, count: proRevs.length };
   }, [state.reviews, isMovieMatch, isProfessionalReview]);
 
+  const getTheaterReviews = useCallback((theaterId) => {
+    return state.reviews.filter(r => r.theaterId === theaterId && r.status === 'PUBLISHED');
+  }, [state.reviews]);
+
+  const getTheaterUserReviews = useCallback((theaterId) => {
+    return state.reviews.filter(r =>
+      r.theaterId === theaterId &&
+      r.status === 'PUBLISHED' &&
+      !isProfessionalReview(r)
+    );
+  }, [state.reviews, isProfessionalReview]);
+
+  const getTheaterProfessionalReviews = useCallback((theaterId) => {
+    return state.reviews.filter(r =>
+      r.theaterId === theaterId &&
+      r.status === 'PUBLISHED' &&
+      isProfessionalReview(r)
+    );
+  }, [state.reviews, isProfessionalReview]);
+
+  const getTheaterRating = useCallback((theaterId) => {
+    const published = state.reviews.filter(r => r.theaterId === theaterId && r.status === 'PUBLISHED');
+    if (published.length === 0) return { average: 0, count: 0 };
+    const sum = published.reduce((acc, r) => acc + (r.rating || 0), 0);
+    const avg = Math.round((sum / published.length) * 10) / 10;
+    return { average: avg, count: published.length };
+  }, [state.reviews]);
+
+  const getTheaterProfessionalRating = useCallback((theaterId) => {
+    const proRevs = state.reviews.filter(r =>
+      r.theaterId === theaterId &&
+      r.status === 'PUBLISHED' &&
+      isProfessionalReview(r)
+    );
+    if (proRevs.length === 0) return { average: 0, count: 0 };
+    const sum = proRevs.reduce((acc, r) => acc + (r.rating || 0), 0);
+    return { average: Math.round((sum / proRevs.length) * 10) / 10, count: proRevs.length };
+  }, [state.reviews, isProfessionalReview]);
+
+  const getTheaterRatingDistribution = useCallback((theaterId) => {
+    const published = state.reviews.filter(r => r.theaterId === theaterId && r.status === 'PUBLISHED');
+    const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    const total = published.length;
+    if (total === 0) return { counts, percentages: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }, total: 0 };
+
+    published.forEach(r => {
+      const star = Math.min(5, Math.max(1, Math.round(r.rating)));
+      counts[star] = (counts[star] || 0) + 1;
+    });
+
+    const percentages = {
+      5: Math.round((counts[5] / total) * 100),
+      4: Math.round((counts[4] / total) * 100),
+      3: Math.round((counts[3] / total) * 100),
+      2: Math.round((counts[2] / total) * 100),
+      1: Math.round((counts[1] / total) * 100),
+    };
+
+    return { counts, percentages, total };
+  }, [state.reviews]);
+
+  const getUserReviewForTheater = useCallback((userId, theaterId) => {
+    if (!userId || !theaterId) return null;
+    return state.reviews.find(r => r.userId === userId && r.theaterId === theaterId && r.status !== 'REMOVED') || null;
+  }, [state.reviews]);
+
+  const getScreenReviews = useCallback((theaterId, screenId) => {
+    return state.reviews.filter(r => r.theaterId === theaterId && r.screenId === screenId && r.status === 'PUBLISHED');
+  }, [state.reviews]);
+
   return (
     <AppContext.Provider value={{
       state,
@@ -597,6 +711,15 @@ export function AppProvider({ children }) {
       getMovieRating,
       getRatingDistribution,
       getUserReviewForMovie,
+      // Theater reviews
+      getTheaterReviews,
+      getTheaterUserReviews,
+      getTheaterProfessionalReviews,
+      getTheaterRating,
+      getTheaterProfessionalRating,
+      getTheaterRatingDistribution,
+      getUserReviewForTheater,
+      getScreenReviews,
       getCityMovies,
       allCities,
       allTheaters,
@@ -608,7 +731,11 @@ export function AppProvider({ children }) {
       getProfessionalRating,
       // Global Sync / Refresh
       refreshData,
+      syncCloudData,
       isRefreshing,
+      syncStatus,
+      syncMessage,
+      lastSyncedAt,
     }}>
       {children}
     </AppContext.Provider>

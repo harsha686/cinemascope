@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Film, Menu, X, ChevronRight, User, LogOut, ShieldAlert, MapPin, RefreshCw } from 'lucide-react';
 import { useApp } from '../../AppContext';
+import CloudSyncButton from '../common/CloudSyncButton';
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -89,35 +90,8 @@ export default function Navbar() {
         {/* Right Action Controls (Sync & Auth Menu) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
 
-          {/* Cloud Sync Refresh Button */}
-          <button
-            type="button"
-            onClick={() => refreshData && refreshData()}
-            disabled={isRefreshing}
-            title={isRefreshing ? 'Syncing...' : 'Sync and refresh live data with cloud'}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '50%',
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: isRefreshing ? 'var(--gold)' : 'var(--text-muted)',
-              cursor: isRefreshing ? 'default' : 'pointer',
-              transition: 'all 150ms ease',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--gold-dim)'; e.currentTarget.style.color = 'var(--gold)'; }}
-            onMouseLeave={e => {
-              if (!isRefreshing) {
-                e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                e.currentTarget.style.color = 'var(--text-muted)';
-              }
-            }}
-          >
-            <RefreshCw size={14} style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
-          </button>
+          {/* Cloud Sync Button */}
+          <CloudSyncButton variant="pill" />
 
           {/* User Auth Section */}
           {currentUser ? (
@@ -363,6 +337,12 @@ export default function Navbar() {
               <ChevronRight size={14} color="var(--gold)" />
             </Link>
           )}
+
+          {/* Mobile Cloud Sync */}
+          <div style={{ padding: '8px 4px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Database</span>
+            <CloudSyncButton variant="pill" />
+          </div>
 
           {/* User Section in Drawer */}
           {currentUser ? (

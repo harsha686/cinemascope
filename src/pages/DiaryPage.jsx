@@ -4,6 +4,7 @@ import { BookOpen, Star, Trash2, Calendar, Film, RefreshCw } from 'lucide-react'
 import { useApp } from '../AppContext';
 import * as LibService from '../services/movieLibraryService';
 import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
+import CloudSyncButton from '../components/common/CloudSyncButton';
 
 export default function DiaryPage() {
   const { state } = useApp();
@@ -121,7 +122,7 @@ export default function DiaryPage() {
                 {stats.totalEntries} entries · {stats.thisYearCount} this year · {stats.rewatches} rewatches
               </p>
             </div>
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <select
                 className="input"
                 value={selectedYear}
@@ -134,6 +135,7 @@ export default function DiaryPage() {
               <button className="btn btn-outline btn-sm" onClick={() => navigate('/discover')}>
                 <Film size={14} /> Discover Movies
               </button>
+              <CloudSyncButton variant="pill" />
             </div>
           </div>
         </div>

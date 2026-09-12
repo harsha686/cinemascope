@@ -1,23 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, AlertCircle } from 'lucide-react';
+import { X, AlertCircle, Monitor } from 'lucide-react';
 import { useApp } from '../../AppContext';
 import { setPersonalRating } from '../../services/movieLibraryService';
+import { MOVIE_REVIEW_PARAMS, THEATER_REVIEW_PARAMS, getParamsForReview } from '../../data/reviewParams';
 
-// Cinema review parameters with icons/labels
-const REVIEW_PARAMS = [
-  { key: 'direction',  label: 'Direction',   emoji: '🎬' },
-  { key: 'story',      label: 'Story',        emoji: '📖' },
-  { key: 'acting',     label: 'Acting',       emoji: '🎭' },
-  { key: 'screenplay', label: 'Screenplay',   emoji: '📝' },
-  { key: 'music',      label: 'Music',        emoji: '🎵' },
-  { key: 'dop',        label: 'DOP',          emoji: '📷' },
-  { key: 'vfx',        label: 'VFX',          emoji: '✨' },
-];
-
-const EMPTY_PARAMS = Object.fromEntries(REVIEW_PARAMS.map(p => [p.key, 0]));
-
-function calcAverage(params) {
-  const rated = REVIEW_PARAMS.filter(p => params[p.key] > 0);
+function calcAverage(params, paramList) {
+  const rated = paramList.filter(p => params[p.key] > 0);
   if (rated.length === 0) return 0;
   const sum = rated.reduce((acc, p) => acc + params[p.key], 0);
   return Math.round((sum / rated.length) * 10) / 10;
@@ -30,7 +18,7 @@ function ParamStarPicker({ param, value, onChange }) {
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: '130px 1fr auto',
+      gridTemplateColumns: '150px 1fr auto',
       alignItems: 'center',
       gap: 12,
       padding: '10px 14px',
@@ -47,7 +35,7 @@ function ParamStarPicker({ param, value, onChange }) {
         </span>
       </div>
 
-      {/* 10 half-star dots or 5 star buttons */}
+      {/* 5 star buttons */}
       <div style={{ display: 'flex', gap: 6 }}>
         {[1, 2, 3, 4, 5].map(star => {
           const active = (hovered || value) >= star;
@@ -90,12 +78,27 @@ function ParamStarPicker({ param, value, onChange }) {
   );
 }
 
-export default function ReviewComposer({ movie, existingReview = null, onClose, onSuccess, reviewType = 'USER' }) {
+export default function ReviewComposer({
+  movie = null,
+  theater = null,
+  initialScreenId = null,
+  existingReview = null,
+  onClose,
+  onSuccess,
+  reviewType = 'USER',
+}) {
   const { state, dispatch, isVerifiedPro } = useApp();
   const currentUser = state.currentUser;
 
+  const isTheater = !!theater || (existingReview?.theaterId || existingReview?.targetType === 'THEATER');
+  const activeParams = isTheater ? THEATER_REVIEW_PARAMS : MOVIE_REVIEW_PARAMS;
+  const emptyParams = Object.fromEntries(activeParams.map(p => [p.key, 0]));
+
   const [params, setParams] = useState(
-    existingReview?.parameterRatings ? existingReview.parameterRatings : { ...EMPTY_PARAMS }
+    existingReview?.parameterRatings ? existingReview.parameterRatings : { ...emptyParams }
+  );
+  const [selectedScreenId, setSelectedScreenId] = useState(
+    existingReview?.screenId || initialScreenId || ''
   );
   const [note, setNote] = useState(existingReview?.reviewText || '');
   const [error, setError] = useState('');
@@ -108,8 +111,8 @@ export default function ReviewComposer({ movie, existingReview = null, onClose, 
     }
   }, [existingReview]);
 
-  const overallRating = calcAverage(params);
-  const ratedCount = REVIEW_PARAMS.filter(p => params[p.key] > 0).length;
+  const overallRating = calcAverage(params, activeParams);
+  const ratedCount = activeParams.filter(p => params[p.key] > 0).length;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -133,52 +136,98 @@ export default function ReviewComposer({ movie, existingReview = null, onClose, 
     setIsSubmitting(true);
 
     try {
-      const targetMovieId = movie.id || (movie.tmdbId ? `tmdb-${movie.tmdbId}` : null);
-      const rawTmdbId = movie.tmdbId || (targetMovieId ? String(targetMovieId).replace('tmdb-', '') : null);
       const isUserPro = currentUser && isVerifiedPro ? isVerifiedPro(currentUser.id) : false;
       const effectiveReviewType = reviewType || (existingReview?.reviewType) || (isUserPro ? 'PROFESSIONAL' : 'USER');
 
-      const payload = {
-        rating: overallRating,
-        parameterRatings: params,
-        reviewText: note.trim(),
-        reviewType: effectiveReviewType,
-      };
+      if (isTheater) {
+        const selectedScreen = theater?.screens?.find(s => s.id === selectedScreenId);
+        const payload = {
+          rating: overallRating,
+          parameterRatings: params,
+          reviewText: note.trim(),
+          reviewType: effectiveReviewType,
+          theaterId: theater?.id || existingReview?.theaterId,
+          theaterName: theater?.name || existingReview?.theaterName || 'Cinema',
+          screenId: selectedScreenId || null,
+          screenName: selectedScreen ? `${selectedScreen.name}${selectedScreen.aspectRatio ? ` (${selectedScreen.aspectRatio})` : ''}` : (existingReview?.screenName || null),
+          targetType: 'THEATER',
+        };
 
-      if (existingReview) {
-        dispatch({
-          type: 'UPDATE_REVIEW',
-          payload: {
-            id: existingReview.id,
-            movieId: targetMovieId,
-            userId: existingReview.userId || currentUser.id,
-            userDisplayName: existingReview.userDisplayName || currentUser.displayName || 'Cinema Enthusiast',
-            userEmail: existingReview.userEmail || currentUser.email,
-            ...payload,
-          },
-        });
+        if (existingReview) {
+          dispatch({
+            type: 'UPDATE_REVIEW',
+            payload: {
+              id: existingReview.id,
+              userId: existingReview.userId || currentUser.id,
+              userDisplayName: existingReview.userDisplayName || currentUser.displayName || 'Cinema Enthusiast',
+              userEmail: existingReview.userEmail || currentUser.email,
+              ...payload,
+            },
+          });
+        } else {
+          dispatch({
+            type: 'ADD_REVIEW',
+            payload: {
+              id: `rev-th-${Date.now()}`,
+              userId: currentUser.id,
+              userDisplayName: currentUser.displayName || 'Cinema Enthusiast',
+              userEmail: currentUser.email,
+              status: 'PUBLISHED',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              likesCount: 0,
+              reportCount: 0,
+              ...payload,
+            },
+          });
+        }
       } else {
-        dispatch({
-          type: 'ADD_REVIEW',
-          payload: {
-            id: `rev-${Date.now()}`,
-            movieId: targetMovieId,
-            tmdbId: rawTmdbId,
-            userId: currentUser.id,
-            userDisplayName: currentUser.displayName || 'Cinema Enthusiast',
-            userEmail: currentUser.email,
-            status: 'PUBLISHED',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            likesCount: 0,
-            reportCount: 0,
-            ...payload,
-          },
-        });
-      }
+        const targetMovieId = movie?.id || (movie?.tmdbId ? `tmdb-${movie.tmdbId}` : (existingReview?.movieId || null));
+        const rawTmdbId = movie?.tmdbId || (targetMovieId ? String(targetMovieId).replace('tmdb-', '') : null);
 
-      if (rawTmdbId && overallRating > 0) {
-        setPersonalRating(rawTmdbId, currentUser.id, overallRating).catch(console.error);
+        const payload = {
+          rating: overallRating,
+          parameterRatings: params,
+          reviewText: note.trim(),
+          reviewType: effectiveReviewType,
+          targetType: 'MOVIE',
+        };
+
+        if (existingReview) {
+          dispatch({
+            type: 'UPDATE_REVIEW',
+            payload: {
+              id: existingReview.id,
+              movieId: targetMovieId,
+              userId: existingReview.userId || currentUser.id,
+              userDisplayName: existingReview.userDisplayName || currentUser.displayName || 'Cinema Enthusiast',
+              userEmail: existingReview.userEmail || currentUser.email,
+              ...payload,
+            },
+          });
+        } else {
+          dispatch({
+            type: 'ADD_REVIEW',
+            payload: {
+              id: `rev-${Date.now()}`,
+              movieId: targetMovieId,
+              tmdbId: rawTmdbId,
+              userId: currentUser.id,
+              userDisplayName: currentUser.displayName || 'Cinema Enthusiast',
+              userEmail: currentUser.email,
+              status: 'PUBLISHED',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              likesCount: 0,
+              reportCount: 0,
+              ...payload,
+            },
+          });
+        }
+
+        if (rawTmdbId && overallRating > 0) {
+          setPersonalRating(rawTmdbId, currentUser.id, overallRating).catch(console.error);
+        }
       }
 
       setIsSubmitting(false);
@@ -202,10 +251,10 @@ export default function ReviewComposer({ movie, existingReview = null, onClose, 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 4 }}>
-            {existingReview ? 'Edit Your Review' : 'Rate This Film'}
+            {existingReview ? 'Edit Your Review' : isTheater ? 'Rate This Cinema' : 'Rate This Film'}
           </div>
           <h3 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-primary)' }}>
-            {movie.title}
+            {isTheater ? (theater?.name || existingReview?.theaterName || 'Cinema') : (movie?.title || existingReview?.movieTitle || 'Movie')}
           </h3>
         </div>
         {onClose && (
@@ -217,8 +266,30 @@ export default function ReviewComposer({ movie, existingReview = null, onClose, 
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
 
+        {/* Screen Picker (for Theaters with multiple screens) */}
+        {isTheater && theater?.screens && theater.screens.length > 1 && (
+          <div style={{ marginBottom: 6 }}>
+            <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+              Screen Visited <span style={{ textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+            </label>
+            <select
+              className="input"
+              value={selectedScreenId}
+              onChange={e => setSelectedScreenId(e.target.value)}
+              style={{ fontSize: 12, background: 'var(--bg-surface, #18140e)', color: 'var(--text-primary)', padding: '6px 12px' }}
+            >
+              <option value="">General Theater Experience (All Screens)</option>
+              {theater.screens.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.name} — {s.aspectRatio || s.formatName || 'Screen'} {s.projection ? `(${s.projection})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Per-parameter star pickers */}
-        {REVIEW_PARAMS.map(param => (
+        {activeParams.map(param => (
           <ParamStarPicker
             key={param.key}
             param={param}
@@ -239,7 +310,7 @@ export default function ReviewComposer({ movie, existingReview = null, onClose, 
           marginTop: 4,
         }}>
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            Overall Rating <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>({ratedCount} of {REVIEW_PARAMS.length} rated)</span>
+            Overall Rating <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>({ratedCount} of {activeParams.length} rated)</span>
           </span>
           <span style={{
             fontSize: 22,
@@ -254,7 +325,7 @@ export default function ReviewComposer({ movie, existingReview = null, onClose, 
         <div style={{ marginTop: 4 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
             <label style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              Your Note <span style={{ color: 'var(--text-muted)', textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+              Your Review Note <span style={{ color: 'var(--text-muted)', textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
             </label>
             <span style={{ fontSize: 11, color: note.length > 500 ? '#f87171' : 'var(--text-muted)' }}>
               {note.length} / 500
@@ -263,7 +334,7 @@ export default function ReviewComposer({ movie, existingReview = null, onClose, 
           <textarea
             className="input"
             rows={3}
-            placeholder="Anything you'd like to add about the film..."
+            placeholder={isTheater ? "Share your experience regarding screen brightness, sound acoustics, seating comfort, AC, and snack pricing..." : "Anything you'd like to add about the film..."}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             maxLength={500}

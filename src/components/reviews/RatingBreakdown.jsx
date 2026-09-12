@@ -1,16 +1,7 @@
 import React from 'react';
+import { MOVIE_REVIEW_PARAMS, THEATER_REVIEW_PARAMS, getParamsForReview } from '../../data/reviewParams';
 
-const REVIEW_PARAMS = [
-  { key: 'direction',  label: 'Direction',   emoji: '🎬' },
-  { key: 'story',      label: 'Story',        emoji: '📖' },
-  { key: 'acting',     label: 'Acting',       emoji: '🎭' },
-  { key: 'screenplay', label: 'Screenplay',   emoji: '📝' },
-  { key: 'music',      label: 'Music',        emoji: '🎵' },
-  { key: 'dop',        label: 'DOP',          emoji: '📷' },
-  { key: 'vfx',        label: 'VFX',          emoji: '✨' },
-];
-
-export default function RatingBreakdown({ reviews = [] }) {
+export default function RatingBreakdown({ reviews = [], targetType = null, params: customParams = null }) {
   const published = reviews.filter(r => r.status === 'PUBLISHED');
 
   if (published.length === 0) {
@@ -23,8 +14,11 @@ export default function RatingBreakdown({ reviews = [] }) {
     );
   }
 
+  // Determine which parameters to use (Theater vs Movie)
+  const activeParams = customParams || (targetType === 'THEATER' ? THEATER_REVIEW_PARAMS : (published[0] ? getParamsForReview(published[0]) : MOVIE_REVIEW_PARAMS));
+
   // Compute per-parameter averages across all reviews that rated that param
-  const paramStats = REVIEW_PARAMS.map(param => {
+  const paramStats = activeParams.map(param => {
     const ratedReviews = published.filter(r => r.parameterRatings && r.parameterRatings[param.key] > 0);
     if (ratedReviews.length === 0) return { ...param, avg: 0, count: 0 };
     const sum = ratedReviews.reduce((acc, r) => acc + r.parameterRatings[param.key], 0);

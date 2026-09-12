@@ -6,6 +6,7 @@ import * as LibService from '../services/movieLibraryService';
 import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
 import GlobalMovieCard from '../components/discovery/GlobalMovieCard';
 import ShareCollectionModal from '../components/library/ShareCollectionModal';
+import CloudSyncButton from '../components/common/CloudSyncButton';
 
 export default function LibraryPage() {
   const { state } = useApp();
@@ -185,11 +186,14 @@ export default function LibraryPage() {
   return (
     <div className="page-enter">
       <div style={{ padding: '40px 24px 0', borderBottom: '1px solid var(--border-subtle)' }}>
-        <div className="container" style={{ maxWidth: 1200 }}>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 6 }}>My Movie Library</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 24 }}>
-            {stats.totalWatched} watched · {stats.totalWatchlist} in watchlist · {stats.totalFavorites} favorites · {diaryStats.totalEntries} diary entries
-          </p>
+        <div className="container" style={{ maxWidth: 1200, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+          <div>
+            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 6 }}>My Movie Library</h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 24 }}>
+              {stats.totalWatched} watched · {stats.totalWatchlist} in watchlist · {stats.totalFavorites} favorites · {diaryStats.totalEntries} diary entries
+            </p>
+          </div>
+          <CloudSyncButton variant="pill" />
         </div>
       </div>
 
