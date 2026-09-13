@@ -6,7 +6,6 @@ import * as LibService from '../services/movieLibraryService';
 import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
 import GlobalMovieCard from '../components/discovery/GlobalMovieCard';
 import ShareCollectionModal from '../components/library/ShareCollectionModal';
-import CloudSyncButton from '../components/common/CloudSyncButton';
 
 export default function LibraryPage() {
   const { state } = useApp();
@@ -193,7 +192,6 @@ export default function LibraryPage() {
               {stats.totalWatched} watched · {stats.totalWatchlist} in watchlist · {stats.totalFavorites} favorites · {diaryStats.totalEntries} diary entries
             </p>
           </div>
-          <CloudSyncButton variant="pill" />
         </div>
       </div>
 

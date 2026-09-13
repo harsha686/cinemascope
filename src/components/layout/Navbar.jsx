@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Film, Menu, X, ChevronRight, User, LogOut, ShieldAlert, MapPin, RefreshCw } from 'lucide-react';
+import { Film, Menu, X, ChevronRight, User, LogOut, ShieldAlert, MapPin } from 'lucide-react';
 import { useApp } from '../../AppContext';
-import CloudSyncButton from '../common/CloudSyncButton';
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -10,7 +9,7 @@ export default function Navbar() {
   const [userDropdown, setUserDropdown] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { state, dispatch, allCities, refreshData, isRefreshing } = useApp();
+  const { state, dispatch, allCities } = useApp();
   const dropdownRef = useRef(null);
 
   const currentUser = state.currentUser;
@@ -87,13 +86,8 @@ export default function Navbar() {
           ))}
         </div>
 
-        {/* Right Action Controls (Sync & Auth Menu) */}
+        {/* Right Action Controls (Auth Menu) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-
-          {/* Cloud Sync Button */}
-          <CloudSyncButton variant="pill" />
-
-          {/* User Auth Section */}
           {currentUser ? (
             <div ref={dropdownRef} style={{ position: 'relative', flexShrink: 0 }}>
               <button
@@ -337,12 +331,6 @@ export default function Navbar() {
               <ChevronRight size={14} color="var(--gold)" />
             </Link>
           )}
-
-          {/* Mobile Cloud Sync */}
-          <div style={{ padding: '8px 4px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Database</span>
-            <CloudSyncButton variant="pill" />
-          </div>
 
           {/* User Section in Drawer */}
           {currentUser ? (

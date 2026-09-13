@@ -19,13 +19,16 @@ const getSupabaseConfig = () => {
 };
 
 let supabaseClient = null;
+let supabaseClientUrl = null;
 
 export const getSupabaseClient = () => {
   const { url, key } = getSupabaseConfig();
   if (!url || !key) return null;
 
-  if (!supabaseClient) {
+  // Re-create client if URL changed (credentials updated)
+  if (!supabaseClient || supabaseClientUrl !== url) {
     supabaseClient = createClient(url, key);
+    supabaseClientUrl = url;
   }
   return supabaseClient;
 };

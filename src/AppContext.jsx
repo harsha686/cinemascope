@@ -361,23 +361,18 @@ export function AppProvider({ children }) {
 
   // Sync from Supabase on load or when manually requested
   const syncCloudData = useCallback(async ({ forcePush = false, quiet = false } = {}) => {
-    setIsRefreshing(true);
-    setSyncStatus('syncing');
-    setSyncMessage('Connecting to Supabase...');
-
     if (!isSupabaseConfigured()) {
-      setIsRefreshing(false);
-      setSyncStatus('error');
-      setSyncMessage('Cloud database not configured. Working offline with local storage.');
       return { success: false, reason: 'unconfigured' };
     }
+
+    setIsRefreshing(true);
+    if (!quiet) setSyncStatus('syncing');
 
     const currentState = stateRef.current;
 
     try {
       // If forcePush requested, push current local movies and reviews first
       if (forcePush) {
-        setSyncMessage('Pushing local movies to Supabase...');
         for (const m of (currentState.movies || [])) {
           await supabaseService.saveMovie(m).catch(console.warn);
         }
@@ -389,7 +384,6 @@ export function AppProvider({ children }) {
         pushWeekendPickDataToCloud();
       }
 
-      setSyncMessage('Fetching remote data from Supabase...');
       const [remoteMovies, remoteReviews, remoteUsers] = await Promise.all([
         supabaseService.getMovies(),
         supabaseService.getReviews(),
@@ -433,39 +427,26 @@ export function AppProvider({ children }) {
       }
 
       if (remoteUsers && remoteUsers.length > 0) {
+        // Remote wins for matching users; keep local-only users for offline accounts
+        const remoteUserMap = new Map(remoteUsers.map(u => [u.email ? u.email.toLowerCase() : u.id, u]));
         const currentLocalUsers = loadStorage('cinemascope_users', initialUsers);
-        const userMap = new Map();
-        initialUsers.forEach(u => userMap.set(u.email ? u.email.toLowerCase() : u.id, u));
-        remoteUsers.forEach(u => userMap.set(u.email ? u.email.toLowerCase() : u.id, u));
-        (Array.isArray(currentLocalUsers) ? currentLocalUsers : []).forEach(u => {
+        const localOnlyUsers = (Array.isArray(currentLocalUsers) ? currentLocalUsers : []).filter(u => {
           const key = u.email ? u.email.toLowerCase() : u.id;
-          userMap.set(key, { ...(userMap.get(key) || {}), ...u });
+          return !remoteUserMap.has(key);
         });
-        const mergedUsers = Array.from(userMap.values());
+        const mergedUsers = [...remoteUsers, ...localOnlyUsers];
         dispatch({ type: 'SET_USERS', payload: mergedUsers });
       }
 
       if (remoteReviews && remoteReviews.length > 0) {
+        // Remote is source of truth. Keep local-only entries (not in remote) for offline support,
+        // but remote always wins for any matching ID.
+        const remoteMap = new Map(remoteReviews.map(r => [r.id, r]));
         const currentLocal = loadStorage('cinemascope_reviews', initialReviews);
-        const mergedMap = new Map();
-        initialReviews.forEach(seed => mergedMap.set(seed.id, seed));
-        remoteReviews.forEach(rem => mergedMap.set(rem.id, rem));
-        (Array.isArray(currentLocal) ? currentLocal : []).forEach(loc => {
-          if (mergedMap.has(loc.id)) {
-            const existing = mergedMap.get(loc.id);
-            mergedMap.set(loc.id, {
-              ...existing,
-              ...loc,
-              reviewType: loc.reviewType || existing.reviewType,
-              userDisplayName: loc.userDisplayName || existing.userDisplayName,
-              userId: loc.userId || existing.userId,
-              userEmail: loc.userEmail || existing.userEmail,
-            });
-          } else {
-            mergedMap.set(loc.id, loc);
-          }
-        });
-        const mergedList = Array.from(mergedMap.values());
+        const localOnlyEntries = (Array.isArray(currentLocal) ? currentLocal : []).filter(
+          loc => !remoteMap.has(loc.id)
+        );
+        const mergedList = [...remoteReviews, ...localOnlyEntries];
         reviewsCount = mergedList.length;
         dispatch({ type: 'SET_REVIEWS', payload: mergedList });
       }

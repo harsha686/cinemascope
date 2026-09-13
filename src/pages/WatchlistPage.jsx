@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bookmark, LayoutGrid, List as ListIcon, X, Check, Film, RefreshCw } from 'lucide-react';
+import { Bookmark, LayoutGrid, List as ListIcon, X, Check, Film } from 'lucide-react';
 import { useApp } from '../AppContext';
 import * as LibService from '../services/movieLibraryService';
 import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
 import GlobalMovieCard from '../components/discovery/GlobalMovieCard';
-import CloudSyncButton from '../components/common/CloudSyncButton';
 
 export default function WatchlistPage() {
   const { state } = useApp();
@@ -139,7 +138,6 @@ export default function WatchlistPage() {
                   <ListIcon size={15} />
                 </button>
               </div>
-              <CloudSyncButton variant="pill" />
             </div>
           </div>
         </div>
