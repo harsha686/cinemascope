@@ -50,7 +50,7 @@ export default function AestheticCardRenderer({
   const keyArtImage = content.backdropUrl || content.posterUrl;
 
   if (isTheatre) {
-    const movieImage = content.backdropUrl || content.posterUrl || '/cinema_theatre_backdrop.jpg';
+    const movieImage = content.backdropUrl || content.posterUrl || '/demo-frame.jpg';
     return (
       <div
         ref={cardRef}
@@ -61,68 +61,112 @@ export default function AestheticCardRenderer({
           flex: 1,
           aspectRatio: format.aspectRatio,
           minHeight: isStory ? 480 : isPortrait ? 380 : isSquare ? 280 : 180,
-          background: '#040206',
+          background: '#040306',
           color: '#ffffff',
           position: 'relative',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
-          padding: isStory ? '28px 24px' : isLandscape ? '20px 32px' : '22px 22px',
+          padding: isStory ? '24px 20px' : isLandscape ? '20px 32px' : '22px 22px',
           boxSizing: 'border-box',
           fontFamily: 'var(--font-sans, "Inter", sans-serif)',
           border: '1px solid rgba(255,255,255,0.12)',
           flexShrink: 0,
         }}
       >
-        {/* Full Theatre Environment Background */}
-        <img
-          src="/cinema_theatre_backdrop.jpg"
-          alt="Cinema Theatre"
-          crossOrigin="anonymous"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            objectPosition: 'center top',
-            display: 'block',
-          }}
-          onError={(e) => {
-            // Fallback gradient if file is not served directly
-            e.target.style.display = 'none';
-          }}
-        />
-
-        {/* Ambient Vignette & Cinema Projection Glow Overlay */}
+        {/* Cinema Hall Architectural Interior Background */}
         <div style={{
           position: 'absolute',
           inset: 0,
-          background: 'radial-gradient(ellipse at 50% 38%, rgba(235,60,40,0.18) 0%, transparent 60%)',
+          background: 'linear-gradient(180deg, #020204 0%, #060408 40%, #0c080d 70%, #050306 100%)',
           pointerEvents: 'none',
         }} />
 
-        {/* Top Gradient for subtle header readability */}
+        {/* Dynamic Movie Ambient Wall Glow */}
+        {movieImage && (
+          <div style={{
+            position: 'absolute',
+            top: '8%',
+            left: '10%',
+            right: '10%',
+            height: isStory ? '36%' : isLandscape ? '46%' : '40%',
+            backgroundImage: `url(${movieImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'blur(38px) brightness(0.65) saturate(1.6)',
+            opacity: 0.6,
+            borderRadius: '50%',
+            pointerEvents: 'none',
+          }} />
+        )}
+
+        {/* Cinema Projection Screen Stage */}
         <div style={{
           position: 'absolute',
-          top: 0,
+          top: isStory ? '10%' : isLandscape ? '10%' : '11%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: isStory ? '86%' : isLandscape ? '68%' : '78%',
+          aspectRatio: '16 / 9',
+          borderRadius: 4,
+          overflow: 'hidden',
+          boxShadow: '0 0 0 1px rgba(255,255,255,0.2), 0 16px 50px rgba(0,0,0,0.9), 0 0 60px rgba(255,200,100,0.12)',
+          zIndex: 2,
+          background: '#000',
+        }}>
+          {movieImage && (
+            <img
+              src={movieImage}
+              alt={content.title}
+              crossOrigin="anonymous"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                objectPosition: 'center',
+                display: 'block',
+              }}
+            />
+          )}
+
+          {/* Screen Vignette & Projection Hotspot */}
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'radial-gradient(ellipse at 50% 40%, rgba(255,255,255,0.12) 0%, transparent 65%), linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.3) 100%)',
+            pointerEvents: 'none',
+          }} />
+        </div>
+
+        {/* Layer of Cinema Seats Foreground Silhouettes */}
+        <div style={{
+          position: 'absolute',
+          top: isStory ? '38%' : isLandscape ? '44%' : '42%',
           left: 0,
           right: 0,
-          height: 100,
-          background: 'linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 65%, transparent 100%)',
+          height: 90,
+          zIndex: 2,
           pointerEvents: 'none',
-        }} />
+          opacity: 0.45,
+          background: 'radial-gradient(ellipse at 50% 100%, rgba(30,10,15,0.9) 0%, transparent 70%)',
+        }}>
+          <svg viewBox="0 0 1000 120" preserveAspectRatio="none" style={{ width: '100%', height: '100%', display: 'block' }}>
+            {/* Seat Back Silhouettes */}
+            <path d="M0,120 Q50,70 100,70 Q150,70 200,120 M180,120 Q230,65 280,65 Q330,65 380,120 M360,120 Q410,60 460,60 Q510,60 560,120 M540,120 Q590,65 640,65 Q690,65 740,120 M720,120 Q770,70 820,70 Q870,70 920,120 M900,120 Q950,75 1000,75" fill="#080407" stroke="#1c1118" strokeWidth="2" />
+          </svg>
+        </div>
 
-        {/* Bottom Rich Editorial Darkening Gradient for verdict and rating legibility */}
+        {/* Bottom Editorial Darkening Gradient */}
         <div style={{
           position: 'absolute',
           bottom: 0,
           left: 0,
           right: 0,
-          height: isStory ? '42%' : isLandscape ? '55%' : '48%',
-          background: 'linear-gradient(0deg, rgba(4,2,6,0.98) 0%, rgba(4,2,6,0.92) 50%, rgba(4,2,6,0.55) 75%, transparent 100%)',
+          height: isStory ? '50%' : isLandscape ? '58%' : '52%',
+          background: 'linear-gradient(0deg, #030205 0%, rgba(3,2,5,0.96) 60%, rgba(3,2,5,0.6) 85%, transparent 100%)',
           pointerEvents: 'none',
+          zIndex: 2,
         }} />
 
         {/* ================= TOP SECTION: THEATRE METADATA ================= */}
