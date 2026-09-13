@@ -741,7 +741,7 @@ export default function AdminDashboard() {
                           <td style={{ padding: '10px 16px', fontWeight: 500, color: 'var(--text-primary)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <span>{rev.userDisplayName}</span>
-                              {rev.reviewType === 'PROFESSIONAL' && (
+                              {!isTheater && rev.reviewType === 'PROFESSIONAL' && (
                                 <span className="badge badge-gold" style={{ fontSize: 8 }}>PRO</span>
                               )}
                             </div>

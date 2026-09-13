@@ -145,7 +145,7 @@ export default function ReviewComposer({
           rating: overallRating,
           parameterRatings: params,
           reviewText: note.trim(),
-          reviewType: effectiveReviewType,
+          reviewType: 'USER',
           theaterId: theater?.id || existingReview?.theaterId,
           theaterName: theater?.name || existingReview?.theaterName || 'Cinema',
           screenId: selectedScreenId || null,

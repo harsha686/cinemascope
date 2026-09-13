@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { MapPin, Monitor, ChevronRight, GitCompare, Edit3, Star, MessageSquare, ShieldCheck, Sliders, PenSquare } from 'lucide-react';
+import { MapPin, Monitor, ChevronRight, GitCompare, Edit3, Star, MessageSquare, Sliders, PenSquare, Trash2 } from 'lucide-react';
 import YoutubeIcon from '../components/shared/YoutubeIcon';
 import { useApp } from '../AppContext';
 import TheaterMap from '../components/city/TheaterMap';
@@ -8,8 +8,6 @@ import AdminTheaterFormModal from '../components/admin/AdminTheaterFormModal';
 import { getFormat } from '../data/formats';
 import RatingBreakdown from '../components/reviews/RatingBreakdown';
 import ReviewCard from '../components/reviews/ReviewCard';
-import ProfessionalReviewCard from '../components/reviews/ProfessionalReviewCard';
-import ReviewTabs from '../components/reviews/ReviewTabs';
 import ReviewComposer from '../components/reviews/ReviewComposer';
 
 
@@ -91,17 +89,12 @@ export default function TheaterPage() {
     dispatch,
     allCities,
     getTheaterReviews,
-    getTheaterUserReviews,
-    getTheaterProfessionalReviews,
     getTheaterRating,
-    getTheaterProfessionalRating,
     getUserReviewForTheater,
-    isVerifiedPro,
   } = useApp();
 
   const currentUser = state.currentUser;
   const isAdmin = currentUser && currentUser.role === 'ADMIN';
-  const currentUserIsPro = currentUser && isVerifiedPro ? isVerifiedPro(currentUser.id) : false;
 
   const theater = getTheater(theaterId);
   const city = theater ? getCity(theater.cityId) : null;
@@ -112,31 +105,20 @@ export default function TheaterPage() {
   // Review states
   const [showComposer, setShowComposer] = useState(false);
   const [editingReview, setEditingReview] = useState(null);
-  const [reviewTab, setReviewTab] = useState('all'); // 'all' | 'audience' | 'professional'
   const [sortOption, setSortOption] = useState('newest');
-  const [submitAsPro, setSubmitAsPro] = useState(currentUserIsPro);
 
   const theaterRatingInfo = useMemo(() => getTheaterRating(theaterId), [getTheaterRating, theaterId]);
-  const theaterProRatingInfo = useMemo(() => getTheaterProfessionalRating(theaterId), [getTheaterProfessionalRating, theaterId]);
   const allTheaterReviews = useMemo(() => getTheaterReviews(theaterId), [getTheaterReviews, theaterId]);
-  const userTheaterReviews = useMemo(() => getTheaterUserReviews(theaterId), [getTheaterUserReviews, theaterId]);
-  const proTheaterReviews = useMemo(() => getTheaterProfessionalReviews(theaterId), [getTheaterProfessionalReviews, theaterId]);
   const userExistingReview = useMemo(() => currentUser ? getUserReviewForTheater(currentUser.id, theaterId) : null, [getUserReviewForTheater, currentUser, theaterId]);
 
-  const activeReviews = useMemo(() => {
-    if (reviewTab === 'audience') return userTheaterReviews;
-    if (reviewTab === 'professional') return proTheaterReviews;
-    return allTheaterReviews;
-  }, [reviewTab, allTheaterReviews, userTheaterReviews, proTheaterReviews]);
-
   const sortedReviews = useMemo(() => {
-    const list = [...activeReviews];
+    const list = [...allTheaterReviews];
     if (sortOption === 'newest') list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     else if (sortOption === 'highest') list.sort((a, b) => b.rating - a.rating);
     else if (sortOption === 'lowest') list.sort((a, b) => a.rating - b.rating);
     else if (sortOption === 'helpful') list.sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0));
     return list;
-  }, [activeReviews, sortOption]);
+  }, [allTheaterReviews, sortOption]);
 
   const handleWriteClick = () => {
     if (!currentUser) {
@@ -144,13 +126,7 @@ export default function TheaterPage() {
       return;
     }
     setActiveTab('reviews');
-    if (userExistingReview) {
-      setEditingReview(userExistingReview);
-      setSubmitAsPro(userExistingReview.reviewType === 'PROFESSIONAL' || (currentUserIsPro && userExistingReview.reviewType !== 'USER'));
-    } else {
-      setEditingReview(null);
-      setSubmitAsPro(currentUserIsPro);
-    }
+    setEditingReview(userExistingReview || null);
     setShowComposer(true);
     setTimeout(() => {
       const elem = document.getElementById('theater-review-composer') || document.getElementById('theater-reviews-section');
@@ -161,7 +137,6 @@ export default function TheaterPage() {
   const handleEditClick = (rev) => {
     setActiveTab('reviews');
     setEditingReview(rev);
-    setSubmitAsPro(rev.reviewType === 'PROFESSIONAL' || (currentUserIsPro && rev.reviewType !== 'USER'));
     setShowComposer(true);
     setTimeout(() => {
       const elem = document.getElementById('theater-review-composer') || document.getElementById('theater-reviews-section');
@@ -282,32 +257,6 @@ export default function TheaterPage() {
                   >
                     <Star size={11} color="var(--text-muted)" />
                     <span>No reviews yet · Rate theater</span>
-                  </button>
-                )}
-
-                {theaterProRatingInfo.count > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => { setActiveTab('reviews'); setReviewTab('professional'); }}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: '3px 10px',
-                      background: 'rgba(16,185,129,0.1)',
-                      border: '1px solid rgba(16,185,129,0.3)',
-                      borderRadius: 20,
-                      cursor: 'pointer',
-                      color: '#10b981',
-                    }}
-                  >
-                    <ShieldCheck size={12} color="#10b981" />
-                    <span style={{ fontSize: 12, fontWeight: 700 }}>
-                      ★ {theaterProRatingInfo.average}
-                    </span>
-                    <span style={{ fontSize: 11, color: '#10b981' }}>
-                      ({theaterProRatingInfo.count} critic{theaterProRatingInfo.count !== 1 ? 's' : ''})
-                    </span>
                   </button>
                 )}
               </div>
@@ -442,7 +391,7 @@ export default function TheaterPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
               <div>
                 <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', letterSpacing: '0.04em' }}>
-                  Audience & Critic Reviews
+                  Audience Reviews
                 </h2>
                 <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                   Ratings for screen projection, sound, seating comfort, ambience & overall cinema value
@@ -462,52 +411,27 @@ export default function TheaterPage() {
               )}
             </div>
 
-            {/* Dual Rating Summary Bar */}
+            {/* Rating Summary Bar */}
             <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
-              {/* Community Rating */}
               <div style={{
-                flex: 1, minWidth: 160, padding: '14px 18px',
+                flex: 1, minWidth: 200, padding: '14px 18px',
                 background: 'var(--bg-card)', border: '1px solid var(--border-subtle)',
                 borderRadius: 'var(--radius-sm)',
               }}>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  👥 Community Rating
+                  👥 Audience Rating
                 </div>
-                {userTheaterReviews.length > 0 ? (
+                {allTheaterReviews.length > 0 ? (
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                     <span style={{ fontSize: 26, fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-serif)' }}>
                       ★ {theaterRatingInfo.average}
                     </span>
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                      / 5 · {userTheaterReviews.length} review{userTheaterReviews.length !== 1 ? 's' : ''}
+                      / 5 · {allTheaterReviews.length} review{allTheaterReviews.length !== 1 ? 's' : ''}
                     </span>
                   </div>
                 ) : (
                   <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>No audience reviews yet</div>
-                )}
-              </div>
-
-              {/* Professional Rating */}
-              <div style={{
-                flex: 1, minWidth: 160, padding: '14px 18px',
-                background: 'linear-gradient(135deg, rgba(16,185,129,0.06), rgba(5,150,105,0.02))',
-                border: '1px solid rgba(16,185,129,0.2)',
-                borderRadius: 'var(--radius-sm)',
-              }}>
-                <div style={{ fontSize: 11, color: '#10b981', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <ShieldCheck size={13} /> Professional Critic Rating
-                </div>
-                {theaterProRatingInfo.count > 0 ? (
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                    <span style={{ fontSize: 26, fontWeight: 700, color: '#10b981', fontFamily: 'var(--font-serif)' }}>
-                      ★ {theaterProRatingInfo.average}
-                    </span>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                      / 5 · {theaterProRatingInfo.count} critic{theaterProRatingInfo.count !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>No critic reviews yet</div>
                 )}
               </div>
             </div>
@@ -515,20 +439,10 @@ export default function TheaterPage() {
             {/* Review Composer Form */}
             {showComposer && (
               <div id="theater-review-composer" style={{ marginBottom: 32 }}>
-                {currentUserIsPro && (
-                  <div style={{ marginBottom: 12, padding: '10px 14px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <ShieldCheck size={14} color="#10b981" />
-                    <span style={{ fontSize: 12, color: '#10b981', flex: 1 }}>Submit as Professional Theater Review</span>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                      <input type="checkbox" checked={submitAsPro} onChange={e => setSubmitAsPro(e.target.checked)} />
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{submitAsPro ? 'Professional ✓' : 'User Review'}</span>
-                    </label>
-                  </div>
-                )}
                 <ReviewComposer
                   theater={theater}
                   existingReview={editingReview}
-                  reviewType={submitAsPro && currentUserIsPro ? 'PROFESSIONAL' : 'USER'}
+                  reviewType="USER"
                   onClose={() => setShowComposer(false)}
                   onSuccess={() => setShowComposer(false)}
                 />
@@ -552,22 +466,15 @@ export default function TheaterPage() {
                     <button type="button" onClick={() => handleDeleteOwnReview(userExistingReview.id)} className="btn btn-ghost btn-sm" style={{ padding: '2px 8px', fontSize: 11, color: '#f87171' }}>Delete</button>
                   </div>
                 </div>
-                {userExistingReview.reviewType === 'PROFESSIONAL' ? (
-                  <ProfessionalReviewCard review={userExistingReview} onEdit={handleEditClick} onDelete={handleDeleteOwnReview} />
-                ) : (
-                  <ReviewCard review={userExistingReview} onEdit={handleEditClick} onDelete={handleDeleteOwnReview} />
-                )}
+                <ReviewCard review={userExistingReview} onEdit={handleEditClick} onDelete={handleDeleteOwnReview} />
               </div>
             )}
 
-            {/* Review Tabs (All, Audience, Professional) + Sort Controls */}
+            {/* Filter & Sort Controls */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 14 }}>
-              <ReviewTabs
-                activeTab={reviewTab}
-                onChange={setReviewTab}
-                userCount={userTheaterReviews.length}
-                proCount={proTheaterReviews.length}
-              />
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-serif)', letterSpacing: '0.05em' }}>
+                All Reviews ({allTheaterReviews.length})
+              </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Sliders size={13} color="var(--text-muted)" />
                 <select
@@ -589,36 +496,25 @@ export default function TheaterPage() {
               <div style={{ textAlign: 'center', padding: '48px 24px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-subtle)', borderRadius: 6 }}>
                 <MessageSquare size={32} color="var(--text-muted)" style={{ marginBottom: 12 }} />
                 <h4 style={{ fontFamily: 'var(--font-serif)', color: 'var(--text-secondary)', marginBottom: 6 }}>
-                  {reviewTab === 'professional' ? 'No Professional Reviews Yet' : 'No Theater Reviews Yet'}
+                  No Theater Reviews Yet
                 </h4>
                 <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 18 }}>
-                  {reviewTab === 'professional'
-                    ? 'No verified film critics have reviewed this theater yet.'
-                    : 'Be the first to share your projection, sound, and seating experience at this theater!'}
+                  Be the first to share your projection, sound, and seating experience at this theater!
                 </p>
-                {reviewTab !== 'professional' && !showComposer && (
+                {!showComposer && (
                   <button type="button" onClick={handleWriteClick} className="btn btn-primary btn-sm">Rate This Theater</button>
                 )}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {sortedReviews.map(rev =>
-                  rev.reviewType === 'PROFESSIONAL' ? (
-                    <ProfessionalReviewCard
-                      key={rev.id}
-                      review={rev}
-                      onEdit={handleEditClick}
-                      onDelete={handleDeleteOwnReview}
-                    />
-                  ) : (
-                    <ReviewCard
-                      key={rev.id}
-                      review={rev}
-                      onEdit={handleEditClick}
-                      onDelete={handleDeleteOwnReview}
-                    />
-                  )
-                )}
+                {sortedReviews.map(rev => (
+                  <ReviewCard
+                    key={rev.id}
+                    review={rev}
+                    onEdit={handleEditClick}
+                    onDelete={handleDeleteOwnReview}
+                  />
+                ))}
               </div>
             )}
           </div>

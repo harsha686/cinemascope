@@ -603,6 +603,7 @@ export function AppProvider({ children }) {
   // Separate review lists by type
   const isProfessionalReview = useCallback((r) => {
     if (!r) return false;
+    if (r.theaterId) return false; // Theaters never have critic/professional reviews
     if (r.reviewType === 'PROFESSIONAL') return true;
     if (r.reviewType === 'USER') return false;
     // Fallback: If reviewType is not explicitly tagged, check if the author is a verified pro
@@ -641,20 +642,12 @@ export function AppProvider({ children }) {
   }, [state.reviews]);
 
   const getTheaterUserReviews = useCallback((theaterId) => {
-    return state.reviews.filter(r =>
-      r.theaterId === theaterId &&
-      r.status === 'PUBLISHED' &&
-      !isProfessionalReview(r)
-    );
-  }, [state.reviews, isProfessionalReview]);
+    return state.reviews.filter(r => r.theaterId === theaterId && r.status === 'PUBLISHED');
+  }, [state.reviews]);
 
-  const getTheaterProfessionalReviews = useCallback((theaterId) => {
-    return state.reviews.filter(r =>
-      r.theaterId === theaterId &&
-      r.status === 'PUBLISHED' &&
-      isProfessionalReview(r)
-    );
-  }, [state.reviews, isProfessionalReview]);
+  const getTheaterProfessionalReviews = useCallback(() => {
+    return [];
+  }, []);
 
   const getTheaterRating = useCallback((theaterId) => {
     const published = state.reviews.filter(r => r.theaterId === theaterId && r.status === 'PUBLISHED');
@@ -664,16 +657,9 @@ export function AppProvider({ children }) {
     return { average: avg, count: published.length };
   }, [state.reviews]);
 
-  const getTheaterProfessionalRating = useCallback((theaterId) => {
-    const proRevs = state.reviews.filter(r =>
-      r.theaterId === theaterId &&
-      r.status === 'PUBLISHED' &&
-      isProfessionalReview(r)
-    );
-    if (proRevs.length === 0) return { average: 0, count: 0 };
-    const sum = proRevs.reduce((acc, r) => acc + (r.rating || 0), 0);
-    return { average: Math.round((sum / proRevs.length) * 10) / 10, count: proRevs.length };
-  }, [state.reviews, isProfessionalReview]);
+  const getTheaterProfessionalRating = useCallback(() => {
+    return { average: 0, count: 0 };
+  }, []);
 
   const getTheaterRatingDistribution = useCallback((theaterId) => {
     const published = state.reviews.filter(r => r.theaterId === theaterId && r.status === 'PUBLISHED');
