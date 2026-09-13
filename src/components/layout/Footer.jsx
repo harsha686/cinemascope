@@ -45,10 +45,8 @@ export default function Footer() {
             <p style={{ fontFamily: 'var(--font-serif)', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Explore</p>
             {[
               { to: '/', label: 'Home' },
-              { to: '/discover', label: 'Discover & Search' },
-              { to: '/weekend', label: '🏆 Weekend Pick' },
-              { to: '/movies', label: 'Now Showing' },
-              { to: '/library', label: 'My Library' },
+              { to: '/movies', label: 'Movies' },
+              { to: '/city/visakhapatnam', label: 'Visakhapatnam' },
               { to: '/compare', label: 'Compare Screens' },
               { to: '/formats', label: 'Format Guide' },
               { to: '/about', label: 'About & Data' },

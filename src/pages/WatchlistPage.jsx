@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bookmark, LayoutGrid, List as ListIcon, X, Check, Film, RefreshCw, ArrowLeft } from 'lucide-react';
+import { Bookmark, LayoutGrid, List as ListIcon, X, Check, Film } from 'lucide-react';
 import { useApp } from '../AppContext';
 import * as LibService from '../services/movieLibraryService';
 import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
@@ -58,8 +58,12 @@ export default function WatchlistPage() {
         } else {
           map[id] = {
             tmdbId: id,
-            title: item.title || item.movieMeta?.title || id,
-            posterUrl: item.movieMeta?.posterUrl || null,
+            id: `tmdb-${id}`,
+            title: item.title || item.movieMeta?.title || id.replace(/-series$/i, '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            posterUrl: item.posterUrl || item.movieMeta?.posterUrl || '',
+            releaseYear: item.releaseYear || item.movieMeta?.releaseYear || '',
+            voteAverage: item.rating || 0,
+            language: item.language || 'English',
           };
         }
       });
@@ -68,35 +72,21 @@ export default function WatchlistPage() {
   }, [watchlistItems]);
 
   const sortedItems = useMemo(() => {
-    const list = [...watchlistItems];
-    list.sort((a, b) => {
-      const mA = moviesData[a.tmdbId];
-      const mB = moviesData[b.tmdbId];
-      if (sort === 'title') {
-        const tA = mA?.title || a.title || a.tmdbId;
-        const tB = mB?.title || b.title || b.tmdbId;
-        return tA.localeCompare(tB);
-      }
-      if (sort === 'year') {
-        const yA = parseInt(mA?.releaseYear || 0, 10);
-        const yB = parseInt(mB?.releaseYear || 0, 10);
-        return yB - yA;
-      }
-      return 0; // dateAdded order preserved
-    });
-    return list;
-  }, [watchlistItems, moviesData, sort]);
+    const items = [...watchlistItems];
+    if (sort === 'title') items.sort((a, b) => (moviesData[a.tmdbId]?.title || '').localeCompare(moviesData[b.tmdbId]?.title || ''));
+    if (sort === 'year') items.sort((a, b) => (moviesData[b.tmdbId]?.releaseYear || 0) - (moviesData[a.tmdbId]?.releaseYear || 0));
+    return items;
+  }, [watchlistItems, sort, moviesData]);
 
   const handleRemove = async (tmdbId) => {
-    if (!currentUser) return;
-    await LibService.toggleWatchlist(tmdbId, currentUser.id);
+    await LibService.toggleWatchlist(tmdbId, currentUser?.id);
     setWatchlistItems(prev => prev.filter(i => i.tmdbId !== tmdbId));
   };
 
   const handleWatched = async (tmdbId) => {
-    if (!currentUser) return;
-    await LibService.toggleWatched(tmdbId, currentUser.id);
-    await LibService.toggleWatchlist(tmdbId, currentUser.id);
+    const m = moviesData[tmdbId];
+    await LibService.toggleWatched(tmdbId, currentUser?.id, m ? { title: m.title, posterUrl: m.posterUrl } : {});
+    await LibService.updateLibraryEntry(tmdbId, { in_watchlist: false }, currentUser?.id);
     setWatchlistItems(prev => prev.filter(i => i.tmdbId !== tmdbId));
   };
 
@@ -114,7 +104,7 @@ export default function WatchlistPage() {
   return (
     <div className="page-enter">
       {/* Header */}
-      <div style={{ padding: '48px 24px 32px', borderBottom: '1px solid var(--border-subtle)', background: 'linear-gradient(to bottom, rgba(220,182,91,0.03), transparent)' }}>
+      <div style={{ padding: '60px 24px 40px', borderBottom: '1px solid var(--border-subtle)', background: 'linear-gradient(to bottom, rgba(220,182,91,0.03), transparent)' }}>
         <div className="container" style={{ maxWidth: 1200 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
             <div>
@@ -127,13 +117,10 @@ export default function WatchlistPage() {
               </p>
             </div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <Link to="/library" className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <ArrowLeft size={14} /> Full Library
-              </Link>
-              <select className="input" value={sort} onChange={e => setSort(e.target.value)} style={{ fontSize: 12, background: 'var(--bg-card)', color: 'var(--text-primary)' }}>
-                <option value="dateAdded">Date Added</option>
-                <option value="title">Title</option>
-                <option value="year">Release Year</option>
+              <select className="input" value={sort} onChange={e => setSort(e.target.value)} style={{ fontSize: 12, background: '#18140e', color: '#ffffff' }}>
+                <option value="dateAdded" style={{ background: '#18140e', color: '#ffffff' }}>Date Added</option>
+                <option value="title" style={{ background: '#18140e', color: '#ffffff' }}>Title</option>
+                <option value="year" style={{ background: '#18140e', color: '#ffffff' }}>Release Year</option>
               </select>
               <div style={{ display: 'flex', border: '1px solid var(--border-subtle)', borderRadius: 4, overflow: 'hidden' }}>
                 <button

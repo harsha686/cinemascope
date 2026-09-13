@@ -3,23 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { searchTmdbMulti } from '../../services/tmdbService';
 
-export default function SearchAutocomplete({
-  placeholder = 'Search movies, TV shows, web series...',
-  onSelectMovie,
-  onSelect,
-  className = '',
-  compact = false,
-  inputStyle = {},
-  inputRef,
-}) {
+export default function SearchAutocomplete({ placeholder = 'Search movies, TV shows, web series...', onSelectMovie, onSelect, className = '' }) {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
-  const internalInputRef = useRef(null);
-  const effectiveInputRef = inputRef || internalInputRef;
 
   const callback = onSelectMovie || onSelect;
 
@@ -40,11 +30,6 @@ export default function SearchAutocomplete({
       }
       if (e.key === 'Enter' && isOpen && results.length > 0) {
         handleSelect(results[0]);
-      }
-      // Keyboard shortcut '/' to focus search if not in another input
-      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-        effectiveInputRef.current?.focus();
       }
     };
     document.addEventListener('keydown', handleKeyDown);
@@ -93,56 +78,25 @@ export default function SearchAutocomplete({
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%' }} className={className}>
       <div style={{ position: 'relative' }}>
-        <Search
-          size={compact ? 15 : 18}
-          style={{
-            position: 'absolute',
-            left: compact ? '11px' : '14px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            color: 'var(--text-muted)',
-            pointerEvents: 'none',
-          }}
-        />
+        <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
         <input
-          ref={effectiveInputRef}
           type="text"
           className="input"
           style={{
             width: '100%',
-            paddingLeft: compact ? '34px' : '42px',
-            paddingRight: compact ? '32px' : '14px',
-            height: compact ? '36px' : '46px',
-            fontSize: compact ? '13px' : '15px',
+            paddingLeft: '42px',
+            paddingRight: '14px',
+            height: '46px',
+            fontSize: '15px',
             background: 'var(--bg-card)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-sm)',
-            ...inputStyle,
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)'
           }}
           placeholder={placeholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => { if (query.trim().length >= 2) setIsOpen(true); }}
         />
-        {compact && !query && (
-          <span
-            style={{
-              position: 'absolute',
-              right: 10,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              fontSize: 10,
-              color: 'var(--text-muted)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 3,
-              padding: '1px 5px',
-              fontFamily: 'monospace',
-              pointerEvents: 'none',
-            }}
-          >
-            /
-          </span>
-        )}
       </div>
 
       {isOpen && (
