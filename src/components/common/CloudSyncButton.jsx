@@ -49,6 +49,7 @@ export default function CloudSyncButton({
             style={{
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: 6,
               fontSize: 11,
               padding: '5px 12px',
@@ -57,6 +58,9 @@ export default function CloudSyncButton({
               borderColor: configured ? 'var(--gold-dim)' : 'rgba(239,68,68,0.4)',
               color: isRefreshing ? 'var(--gold)' : 'var(--text-primary)',
               cursor: isRefreshing ? 'default' : 'pointer',
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+              minWidth: 146,
             }}
           >
             <RefreshCw
@@ -64,9 +68,12 @@ export default function CloudSyncButton({
               style={{
                 color: 'var(--gold)',
                 animation: isRefreshing ? 'spin 1s linear infinite' : 'none',
+                flexShrink: 0,
               }}
             />
-            <span>{isRefreshing ? 'Syncing...' : 'Sync Cloud'}</span>
+            <span style={{ display: 'inline-block', width: 58, textAlign: 'left', flexShrink: 0 }}>
+              {isRefreshing ? 'Syncing...' : 'Sync Cloud'}
+            </span>
             <span
               onClick={handleOpenModal}
               title="Cloud DB Settings"
@@ -74,13 +81,14 @@ export default function CloudSyncButton({
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginLeft: 4,
+                marginLeft: 2,
                 padding: '2px 5px',
                 borderRadius: 10,
                 background: configured ? 'rgba(74,222,128,0.15)' : 'rgba(239,68,68,0.2)',
                 color: configured ? '#4ade80' : '#f87171',
                 fontSize: 9,
                 fontWeight: 700,
+                flexShrink: 0,
               }}
             >
               {configured ? '● LIVE' : 'OFFLINE'}

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, useCallback, useState } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useState, useRef } from 'react';
 import theaterDB from './data/theaters.json';
 import initialMovies from './data/movies.json';
 import initialReviews from './data/reviews.json';
@@ -353,6 +353,12 @@ export function AppProvider({ children }) {
   const [syncMessage, setSyncMessage] = useState('');
   const [lastSyncedAt, setLastSyncedAt] = useState(() => loadStorage('cinemascope_last_synced_at', null));
 
+  // Keep a stable ref to current state to prevent dependency churn and re-render loops
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   // Sync from Supabase on load or when manually requested
   const syncCloudData = useCallback(async ({ forcePush = false, quiet = false } = {}) => {
     setIsRefreshing(true);
@@ -366,14 +372,16 @@ export function AppProvider({ children }) {
       return { success: false, reason: 'unconfigured' };
     }
 
+    const currentState = stateRef.current;
+
     try {
       // If forcePush requested, push current local movies and reviews first
       if (forcePush) {
         setSyncMessage('Pushing local movies to Supabase...');
-        for (const m of (state.movies || [])) {
+        for (const m of (currentState.movies || [])) {
           await supabaseService.saveMovie(m).catch(console.warn);
         }
-        for (const r of (state.reviews || [])) {
+        for (const r of (currentState.reviews || [])) {
           if (r.status === 'PUBLISHED') {
             await supabaseService.saveReview(r).catch(console.warn);
           }
@@ -417,9 +425,9 @@ export function AppProvider({ children }) {
         }));
         moviesCount = formatted.length;
         dispatch({ type: 'SET_MOVIES', payload: formatted });
-      } else if (state.movies && state.movies.length > 0) {
+      } else if (currentState.movies && currentState.movies.length > 0) {
         // Supabase has no movies; auto-seed remote database with local movies!
-        for (const m of state.movies) {
+        for (const m of currentState.movies) {
           supabaseService.saveMovie(m).catch(console.warn);
         }
       }
@@ -463,8 +471,8 @@ export function AppProvider({ children }) {
       }
 
       // Sync personal movie library if a user is logged in
-      if (state.currentUser && state.currentUser.id) {
-        await syncUserLibraryWithCloud(state.currentUser.id).catch(console.warn);
+      if (currentState.currentUser && currentState.currentUser.id) {
+        await syncUserLibraryWithCloud(currentState.currentUser.id).catch(console.warn);
       }
 
       const now = new Date().toISOString();
@@ -481,15 +489,16 @@ export function AppProvider({ children }) {
     } finally {
       setIsRefreshing(false);
     }
-  }, [state.movies, state.reviews, state.currentUser]);
+  }, []);
 
   const refreshData = useCallback(() => {
     return syncCloudData({ quiet: true });
   }, [syncCloudData]);
 
+  // Run initial cloud sync once on app load
   useEffect(() => {
     refreshData();
-  }, [refreshData]);
+  }, []);
 
   // Derived data helpers for Movies & Reviews
   const getMovie = useCallback((movieId) => {
