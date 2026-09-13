@@ -325,36 +325,169 @@ export default function ProfilePage() {
               </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {userReviews.map(rev => {
                 const isTheater = !!rev.theaterId;
                 const targetMovie = !isTheater && rev.movieId ? getMovie(rev.movieId) : null;
                 const targetTheater = isTheater ? getTheater(rev.theaterId) : null;
                 const targetUrl = isTheater ? `/theater/${rev.theaterId}` : `/movie/${rev.movieId}`;
-                const targetTitle = isTheater
+                
+                // Fallback title resolution
+                let targetTitle = isTheater
                   ? (targetTheater?.name || rev.theaterName || 'Theater')
-                  : (targetMovie?.title || rev.movieId);
+                  : (targetMovie?.title || rev.movieTitle || rev.parameterRatings?.movieTitle);
+
+                if (!targetTitle && rev.movieId) {
+                  const cleaned = String(rev.movieId).replace(/^tmdb-/, '');
+                  targetTitle = cleaned.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                }
+                if (!targetTitle) targetTitle = isTheater ? 'Theater' : 'Movie';
+
+                const posterSrc = !isTheater ? (targetMovie?.posterUrl || rev.posterUrl) : null;
+                const formattedDate = rev.createdAt
+                  ? new Date(rev.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                  : '';
 
                 return (
-                  <div key={rev.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', padding: 20, borderRadius: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--border-subtle)' }}>
-                      <Link to={targetUrl} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-                        {isTheater ? <Building2 size={16} color="var(--gold)" /> : <Film size={16} color="var(--gold)" />}
-                        <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', fontWeight: 600 }}>
-                          {targetTitle}
-                        </span>
-                        {isTheater && (
-                          <span className="badge badge-dim" style={{ fontSize: 9 }}>Theater</span>
+                  <div
+                    key={rev.id}
+                    style={{
+                      background: 'var(--bg-card)',
+                      border: '1px solid var(--border-subtle)',
+                      padding: 16,
+                      borderRadius: 'var(--radius-sm)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 12,
+                      transition: 'border-color 0.15s ease',
+                    }}
+                  >
+                    {/* Top Row: Title, Rating, & Actions */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                      <Link
+                        to={targetUrl}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          textDecoration: 'none',
+                          minWidth: 0,
+                          flex: 1,
+                        }}
+                      >
+                        {posterSrc ? (
+                          <img
+                            src={posterSrc}
+                            alt={targetTitle}
+                            style={{ width: 32, height: 46, objectFit: 'cover', borderRadius: 3, flexShrink: 0 }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: 32,
+                              height: 46,
+                              borderRadius: 3,
+                              background: 'rgba(255,255,255,0.04)',
+                              border: '1px solid var(--border-subtle)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {isTheater ? <Building2 size={16} color="var(--gold)" /> : <Film size={16} color="var(--gold)" />}
+                          </div>
                         )}
-                        <ChevronRight size={14} color="var(--gold)" />
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <span
+                              style={{
+                                fontFamily: 'var(--font-serif)',
+                                fontSize: 16,
+                                color: 'var(--text-primary)',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {targetTitle}
+                            </span>
+                            {isTheater && (
+                              <span className="badge badge-dim" style={{ fontSize: 9 }}>Theater</span>
+                            )}
+                          </div>
+                          {formattedDate && (
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                              {formattedDate}
+                            </div>
+                          )}
+                        </div>
                       </Link>
-                      <span className="badge badge-verified" style={{ fontSize: 9 }}>{rev.status}</span>
+
+                      {/* Right side: Score & Quick Actions */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                        {rev.rating > 0 && (
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              padding: '3px 10px',
+                              borderRadius: 16,
+                              background: 'var(--gold-faint)',
+                              border: '1px solid var(--gold-dim)',
+                              fontSize: 13,
+                              fontWeight: 700,
+                              color: 'var(--gold)',
+                            }}
+                          >
+                            <span>★</span>
+                            <span>{rev.rating}</span>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <button
+                            type="button"
+                            onClick={() => navigate(targetUrl)}
+                            className="btn btn-ghost btn-sm"
+                            style={{ fontSize: 12, padding: '4px 8px', color: 'var(--text-secondary)' }}
+                            title="Edit Review"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm('Are you sure you want to delete this review?')) {
+                                dispatch({ type: 'DELETE_REVIEW', payload: rev.id });
+                              }
+                            }}
+                            className="btn btn-ghost btn-sm"
+                            style={{ fontSize: 12, padding: '4px 8px', color: '#f87171' }}
+                            title="Delete Review"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <ReviewCard
-                      review={rev}
-                      onEdit={() => navigate(targetUrl)}
-                      onDelete={(id) => dispatch({ type: 'DELETE_REVIEW', payload: id })}
-                    />
+
+                    {/* Review text excerpt if available */}
+                    {rev.reviewText && (
+                      <p
+                        style={{
+                          fontSize: 13,
+                          color: 'var(--text-secondary)',
+                          lineHeight: 1.6,
+                          margin: 0,
+                          display: '-webkit-box',
+                          WebkitLineClamp: 3,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {rev.reviewText}
+                      </p>
+                    )}
                   </div>
                 );
               })}
