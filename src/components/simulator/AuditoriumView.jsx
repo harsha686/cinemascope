@@ -3,67 +3,79 @@ import { Play, Pause, Volume2, VolumeX, Film } from 'lucide-react';
 
 const DEMO_VIDEO_URL = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
 
-// 5 Realistic Cinema Color Palettes
+// 6 Realistic Cinema Color Palettes
 export const AUDITORIUM_THEMES = [
   {
     id: 'sapphire',
     name: 'Sapphire Blue',
     emoji: '🔵',
-    seatBase: '#1d4ed8',
+    seatBase: '#1e40af',
     seatTop: '#3b82f6',
-    seatStroke: 'rgba(96, 165, 250, 0.6)',
-    seatShadow: '#0f172a',
+    seatStroke: 'rgba(147, 197, 253, 0.65)',
+    seatShadow: '#091124',
     glowColor: '#38bdf8',
     aisleLight: '#60a5fa',
-    ambientHue: 'rgba(30, 58, 138, 0.25)',
+    ambientHue: 'rgba(30, 58, 138, 0.28)',
   },
   {
     id: 'crimson',
     name: 'Velvet Crimson',
     emoji: '🔴',
-    seatBase: '#991b1b',
-    seatTop: '#dc2626',
-    seatStroke: 'rgba(248, 113, 113, 0.6)',
-    seatShadow: '#1c0505',
-    glowColor: '#f87171',
+    seatBase: '#881337',
+    seatTop: '#be123c',
+    seatStroke: 'rgba(251, 113, 133, 0.65)',
+    seatShadow: '#1a030a',
+    glowColor: '#fb7185',
     aisleLight: '#fbbf24',
-    ambientHue: 'rgba(153, 27, 27, 0.25)',
+    ambientHue: 'rgba(136, 19, 55, 0.28)',
   },
   {
     id: 'gold',
     name: 'Cinemascope Gold',
     emoji: '🟡',
-    seatBase: '#855b18',
+    seatBase: '#784d12',
     seatTop: '#c9a84c',
-    seatStroke: 'rgba(252, 224, 139, 0.6)',
-    seatShadow: '#1a1408',
+    seatStroke: 'rgba(252, 224, 139, 0.65)',
+    seatShadow: '#1c1204',
     glowColor: '#fce08b',
     aisleLight: '#c9a84c',
-    ambientHue: 'rgba(201, 168, 76, 0.22)',
+    ambientHue: 'rgba(201, 168, 76, 0.25)',
   },
   {
     id: 'obsidian',
     name: 'Obsidian VIP',
     emoji: '⚫',
-    seatBase: '#27272a',
-    seatTop: '#3f3f46',
-    seatStroke: 'rgba(161, 161, 170, 0.5)',
-    seatShadow: '#09090b',
-    glowColor: '#e4e4e7',
-    aisleLight: '#a1a1aa',
-    ambientHue: 'rgba(39, 39, 42, 0.3)',
+    seatBase: '#22252e',
+    seatTop: '#3d4452',
+    seatStroke: 'rgba(156, 163, 175, 0.55)',
+    seatShadow: '#0a0c10',
+    glowColor: '#e2e8f0',
+    aisleLight: '#cbd5e1',
+    ambientHue: 'rgba(40, 44, 56, 0.3)',
   },
   {
     id: 'emerald',
-    name: 'Emerald Club',
+    name: 'Emerald Royale',
     emoji: '🟢',
-    seatBase: '#047857',
+    seatBase: '#065f46',
     seatTop: '#059669',
-    seatStroke: 'rgba(52, 211, 153, 0.6)',
-    seatShadow: '#022c22',
+    seatStroke: 'rgba(52, 211, 153, 0.65)',
+    seatShadow: '#02241b',
     glowColor: '#34d399',
     aisleLight: '#34d399',
-    ambientHue: 'rgba(4, 120, 87, 0.25)',
+    ambientHue: 'rgba(6, 95, 70, 0.28)',
+  },
+  {
+    id: 'amethyst',
+    name: 'Royal Amethyst',
+    emoji: '🟣',
+    seatBase: '#581c87',
+    seatTop: '#7e22ce',
+    seatStroke: 'rgba(216, 180, 254, 0.65)',
+    seatShadow: '#150524',
+    glowColor: '#c084fc',
+    aisleLight: '#d8b4fe',
+    ambientHue: 'rgba(88, 28, 135, 0.28)',
   },
 ];
 
@@ -118,12 +130,12 @@ export default function AuditoriumView({
   const screenRight = centerX + screenW / 2;
   const screenBottom = screenTop + screenH;
 
-  // Stadium Seating Generation (4 perfectly aligned perspective rows)
+  // Stadium Seating Generation (4 perfectly aligned, mathematically symmetric perspective rows)
   const rowsConfig = [
-    { rowIdx: 0, seatsPerBank: 5, scale: 0.78, y: screenBottom + 46, aisleW: 46 },
-    { rowIdx: 1, seatsPerBank: 5, scale: 0.86, y: screenBottom + 94, aisleW: 50 },
-    { rowIdx: 2, seatsPerBank: 5, scale: 0.96, y: screenBottom + 146, aisleW: 56 },
-    { rowIdx: 3, seatsPerBank: 6, scale: 1.06, y: screenBottom + 204, aisleW: 62 },
+    { rowIdx: 0, seatsPerBank: 5, scale: 0.76, y: screenBottom + 46, aisleW: 44 },
+    { rowIdx: 1, seatsPerBank: 6, scale: 0.84, y: screenBottom + 94, aisleW: 48 },
+    { rowIdx: 2, seatsPerBank: 6, scale: 0.94, y: screenBottom + 146, aisleW: 54 },
+    { rowIdx: 3, seatsPerBank: 6, scale: 1.05, y: screenBottom + 204, aisleW: 60 },
   ];
 
   const togglePlay = () => {
@@ -551,34 +563,38 @@ export default function AuditoriumView({
             const { seatsPerBank, scale, y, aisleW } = row;
             const seatW = 28 * scale;
             const seatGap = 5 * scale;
+            const halfAisle = aisleW / 2;
 
-            // Generate Seats for Left Bank and Right Bank
+            // Generate Seats for Left Bank and Right Bank with exact mirror symmetry
             const seats = [];
 
-            // Left Bank (seats from aisle toward left wall)
-            for (let i = 0; i < seatsPerBank; i++) {
-              const seatX = centerX - aisleW / 2 - (seatsPerBank - i) * (seatW + seatGap);
-              // Symmetrical subtle stadium curvature
-              const distFromCenter = Math.abs(seatX + seatW / 2 - centerX);
-              const curveY = -Math.pow(distFromCenter / 450, 2) * 8 * scale;
+            for (let k = 0; k < seatsPerBank; k++) {
+              // k = 0 is closest to aisle, k = seatsPerBank - 1 is closest to outer wall
+              // Left Bank seat (mirror symmetric to right bank)
+              const seatX_L = centerX - halfAisle - (k + 1) * seatW - k * seatGap;
+              const distL = Math.abs(seatX_L + seatW / 2 - centerX);
+              const curveY_L = -Math.pow(distL / 450, 2) * 7 * scale;
+
               seats.push({
-                x: seatX,
-                y: y + curveY,
-                id: `seat-L-${row.rowIdx}-${i}`,
+                x: seatX_L,
+                y: y + curveY_L,
+                id: `seat-L-${row.rowIdx}-${k}`,
+              });
+
+              // Right Bank seat
+              const seatX_R = centerX + halfAisle + k * (seatW + seatGap);
+              const distR = Math.abs(seatX_R + seatW / 2 - centerX);
+              const curveY_R = -Math.pow(distR / 450, 2) * 7 * scale;
+
+              seats.push({
+                x: seatX_R,
+                y: y + curveY_R,
+                id: `seat-R-${row.rowIdx}-${k}`,
               });
             }
 
-            // Right Bank (seats from aisle toward right wall)
-            for (let i = 0; i < seatsPerBank; i++) {
-              const seatX = centerX + aisleW / 2 + i * (seatW + seatGap);
-              const distFromCenter = Math.abs(seatX + seatW / 2 - centerX);
-              const curveY = -Math.pow(distFromCenter / 450, 2) * 8 * scale;
-              seats.push({
-                x: seatX,
-                y: y + curveY,
-                id: `seat-R-${row.rowIdx}-${i}`,
-              });
-            }
+            // Sort seats from left to right for clean DOM ordering
+            seats.sort((a, b) => a.x - b.x);
 
             return (
               <g key={`row-${row.rowIdx}`}>
