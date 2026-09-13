@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Monitor, MapPin, Layers, ChevronRight, Star, Edit3, Trash2 } from 'lucide-react';
+import { useApp } from '../../AppContext';
+
 
 function FeatureBadge({ label }) {
   const colors = {
@@ -36,7 +38,10 @@ function FeatureBadge({ label }) {
 
 export default function TheaterCard({ theater, compact = false, onEdit, onDelete, isAdmin = false }) {
   const navigate = useNavigate();
+  const { getTheaterRating } = useApp();
   if (!theater) return null;
+
+  const ratingInfo = getTheaterRating ? getTheaterRating(theater.id) : { average: 0, count: 0 };
 
   const typeLabel = {
     multiplex: 'Multiplex',
@@ -147,13 +152,6 @@ export default function TheaterCard({ theater, compact = false, onEdit, onDelete
         </span>
       </div>
 
-      {/* Description */}
-      {!compact && theater.description && (
-        <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.7, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-          {theater.description}
-        </p>
-      )}
-
       {/* Feature badges */}
       {theater.features && theater.features.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
@@ -166,9 +164,22 @@ export default function TheaterCard({ theater, compact = false, onEdit, onDelete
 
       {/* CTA */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-        <span style={{ fontSize: 9, color: 'var(--text-muted)', fontFamily: 'var(--font-serif)', letterSpacing: '0.1em' }}>
-          {theater.sourceConfidence === 'reported' ? 'Data: Reported' : theater.sourceConfidence === 'estimated' ? 'Data: Estimated' : ''}
-        </span>
+        {ratingInfo.count > 0 ? (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <Star size={11} fill="var(--gold)" color="var(--gold)" />
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-serif)' }}>
+              {ratingInfo.average}
+            </span>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+              ({ratingInfo.count} {ratingInfo.count === 1 ? 'review' : 'reviews'})
+            </span>
+          </div>
+        ) : (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text-muted)' }}>
+            <Star size={10} color="var(--text-muted)" />
+            <span>No reviews yet</span>
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--gold)', fontSize: 11, fontFamily: 'var(--font-serif)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
           View Screens
           <ChevronRight size={13} />
