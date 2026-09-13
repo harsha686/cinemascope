@@ -1,21 +1,20 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Compass, Trophy, Film, User } from 'lucide-react';
+import { Home, Compass, Trophy, Bookmark, User } from 'lucide-react';
 import { useApp } from '../../AppContext';
 
 export default function MobileBottomNav() {
   const location = useLocation();
-  const { state, allCities } = useApp();
+  const { state } = useApp();
   const currentUser = state?.currentUser;
-  const activeCity = state?.selectedCity || allCities?.[0];
 
   const navItems = [
     { to: '/', label: 'Home', icon: Home },
     { to: '/discover', label: 'Discover', icon: Compass },
     { to: '/weekend', label: 'Weekend', icon: Trophy },
-    { to: '/movies', label: 'Now Showing', icon: Film },
+    { to: '/library', label: 'Library', icon: Bookmark },
     {
-      to: currentUser ? `/profile/${currentUser.id || 'admin-1'}` : '/login',
+      to: currentUser ? '/profile' : '/login',
       label: currentUser ? 'Profile' : 'Sign In',
       icon: User,
     },

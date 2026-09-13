@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Film, Menu, X, ChevronRight, User, LogOut, ShieldAlert, MapPin } from 'lucide-react';
+import { Film, Menu, X, ChevronRight, User, LogOut, ShieldAlert, MapPin, Search, Bookmark, Compass, Trophy } from 'lucide-react';
 import { useApp } from '../../AppContext';
+import SearchAutocomplete from '../discovery/SearchAutocomplete';
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [userDropdown, setUserDropdown] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -24,6 +26,7 @@ export default function Navbar() {
   useEffect(() => {
     setMenuOpen(false);
     setUserDropdown(false);
+    setMobileSearchOpen(false);
   }, [location]);
 
   useEffect(() => {
@@ -34,14 +37,22 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const navLinks = [
-    { to: '/', label: 'Home' },
-    { to: '/weekend', label: '🏆 Weekend Pick' },
+  const primaryNavLinks = [
     { to: '/discover', label: 'Discover' },
     { to: '/movies', label: 'Now Showing' },
     { to: `/city/${activeCity?.id || 'visakhapatnam'}`, label: 'Theaters' },
     { to: '/formats', label: 'Formats' },
-    { to: '/compare', label: 'Compare' },
+  ];
+
+  const drawerLinks = [
+    { to: '/', label: 'Home' },
+    { to: '/discover', label: 'Discover' },
+    { to: '/weekend', label: '🏆 Weekend Pick' },
+    { to: '/movies', label: 'Now Showing' },
+    { to: `/city/${activeCity?.id || 'visakhapatnam'}`, label: 'Theaters' },
+    { to: '/formats', label: 'Formats Guide' },
+    { to: '/compare', label: 'Compare Screens' },
+    { to: '/library', label: 'My Library' },
   ];
 
   const handleLogout = () => {
@@ -62,17 +73,17 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop Navigation Links */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(14px, 1.8vw, 28px)' }} className="desktop-nav">
-          {navLinks.map(link => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(12px, 1.5vw, 24px)' }} className="desktop-nav">
+          {primaryNavLinks.map(link => (
             <Link
               key={link.to}
               to={link.to}
               style={{
                 fontFamily: 'var(--font-serif)',
                 fontSize: 12,
-                letterSpacing: '0.15em',
+                letterSpacing: '0.14em',
                 textTransform: 'uppercase',
-                fontWeight: 500,
+                fontWeight: location.pathname === link.to ? 600 : 500,
                 color: location.pathname === link.to ? 'var(--gold)' : 'var(--text-secondary)',
                 transition: 'color var(--transition-base)',
                 textDecoration: 'none',
@@ -86,8 +97,75 @@ export default function Navbar() {
           ))}
         </div>
 
-        {/* Right Action Controls (Auth Menu) */}
+        {/* Desktop Search Bar */}
+        <div className="desktop-search-wrapper" style={{ flex: '1 1 220px', maxWidth: 320, margin: '0 12px' }}>
+          <SearchAutocomplete compact placeholder="Search movies, series... (/)" />
+        </div>
+
+        {/* Right Action Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          {/* Weekend Pick Highlight Button */}
+          <Link
+            to="/weekend"
+            className="weekend-pill-desktop"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '5px 12px',
+              fontSize: 11,
+              fontFamily: 'var(--font-serif)',
+              fontWeight: 600,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--gold)',
+              background: 'linear-gradient(135deg, rgba(220,182,91,0.12), rgba(220,182,91,0.04))',
+              border: '1px solid var(--gold-dim)',
+              borderRadius: 20,
+              textDecoration: 'none',
+              whiteSpace: 'nowrap',
+              transition: 'all var(--transition-fast)',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = 'var(--gold)';
+              e.currentTarget.style.background = 'rgba(220,182,91,0.2)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = 'var(--gold-dim)';
+              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(220,182,91,0.12), rgba(220,182,91,0.04))';
+            }}
+          >
+            <Trophy size={13} color="var(--gold)" />
+            <span>Weekend Pick</span>
+          </Link>
+
+          {/* Library Link (Desktop) */}
+          <Link
+            to="/library"
+            className="library-link-desktop"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 12,
+              fontFamily: 'var(--font-serif)',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              fontWeight: 500,
+              color: location.pathname.startsWith('/library') ? 'var(--gold)' : 'var(--text-secondary)',
+              textDecoration: 'none',
+              padding: '6px 10px',
+              borderRadius: 'var(--radius-sm)',
+              transition: 'color var(--transition-fast)',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={e => { if (!location.pathname.startsWith('/library')) e.currentTarget.style.color = 'var(--text-primary)'; }}
+            onMouseLeave={e => { if (!location.pathname.startsWith('/library')) e.currentTarget.style.color = 'var(--text-secondary)'; }}
+          >
+            <Bookmark size={13} />
+            <span>Library</span>
+          </Link>
+
           {currentUser ? (
             <div ref={dropdownRef} style={{ position: 'relative', flexShrink: 0 }}>
               <button
@@ -132,7 +210,7 @@ export default function Navbar() {
                   top: '100%',
                   right: 0,
                   marginTop: 8,
-                  width: 180,
+                  width: 190,
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border)',
                   borderRadius: 'var(--radius-sm)',
@@ -197,6 +275,27 @@ export default function Navbar() {
             </div>
           )}
 
+          {/* Mobile search toggle */}
+          <button
+            onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
+            aria-label="Search"
+            style={{
+              color: mobileSearchOpen ? 'var(--gold)' : 'var(--text-primary)',
+              display: 'none',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '6px',
+              borderRadius: 4,
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+            className="mobile-search-btn"
+          >
+            <Search size={20} />
+          </button>
+
           {/* Mobile menu toggle */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
@@ -220,6 +319,23 @@ export default function Navbar() {
         </div>
 
       </div>
+
+      {/* Mobile Search Overlay Bar */}
+      {mobileSearchOpen && (
+        <div style={{
+          padding: '10px 16px 12px',
+          background: 'rgba(14, 11, 8, 0.98)',
+          borderBottom: '1px solid var(--border)',
+          backdropFilter: 'blur(16px)',
+        }}>
+          <SearchAutocomplete
+            compact
+            autoFocus
+            onSelectMovie={() => setMobileSearchOpen(false)}
+            placeholder="Search movies, series, crew..."
+          />
+        </div>
+      )}
 
       {/* Mobile Dropdown */}
       {menuOpen && (
@@ -285,7 +401,7 @@ export default function Navbar() {
           </div>
 
           {/* Links */}
-          {navLinks.map(link => (
+          {drawerLinks.map(link => (
             <Link
               key={link.to}
               to={link.to}
@@ -411,6 +527,10 @@ export default function Navbar() {
       <style>{`
         @media (max-width: 1024px) {
           .desktop-nav { display: none !important; }
+          .desktop-search-wrapper { display: none !important; }
+          .weekend-pill-desktop { display: none !important; }
+          .library-link-desktop { display: none !important; }
+          .mobile-search-btn { display: flex !important; }
           .mobile-menu-btn { display: flex !important; }
         }
         @media (max-width: 640px) {

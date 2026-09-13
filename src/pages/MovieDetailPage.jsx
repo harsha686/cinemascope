@@ -522,19 +522,37 @@ export default function MovieDetailPage() {
                 ))}
               </div>
 
-              {/* Primary Action Button */}
-              <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+              {/* Unified Letterboxd-Style Action Bar */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 10,
+                marginTop: 18,
+                padding: '12px 16px',
+                background: 'rgba(16, 12, 10, 0.75)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                backdropFilter: 'blur(12px)',
+              }}>
+                <MovieStatusBar
+                  tmdbId={isTmdbMovie ? tmdbId : movieId}
+                  movieMeta={{ title: movie.title, posterUrl: movie.posterUrl }}
+                  compact={false}
+                />
+
+                <div style={{ width: 1, height: 26, background: 'var(--border-subtle)', margin: '0 4px' }} className="action-bar-divider" />
+
                 <button
                   type="button"
                   onClick={handleWriteClick}
-                  className="btn btn-primary"
-                  style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                  className="btn btn-primary btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
-                  <MessageSquare size={16} />
-                  {userExistingReview ? 'Edit Your Review' : 'Write a Review'}
+                  <MessageSquare size={15} />
+                  <span>{userExistingReview ? 'Edit Review' : 'Rate & Review'}</span>
                 </button>
 
-                {/* Aesthetic Social Card Generator Button */}
                 <ShareButton
                   contentType={SOCIAL_CONTENT_TYPES.MOVIE}
                   data={{
@@ -542,8 +560,8 @@ export default function MovieDetailPage() {
                     personalRating: userExistingReview?.rating || movie.personalRating || null,
                   }}
                   variant="outline"
-                  size="md"
-                  customLabel="✨ Create Aesthetic"
+                  size="sm"
+                  customLabel="✨ Share Card"
                 />
 
                 {movie.trailerUrl && (
@@ -551,20 +569,13 @@ export default function MovieDetailPage() {
                     href={movie.trailerUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="btn btn-outline"
-                    style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    className="btn btn-ghost btn-sm"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)' }}
                   >
-                    <Play size={16} /> Watch Trailer
+                    <Play size={14} />
+                    <span>Trailer</span>
                   </a>
                 )}
-              </div>
-
-              {/* Personal Movie Status Bar */}
-              <div style={{ marginTop: 16 }}>
-                <MovieStatusBar
-                  tmdbId={isTmdbMovie ? tmdbId : movieId}
-                  movieMeta={{ title: movie.title, posterUrl: movie.posterUrl }}
-                />
               </div>
             </div>
           </div>
