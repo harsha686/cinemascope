@@ -34,7 +34,7 @@ export default function ScreenSimulator({
       setContainerW(containerWidth);
     }
   }, [containerWidth]);
-  const [useVideo, setUseVideo] = useState(false);
+  const [useVideo, setUseVideo] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [videoTime, setVideoTime] = useState(0);
@@ -121,36 +121,14 @@ export default function ScreenSimulator({
 
   return (
     <div ref={containerRef} style={{ width: '100%' }}>
-      {/* Top Aspect Ratio Badge */}
-      <div style={{ textAlign: 'center', marginBottom: 20 }}>
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 12,
-          padding: '6px 22px',
-          border: '1px solid rgba(245, 158, 11, 0.5)',
-          background: 'rgba(12, 10, 6, 0.85)',
-          borderRadius: 4,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
-        }}>
-          <span style={{
-            fontFamily: 'monospace',
-            fontSize: 20,
-            fontWeight: 800,
-            color: '#f59e0b',
-            letterSpacing: '0.06em',
-          }}>
+      {/* Ratio label */}
+      <div style={{ textAlign: 'center', marginBottom: 16 }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, padding: '6px 20px', border: '1px solid var(--border)' }}>
+          <span style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--gold)', letterSpacing: '0.1em' }}>
             {screenRatioLabel}
           </span>
-          <div style={{ width: 1, height: 16, background: 'rgba(245, 158, 11, 0.4)' }} />
-          <span style={{
-            fontFamily: 'system-ui, -apple-system, sans-serif',
-            fontSize: 12,
-            fontWeight: 800,
-            letterSpacing: '0.18em',
-            textTransform: 'uppercase',
-            color: '#e2e8f0',
-          }}>
+          <div style={{ width: 1, height: 16, background: 'var(--border)' }} />
+          <span style={{ fontFamily: 'var(--font-serif)', fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
             {screenFormatName}
           </span>
         </div>
@@ -164,8 +142,8 @@ export default function ScreenSimulator({
           alignItems: 'center',
           height: stageHeight ? `${stageHeight + 36}px` : 'auto',
           minHeight: stageHeight ? `${stageHeight + 36}px` : 'auto',
-          paddingTop: 30,
-          paddingRight: 36,
+          paddingTop: 28,
+          paddingRight: 34,
           boxSizing: 'content-box',
           transition: 'height 400ms ease',
         }}
@@ -175,10 +153,10 @@ export default function ScreenSimulator({
           <div
             style={{
               position: 'absolute',
-              top: -26,
+              top: -24,
               left: 0,
               width: screenW,
-              height: 22,
+              height: 20,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -188,22 +166,22 @@ export default function ScreenSimulator({
           >
             <svg
               width={screenW}
-              height={22}
+              height={20}
               style={{ position: 'absolute', left: 0, top: 0, overflow: 'visible' }}
             >
               {/* Main dimension line */}
               <line
                 x1={0}
-                y1={11}
+                y1={10}
                 x2={screenW}
-                y2={11}
-                stroke="rgba(245, 158, 11, 0.35)"
+                y2={10}
+                stroke="rgba(201,168,76,0.35)"
                 strokeWidth={1}
               />
-              {/* Left bracket cap [ */}
-              <path d="M 6 4 L 0 4 L 0 18 L 6 18" fill="none" stroke="#f59e0b" strokeWidth="1.8" />
-              {/* Right bracket cap ] */}
-              <path d={`M ${screenW - 6} 4 L ${screenW} 4 L ${screenW} 18 L ${screenW - 6} 18`} fill="none" stroke="#f59e0b" strokeWidth="1.8" />
+              {/* Left boundary end cap */}
+              <line x1={0} y1={2} x2={0} y2={18} stroke="var(--gold)" strokeWidth={1.5} />
+              {/* Right boundary end cap */}
+              <line x1={screenW} y1={2} x2={screenW} y2={18} stroke="var(--gold)" strokeWidth={1.5} />
 
               {/* Incremental ruler notches */}
               {Array.from({ length: 21 }).map((_, i) => {
@@ -213,10 +191,10 @@ export default function ScreenSimulator({
                   <line
                     key={`w-tick-${i}`}
                     x1={x}
-                    y1={isMajor ? 4 : 8}
+                    y1={isMajor ? 3 : 7}
                     x2={x}
-                    y2={isMajor ? 18 : 14}
-                    stroke={isMajor ? "#f59e0b" : "rgba(245, 158, 11, 0.3)"}
+                    y2={isMajor ? 17 : 13}
+                    stroke={isMajor ? "var(--gold)" : "rgba(201,168,76,0.25)"}
                     strokeWidth={1}
                   />
                 );
@@ -228,14 +206,14 @@ export default function ScreenSimulator({
               style={{
                 position: 'relative',
                 zIndex: 2,
-                background: '#0e0b06',
-                border: '1px solid rgba(245, 158, 11, 0.55)',
-                boxShadow: '0 2px 10px rgba(0,0,0,0.8)',
-                padding: '2px 10px',
+                background: '#120f0a',
+                border: '1px solid rgba(201,168,76,0.45)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
+                padding: '1px 8px',
                 borderRadius: 4,
                 fontSize: 10,
                 fontFamily: 'monospace',
-                color: '#f59e0b',
+                color: 'var(--gold)',
                 letterSpacing: '0.06em',
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -244,9 +222,9 @@ export default function ScreenSimulator({
               }}
               title={`Screen Width: ${widthScaleText}`}
             >
-              <span style={{ fontSize: 9, opacity: 0.85 }}>←</span>
-              <span style={{ fontWeight: 800 }}>W: {widthScaleText}</span>
-              <span style={{ fontSize: 9, opacity: 0.85 }}>→</span>
+              <span style={{ fontSize: 9, opacity: 0.8 }}>⟵</span>
+              <span style={{ fontWeight: 700 }}>W: {widthScaleText}</span>
+              <span style={{ fontSize: 9, opacity: 0.8 }}>⟶</span>
             </div>
           </div>
 
@@ -255,8 +233,8 @@ export default function ScreenSimulator({
             style={{
               position: 'absolute',
               top: 0,
-              right: -34,
-              width: 28,
+              right: -32,
+              width: 26,
               height: screenH,
               display: 'flex',
               alignItems: 'center',
@@ -266,23 +244,23 @@ export default function ScreenSimulator({
             }}
           >
             <svg
-              width={28}
+              width={26}
               height={screenH}
               style={{ position: 'absolute', left: 0, top: 0, overflow: 'visible' }}
             >
               {/* Main dimension line */}
               <line
-                x1={10}
+                x1={8}
                 y1={0}
-                x2={10}
+                x2={8}
                 y2={screenH}
-                stroke="rgba(245, 158, 11, 0.35)"
+                stroke="rgba(201,168,76,0.35)"
                 strokeWidth={1}
               />
-              {/* Top bracket cap [ */}
-              <path d="M 0 6 L 0 0 L 14 0 L 14 6" fill="none" stroke="#f59e0b" strokeWidth="1.8" />
-              {/* Bottom bracket cap ] */}
-              <path d={`M 0 ${screenH - 6} L 0 ${screenH} L 14 ${screenH} L 14 ${screenH - 6}`} fill="none" stroke="#f59e0b" strokeWidth="1.8" />
+              {/* Top boundary end cap */}
+              <line x1={0} y1={0} x2={16} y2={0} stroke="var(--gold)" strokeWidth={1.5} />
+              {/* Bottom boundary end cap */}
+              <line x1={0} y1={screenH} x2={16} y2={screenH} stroke="var(--gold)" strokeWidth={1.5} />
 
               {/* Incremental ruler notches */}
               {Array.from({ length: 11 }).map((_, i) => {
@@ -291,11 +269,11 @@ export default function ScreenSimulator({
                 return (
                   <line
                     key={`h-tick-${i}`}
-                    x1={isMajor ? 3 : 7}
+                    x1={isMajor ? 1 : 5}
                     y1={y}
-                    x2={isMajor ? 17 : 13}
+                    x2={isMajor ? 15 : 11}
                     y2={y}
-                    stroke={isMajor ? "#f59e0b" : "rgba(245, 158, 11, 0.3)"}
+                    stroke={isMajor ? "var(--gold)" : "rgba(201,168,76,0.25)"}
                     strokeWidth={1}
                   />
                 );
@@ -308,14 +286,14 @@ export default function ScreenSimulator({
                 position: 'relative',
                 zIndex: 2,
                 transform: 'rotate(90deg)',
-                background: '#0e0b06',
-                border: '1px solid rgba(245, 158, 11, 0.55)',
-                boxShadow: '0 2px 10px rgba(0,0,0,0.8)',
-                padding: '2px 8px',
+                background: '#120f0a',
+                border: '1px solid rgba(201,168,76,0.45)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
+                padding: '1px 6px',
                 borderRadius: 4,
                 fontSize: 9,
                 fontFamily: 'monospace',
-                color: '#f59e0b',
+                color: 'var(--gold)',
                 letterSpacing: '0.06em',
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -324,9 +302,9 @@ export default function ScreenSimulator({
               }}
               title={`Screen Height: ${heightScaleText}`}
             >
-              <span style={{ fontSize: 8, opacity: 0.85 }}>←</span>
-              <span style={{ fontWeight: 800 }}>H: {heightScaleText}</span>
-              <span style={{ fontSize: 8, opacity: 0.85 }}>→</span>
+              <span style={{ fontSize: 8, opacity: 0.8 }}>⟵</span>
+              <span style={{ fontWeight: 700 }}>H: {heightScaleText}</span>
+              <span style={{ fontSize: 8, opacity: 0.8 }}>⟶</span>
             </div>
           </div>
 
@@ -338,7 +316,7 @@ export default function ScreenSimulator({
               background: '#000',
               position: 'relative',
               overflow: 'hidden',
-              boxShadow: '0 0 0 1px rgba(245, 158, 11, 0.35), 0 0 60px rgba(0,0,0,0.9), 0 0 80px rgba(245, 158, 11, 0.08)',
+              boxShadow: '0 0 0 1px rgba(201,168,76,0.3), 0 0 60px rgba(0,0,0,0.8), 0 0 80px rgba(201,168,76,0.06)',
               transition: 'width 550ms cubic-bezier(0.25,0.46,0.45,0.94), height 550ms cubic-bezier(0.25,0.46,0.45,0.94)',
             }}
           >
@@ -365,6 +343,7 @@ export default function ScreenSimulator({
               alt="Demo cinema frame"
               style={mediaStyle}
               onError={(e) => {
+                // Generate gradient fallback
                 e.target.style.display = 'none';
               }}
             />
@@ -373,40 +352,38 @@ export default function ScreenSimulator({
           {/* Inner vignette */}
           <div style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 0 80px rgba(0,0,0,0.5)', pointerEvents: 'none' }} />
 
-          {/* Ratio overlay label in top right corner */}
+          {/* Ratio overlay label */}
           <div style={{
             position: 'absolute',
-            top: 10,
+            top: 12,
             right: 12,
-            fontFamily: 'system-ui, sans-serif',
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: '0.1em',
-            color: 'rgba(255,255,255,0.85)',
-            textShadow: '0 2px 8px rgba(0,0,0,0.95)',
+            fontFamily: 'var(--font-serif)',
+            fontSize: 9,
+            letterSpacing: '0.15em',
+            color: 'rgba(255,255,255,0.6)',
             pointerEvents: 'none',
           }}>
             {screenRatioLabel} · {screenFormatName}
           </div>
 
-          {/* Video controls (only if useVideo is toggled on) */}
+          {/* Video controls */}
           {useVideo && !videoError && (
             <div style={{
               position: 'absolute',
               bottom: 0,
               left: 0,
               right: 0,
-              background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)',
+              background: 'linear-gradient(to top, rgba(0,0,0,0.75), transparent)',
               padding: '8px 12px',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
             }}>
               <button onClick={togglePlay} aria-label={isPlaying ? 'Pause' : 'Play'}
-                style={{ color: '#f59e0b', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: 4 }}>
+                style={{ color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: 4 }}>
                 {isPlaying ? <Pause size={14} /> : <Play size={14} />}
               </button>
-              <span style={{ fontSize: 10, color: '#f59e0b', fontFamily: 'monospace', minWidth: 36 }}>
+              <span style={{ fontSize: 10, color: 'var(--gold)', fontFamily: 'monospace', minWidth: 36 }}>
                 {fmt(videoTime)}
               </span>
               <div
@@ -414,15 +391,15 @@ export default function ScreenSimulator({
                 style={{ flex: 1, height: 24, display: 'flex', alignItems: 'center', cursor: 'pointer' }}
                 onClick={handleSeek}
               >
-                <div style={{ width: '100%', height: 2, background: 'rgba(245,158,11,0.2)', borderRadius: 1, position: 'relative' }}>
-                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${videoDuration ? (videoTime/videoDuration)*100 : 0}%`, background: '#f59e0b', borderRadius: 1 }} />
+                <div style={{ width: '100%', height: 2, background: 'rgba(201,168,76,0.2)', borderRadius: 1, position: 'relative' }}>
+                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${videoDuration ? (videoTime/videoDuration)*100 : 0}%`, background: 'var(--gold)', borderRadius: 1 }} />
                 </div>
               </div>
-              <span style={{ fontSize: 10, color: '#f59e0b', fontFamily: 'monospace', minWidth: 36 }}>
+              <span style={{ fontSize: 10, color: 'var(--gold)', fontFamily: 'monospace', minWidth: 36 }}>
                 {fmt(videoDuration)}
               </span>
               <button onClick={toggleMute} aria-label={isMuted ? 'Unmute' : 'Mute'}
-                style={{ color: '#f59e0b', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: 4 }}>
+                style={{ color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: 4 }}>
                 {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
               </button>
             </div>
@@ -431,97 +408,35 @@ export default function ScreenSimulator({
       </div>
       </div>
 
-      {/* Mode toggle & stats matching Image 1 */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginTop: 18,
-        minHeight: 46,
-        gap: 12,
-        padding: '0 4px',
-      }}>
-        {/* Mode toggle buttons */}
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <button
-            onClick={() => onModeChange && onModeChange('fit')}
-            style={{
-              padding: '8px 18px',
-              borderRadius: 4,
-              fontSize: 10.5,
-              fontWeight: 800,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              cursor: 'pointer',
-              border: mode === 'fit' ? '1px solid #f59e0b' : '1px solid rgba(255,255,255,0.16)',
-              background: mode === 'fit' ? '#f59e0b' : 'rgba(255,255,255,0.05)',
-              color: mode === 'fit' ? '#000000' : 'rgba(255,255,255,0.85)',
-              transition: 'all 150ms ease',
-            }}
-          >
-            FULL FRAME
-          </button>
-          <button
-            onClick={() => onModeChange && onModeChange('crop')}
-            style={{
-              padding: '8px 18px',
-              borderRadius: 4,
-              fontSize: 10.5,
-              fontWeight: 800,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              cursor: 'pointer',
-              border: mode === 'crop' ? '1px solid #f59e0b' : '1px solid rgba(255,255,255,0.16)',
-              background: mode === 'crop' ? '#f59e0b' : 'rgba(255,255,255,0.05)',
-              color: mode === 'crop' ? '#000000' : 'rgba(255,255,255,0.85)',
-              transition: 'all 150ms ease',
-            }}
-          >
-            CINEMA CROP
-          </button>
-
-          <button
-            onClick={() => setUseVideo(!useVideo)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: 4,
-              fontSize: 9.5,
-              fontWeight: 600,
-              letterSpacing: '0.05em',
-              cursor: 'pointer',
-              border: '1px solid rgba(255,255,255,0.1)',
-              background: 'transparent',
-              color: 'rgba(255,255,255,0.5)',
-              marginLeft: 4,
-            }}
-            title="Toggle between sample image and demo video"
-          >
-            {useVideo ? '📷 Photo' : '🎬 Video'}
-          </button>
+      {/* Mode toggle & stats */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, minHeight: 46, gap: 12 }}>
+        {/* Mode toggle */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {['fit', 'crop'].map(m => (
+            <button
+              key={m}
+              onClick={() => onModeChange && onModeChange(m)}
+              className={`btn btn-sm ${mode === m ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ fontSize: 9, letterSpacing: '0.1em' }}
+            >
+              {m === 'fit' ? 'Full Frame' : 'Cinema Crop'}
+            </button>
+          ))}
         </div>
 
         {/* Visibility stat */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ textAlign: 'right' }}>
-            <div style={{
-              fontFamily: 'system-ui, sans-serif',
-              fontSize: 11,
-              fontWeight: 700,
-              color: '#94a3b8',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-            }}>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>
               {mode === 'fit' ? 'IMAGE VISIBLE' : 'SOURCE CROPPED'}
             </div>
             <div style={{
-              fontFamily: 'system-ui, monospace',
-              fontSize: 26,
-              fontWeight: 900,
+              fontFamily: 'var(--font-serif)',
+              fontSize: 20,
               color: mode === 'fit'
-                ? '#f59e0b'
-                : (percentCropped <= 0 ? '#f59e0b' : percentCropped <= 10 ? '#f59e0b' : '#f87171'),
-              letterSpacing: '0.02em',
-              lineHeight: 1.1,
+                ? 'var(--gold)'
+                : (percentCropped <= 0 ? 'var(--gold)' : percentCropped <= 10 ? 'var(--gold)' : '#f87171'),
+              letterSpacing: '0.05em'
             }}>
               {mode === 'fit' ? '100%' : `${percentCropped}%`}
             </div>

@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Sparkles, Dices, Trophy, Star, ArrowRight, Bookmark, Check, Heart, Film, Tv, RotateCcw } from 'lucide-react';
+import { X, Sparkles, Dices, Star, ArrowRight, Bookmark, Heart, Film, Tv, RotateCcw } from 'lucide-react';
 import {
   getGenreOptions,
-  getRandomVotingCandidate,
-  submitVote,
-  hasUserVotedInGenre,
-  getUserVoteInGenre,
-  getActiveRound,
+  getRandomTitleFromAll,
 } from '../../services/weekendPickService';
 import { toggleWatchlist, toggleFavorite, getMovieStatusSync } from '../../services/movieLibraryService';
 import { useApp } from '../../AppContext';
@@ -31,14 +27,9 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [selectedMood, setSelectedMood] = useState('any');
   const [selectedType, setSelectedType] = useState('ANY'); // ANY | MOVIE | SERIES
-  const [unvotedOnly, setUnvotedOnly] = useState(false);
   const [result, setResult] = useState(null);
   const [isSpinning, setIsSpinning] = useState(false);
   const [currentStatus, setCurrentStatus] = useState({});
-  const [votedInGenre, setVotedInGenre] = useState(false);
-  const [userVotedCandidateId, setUserVotedCandidateId] = useState(null);
-
-  const activeRound = getActiveRound();
 
   useEffect(() => {
     if (isOpen) {
@@ -52,11 +43,9 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
     const handleUpdate = () => setGenres(getGenreOptions());
     window.addEventListener('storage', handleUpdate);
     window.addEventListener('cinemascope_genres_updated', handleUpdate);
-    window.addEventListener('cinemascope_round_updated', handleUpdate);
     return () => {
       window.removeEventListener('storage', handleUpdate);
       window.removeEventListener('cinemascope_genres_updated', handleUpdate);
-      window.removeEventListener('cinemascope_round_updated', handleUpdate);
     };
   }, []);
 
@@ -75,16 +64,6 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
     if (result?.titleId) {
       setCurrentStatus(getMovieStatusSync(result.titleId, currentUser?.id));
     }
-    if (result && currentUser?.id && result.roundId && result.genreId) {
-      const hasVoted = hasUserVotedInGenre(currentUser.id, result.roundId, result.genreId);
-      setVotedInGenre(hasVoted);
-      if (hasVoted) {
-        const vote = getUserVoteInGenre(currentUser.id, result.roundId, result.genreId);
-        setUserVotedCandidateId(vote?.candidateId || null);
-      } else {
-        setUserVotedCandidateId(null);
-      }
-    }
   }, [result, currentUser?.id]);
 
   if (!isOpen) return null;
@@ -94,35 +73,19 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
 
     setTimeout(() => {
       try {
-        const pick = getRandomVotingCandidate({
-          roundId: activeRound?.id,
+        const pick = getRandomTitleFromAll({
+          appMovies: state.movies,
           genreId: selectedGenre,
           mood: selectedMood,
           type: selectedType,
-          unvotedOnly,
-          userId: currentUser?.id,
         });
         setResult(pick);
       } catch (err) {
-        console.error('Error picking random voting title:', err);
+        console.error('Error picking random title from all movies:', err);
       } finally {
         setIsSpinning(false);
       }
-    }, 350);
-  };
-
-  const handleVoteForCandidate = () => {
-    if (!currentUser) return alert('Please log in to cast your vote.');
-    if (!result?.roundId || !result?.genreId || !result?.id) return;
-    try {
-      submitVote(currentUser.id, result.roundId, result.genreId, result.id);
-      setVotedInGenre(true);
-      setUserVotedCandidateId(result.id);
-      setResult(prev => prev ? { ...prev, votes: (prev.votes || 0) + 1 } : prev);
-      window.dispatchEvent(new Event('cinemascope_vote_submitted'));
-    } catch (err) {
-      alert(err.message || 'Could not register vote.');
-    }
+    }, 300);
   };
 
   const handleToggleWatchlist = async () => {
@@ -214,7 +177,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
           </div>
           <div>
             <div style={{ fontSize: 10, fontFamily: 'var(--font-serif)', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--gold)' }}>
-              Weekend Voting Polls
+              CinemaScope Discovery
             </div>
             <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--text-primary)', margin: 0 }}>
               Random Movie / Series
@@ -226,7 +189,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
         {!result && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Specify your preferences to discover a random title competing in this weekend's active voting poll:
+              Specify your preferences to discover a random movie or TV series across all titles:
             </p>
 
             {/* Format selector */}
@@ -265,7 +228,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
             {/* Genre selector */}
             <div>
               <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-                2. Voting Genre
+                2. Genre Preference
               </label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 <button
@@ -339,21 +302,6 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
               </div>
             </div>
 
-            {/* Unvoted categories toggle */}
-            {currentUser && (
-              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
-                <input
-                  type="checkbox"
-                  checked={unvotedOnly}
-                  onChange={e => setUnvotedOnly(e.target.checked)}
-                  style={{ accentColor: 'var(--gold)' }}
-                />
-                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                  Only show titles from genres I haven't voted in yet (help me decide my vote)
-                </span>
-              </label>
-            )}
-
             <button
               type="button"
               disabled={isSpinning}
@@ -370,7 +318,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
               }}
             >
               <Dices size={16} style={{ animation: isSpinning ? 'spin 1s linear infinite' : 'none' }} />
-              {isSpinning ? 'Rolling the Candidates...' : '🎲 Roll Random Movie'}
+              {isSpinning ? 'Finding Your Title...' : '🎲 Roll Random Title'}
             </button>
           </div>
         )}
@@ -405,83 +353,40 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
                   <span className="badge badge-gold" style={{ fontSize: 9, fontWeight: 700 }}>
-                    🗳️ VOTING CANDIDATE
+                    {result.type === 'SERIES' ? '📺 TV SERIES' : '🍿 MOVIE'}
                   </span>
                   <span className="badge badge-dim" style={{ fontSize: 9 }}>
                     {result.genreName}
                   </span>
-                  <span className="badge badge-dim" style={{ fontSize: 9 }}>
-                    {result.type === 'SERIES' ? 'TV SERIES' : 'MOVIE'}
-                  </span>
+                  {result.language && (
+                    <span className="badge badge-dim" style={{ fontSize: 9 }}>
+                      {result.language}
+                    </span>
+                  )}
                 </div>
                 <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: '#fff', marginBottom: 6 }}>
                   {result.title}
                 </h4>
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span>⭐ {result.rating || 4.8} rating</span>
-                  <span>·</span>
-                  <span style={{ color: 'var(--gold)', fontWeight: 600 }}>{result.votes || 0} votes</span>
-                  {result.rank && (
-                    <>
-                      <span>·</span>
-                      <span>Rank #{result.rank} in {result.genreName}</span>
-                    </>
-                  )}
                   {result.releaseYear && (
                     <>
                       <span>·</span>
                       <span>{result.releaseYear}</span>
                     </>
                   )}
+                  {result.language && (
+                    <>
+                      <span>·</span>
+                      <span>{result.language}</span>
+                    </>
+                  )}
                 </div>
                 <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {result.overview || 'Competing in this weekend\'s community vote. Cast your ballot to make it this week\'s official winner!'}
+                  {result.overview || 'Recommended from the Cinemascope collection based on your preferences.'}
                 </p>
               </div>
             </div>
-
-            {/* Voting Action Banner */}
-            {currentUser && (
-              <div style={{
-                padding: '12px 16px',
-                borderRadius: 4,
-                border: `1px solid ${isCurrentCandidateVotedByUser ? 'rgba(74,222,128,0.4)' : 'var(--gold-dim)'}`,
-                background: isCurrentCandidateVotedByUser ? 'rgba(74,222,128,0.1)' : 'rgba(201,168,76,0.08)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: 10,
-              }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: isCurrentCandidateVotedByUser ? '#4ade80' : 'var(--gold)' }}>
-                    {isCurrentCandidateVotedByUser
-                      ? '✓ You voted for this title in ' + result.genreName + '!'
-                      : votedInGenre
-                        ? `You have already voted in ${result.genreName}`
-                        : `Ready to back ${result.title}?`}
-                  </div>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                    {isCurrentCandidateVotedByUser
-                      ? 'Your vote is currently counted toward the weekend standings.'
-                      : votedInGenre
-                        ? 'You can change your vote directly from the category poll.'
-                        : `1-click cast your vote for ${result.genreName} category`}
-                  </div>
-                </div>
-
-                {!votedInGenre && (
-                  <button
-                    type="button"
-                    onClick={handleVoteForCandidate}
-                    className="btn btn-primary btn-sm"
-                    style={{ fontSize: 11, padding: '6px 14px' }}
-                  >
-                    <Trophy size={13} /> Vote for This Title
-                  </button>
-                )}
-              </div>
-            )}
 
             {/* Action Bar */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

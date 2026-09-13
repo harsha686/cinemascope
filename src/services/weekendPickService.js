@@ -1198,25 +1198,128 @@ export function setUserPreferredGenre(userId, genreId) {
 }
 
 /**
- * Pick a random movie/series strictly from the current voting candidates
- * according to user specifications (type, genre, unvoted only, mood)
+ * Universal Catalog of Movies & Series for "Random Movie" Discovery (All Movies & Series)
  */
-export function getRandomVotingCandidate({
-  roundId = null,
+export const UNIVERSAL_TITLES = [
+  // --- ACTION MOVIES ---
+  { id: 'rrr', titleId: '579974', title: 'RRR', type: 'MOVIE', genreId: 'action', genreName: 'Action', releaseYear: 2022, rating: 4.9, language: 'Telugu', posterUrl: 'https://image.tmdb.org/t/p/w500/wE0noFUqdCzxik90wuoGpH8USes.jpg', overview: 'A fearless warrior on a perilous mission comes face to face with a steely cop serving the British forces in pre-independent India.' },
+  { id: 'salaar', titleId: '940551', title: 'Salaar: Part 1 - Ceasefire', type: 'MOVIE', genreId: 'action', genreName: 'Action', releaseYear: 2023, rating: 4.6, language: 'Telugu', posterUrl: 'https://image.tmdb.org/t/p/w500/mF33x1WvH9cW4t1vVw0U0mF33x1.jpg', overview: 'Set in the dystopian city-state of Khansaar, following the friendship between Deva and Varadha.' },
+  { id: 'kalki-2898-ad', titleId: '1022789', title: 'Kalki 2898 AD', type: 'MOVIE', genreId: 'scifi', genreName: 'Sci-Fi', releaseYear: 2024, rating: 4.8, language: 'Telugu', posterUrl: 'https://image.tmdb.org/t/p/w500/uY9HzY35e4d2J7jZfP6Q9n4z170.jpg', overview: 'A modern avatar of Vishnu descends to Earth to protect the world in a post-apocalyptic future.' },
+  { id: 'top-gun-maverick', titleId: '361743', title: 'Top Gun: Maverick', type: 'MOVIE', genreId: 'action', genreName: 'Action', releaseYear: 2022, rating: 4.8, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/62HCnUTziyWcpDaBO2i1DX17pmH.jpg', overview: 'After thirty years, Maverick is still pushing the envelope as a top naval aviator.' },
+  { id: 'john-wick-4', titleId: '603692', title: 'John Wick: Chapter 4', type: 'MOVIE', genreId: 'action', genreName: 'Action', releaseYear: 2023, rating: 4.8, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/vZloFAK7NKnMGKEslUsZeva9H2V.jpg', overview: 'John Wick uncovers a path to defeating The High Table.' },
+  { id: 'mad-max-fury-road', titleId: '76341', title: 'Mad Max: Fury Road', type: 'MOVIE', genreId: 'action', genreName: 'Action', releaseYear: 2015, rating: 4.9, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/hA2ple9q4qnwxp3hKVNhroipsir.jpg', overview: 'An apocalyptic story set in the furthest reaches of our planet.' },
+  { id: 'the-dark-knight', titleId: '155', title: 'The Dark Knight', type: 'MOVIE', genreId: 'action', genreName: 'Action', releaseYear: 2008, rating: 5.0, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg', overview: 'Batman raises the stakes in his war on crime against the Joker.' },
+
+  // --- ACTION & ADVENTURE TV SERIES ---
+  { id: 'the-boys', titleId: 'tv-76479', title: 'The Boys', type: 'SERIES', genreId: 'action', genreName: 'Action', releaseYear: 2019, rating: 4.8, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/7Ns6tO3aYjppI5LoNOFvj2q199.jpg', overview: 'A fun and irreverent take on what happens when superheroes abuse their superpowers.' },
+  { id: 'shogun', titleId: 'tv-126308', title: 'Shōgun', type: 'SERIES', genreId: 'action', genreName: 'Action', releaseYear: 2024, rating: 4.9, language: 'Japanese', posterUrl: 'https://image.tmdb.org/t/p/w500/7O4iVfOMQmdCSxhOg1WNzG1AgYT.jpg', overview: 'When a mysterious European ship is found marooned in a fishing village, lord Toranaga discovers secrets that could tip the scales of power.' },
+  { id: 'fallout', titleId: 'tv-106379', title: 'Fallout', type: 'SERIES', genreId: 'action', genreName: 'Action', releaseYear: 2024, rating: 4.7, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/AnsSKR9LuK0T9bAILezUVjl3ZJ7.jpg', overview: 'In a future post-apocalyptic Los Angeles, citizens must live in underground bunkers to protect themselves from radiation and mutants.' },
+
+  // --- DRAMA MOVIES ---
+  { id: 'oppenheimer', titleId: '872585', title: 'Oppenheimer', type: 'MOVIE', genreId: 'drama', genreName: 'Drama', releaseYear: 2023, rating: 4.9, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg', overview: 'The story of J. Robert Oppenheimer and his role in the development of the atomic bomb.' },
+  { id: 'hi-nanna', titleId: '1072790', title: 'Hi Nanna', type: 'MOVIE', genreId: 'drama', genreName: 'Drama', releaseYear: 2023, rating: 4.8, language: 'Telugu', posterUrl: 'https://image.tmdb.org/t/p/w500/5s1R5NnO3sU6Y3w0yP5s1R5NnO3.jpg', overview: 'A doting father and his precocious daughter find their lives transformed when a mysterious woman enters their world.' },
+  { id: '12th-fail', titleId: '1181548', title: '12th Fail', type: 'MOVIE', genreId: 'drama', genreName: 'Drama', releaseYear: 2023, rating: 4.9, language: 'Hindi', posterUrl: 'https://image.tmdb.org/t/p/w500/zFpdz5j9a2yP2oE6V6a5K8f9.jpg', overview: 'Based on the true story of Manoj Kumar Sharma who overcame extreme poverty to become an IPS officer.' },
+  { id: 'the-shawshank-redemption', titleId: '278', title: 'The Shawshank Redemption', type: 'MOVIE', genreId: 'drama', genreName: 'Drama', releaseYear: 1994, rating: 5.0, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg', overview: 'Over the course of several years, two convicts form a friendship, seeking consolation and redemption.' },
+
+  // --- DRAMA TV SERIES ---
+  { id: 'succession', titleId: 'tv-76331', title: 'Succession', type: 'SERIES', genreId: 'drama', genreName: 'Drama', releaseYear: 2018, rating: 4.9, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/7F8e89Ue5Esm2a5x0z2x89ew.jpg', overview: 'The Roy family is known for controlling the biggest media and entertainment company in the world.' },
+  { id: 'the-bear', titleId: 'tv-136315', title: 'The Bear', type: 'SERIES', genreId: 'drama', genreName: 'Drama', releaseYear: 2022, rating: 4.8, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/sHk5X1N1p6aJj3k5sHk5X1N1p6a.jpg', overview: 'A young chef from the fine dining world comes home to Chicago to run his family sandwich shop.' },
+  { id: 'better-call-saul', titleId: 'tv-60059', title: 'Better Call Saul', type: 'SERIES', genreId: 'drama', genreName: 'Drama', releaseYear: 2015, rating: 4.9, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/fC2HDm5t0kHVR79vis7GIjO9ZUb.jpg', overview: 'The trials and tribulations of criminal lawyer Jimmy McGill before his fateful run-in with Walter White.' },
+
+  // --- SCI-FI MOVIES ---
+  { id: 'interstellar', titleId: '157336', title: 'Interstellar', type: 'MOVIE', genreId: 'scifi', genreName: 'Sci-Fi', releaseYear: 2014, rating: 4.9, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg', overview: 'A team of explorers travel through a wormhole in space in an attempt to ensure humanity survival.' },
+  { id: 'dune-part-two', titleId: '693134', title: 'Dune: Part Two', type: 'MOVIE', genreId: 'scifi', genreName: 'Sci-Fi', releaseYear: 2024, rating: 4.9, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg', overview: 'Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.' },
+  { id: 'inception', titleId: '27205', title: 'Inception', type: 'MOVIE', genreId: 'scifi', genreName: 'Sci-Fi', releaseYear: 2010, rating: 4.9, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg', overview: 'A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea.' },
+
+  // --- SCI-FI TV SERIES ---
+  { id: 'dark', titleId: 'tv-70523', title: 'Dark', type: 'SERIES', genreId: 'scifi', genreName: 'Sci-Fi', releaseYear: 2017, rating: 4.9, language: 'German', posterUrl: 'https://image.tmdb.org/t/p/w500/apbrbWs8M9lyOpJYU5WXrpFbk1Z.jpg', overview: 'A missing child sets four families on a frantic hunt for answers as they unearth a mind-bending mystery that spans three generations.' },
+  { id: 'severance', titleId: 'tv-95396', title: 'Severance', type: 'SERIES', genreId: 'scifi', genreName: 'Sci-Fi', releaseYear: 2022, rating: 4.8, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/jtACkF0x7a3wzU0c7a3wzU0c7a3.jpg', overview: 'Mark leads a team of office workers whose memories have been surgically divided between their work and personal lives.' },
+  { id: 'stranger-things', titleId: 'tv-66732', title: 'Stranger Things', type: 'SERIES', genreId: 'scifi', genreName: 'Sci-Fi', releaseYear: 2016, rating: 4.8, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/49WJfeN0moxb9IPfGn8AIqMGskD.jpg', overview: 'When a young boy vanishes, a small town uncovers a mystery involving secret experiments and terrifying supernatural forces.' },
+
+  // --- COMEDY MOVIES ---
+  { id: 'stree-2', titleId: '1029955', title: 'Stree 2', type: 'MOVIE', genreId: 'comedy', genreName: 'Comedy', releaseYear: 2024, rating: 4.7, language: 'Hindi', posterUrl: 'https://image.tmdb.org/t/p/w500/vGv9vGv9vGv9vGv9vGv9vGv9vGv.jpg', overview: 'The town of Chanderi is haunted once again, this time by a headless entity known as Sarkata.' },
+  { id: 'jathi-ratnalu', titleId: '791373', title: 'Jathi Ratnalu', type: 'MOVIE', genreId: 'comedy', genreName: 'Comedy', releaseYear: 2021, rating: 4.7, language: 'Telugu', posterUrl: 'https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg', overview: 'Three naive friends travel from Jogipet to Hyderabad and end up framed for an assassination attempt.' },
+  { id: 'mad', titleId: '1169707', title: 'Mad', type: 'MOVIE', genreId: 'comedy', genreName: 'Comedy', releaseYear: 2023, rating: 4.6, language: 'Telugu', posterUrl: 'https://image.tmdb.org/t/p/w500/7aE0N6kR1YdK3P6v0P9x5M0Q.jpg', overview: 'Three engineering college freshers navigate campus life, rivalries, and hilariously chaotic romances.' },
+
+  // --- COMEDY TV SERIES ---
+  { id: 'panchayat', titleId: 'tv-101188', title: 'Panchayat', type: 'SERIES', genreId: 'comedy', genreName: 'Comedy', releaseYear: 2020, rating: 4.9, language: 'Hindi', posterUrl: 'https://image.tmdb.org/t/p/w500/q9n8J2a6V5l4K8f9.jpg', overview: 'An engineering graduate takes up a job as a secretary of a Gram Panchayat in a remote village in Uttar Pradesh.' },
+  { id: 'ted-lasso', titleId: 'tv-97546', title: 'Ted Lasso', type: 'SERIES', genreId: 'comedy', genreName: 'Comedy', releaseYear: 2020, rating: 4.9, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/5kAG7r1Gg8e5L6p8.jpg', overview: 'An American college football coach is hired to manage a struggling British soccer team.' },
+
+  // --- HORROR MOVIES ---
+  { id: 'bramayugam', titleId: '1160164', title: 'Bramayugam', type: 'MOVIE', genreId: 'horror', genreName: 'Horror', releaseYear: 2024, rating: 4.8, language: 'Malayalam', posterUrl: 'https://image.tmdb.org/t/p/w500/9k8f9k8f9k8f9k8f9k8f9k8f9.jpg', overview: 'A folk horror tale set in medieval Kerala following a court singer who stumbles into a sinister decaying mansion.' },
+  { id: 'tumbbad', titleId: '538858', title: 'Tumbbad', type: 'MOVIE', genreId: 'horror', genreName: 'Horror', releaseYear: 2018, rating: 4.9, language: 'Hindi', posterUrl: 'https://image.tmdb.org/t/p/w500/yrpPYK2z98gSFCU0XGDykEGv7zR.jpg', overview: 'A mythological horror story about a family who builds a shrine for Hastar, an entity never to be worshipped.' },
+  { id: 'a-quiet-place', titleId: '447332', title: 'A Quiet Place', type: 'MOVIE', genreId: 'horror', genreName: 'Horror', releaseYear: 2018, rating: 4.7, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/nAU74GmpUk7t5iklEp3bufwDq4n.jpg', overview: 'A family is forced to live in silence while hiding from monsters with ultra-sensitive hearing.' },
+
+  // --- HORROR TV SERIES ---
+  { id: 'haunting-of-hill-house', titleId: 'tv-72844', title: 'The Haunting of Hill House', type: 'SERIES', genreId: 'horror', genreName: 'Horror', releaseYear: 2018, rating: 4.9, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/7aE0N6kR1YdK3P6v0P9x5M0Q.jpg', overview: 'Flashing between past and present, a fractured family confronts haunting memories of their old home.' },
+
+  // --- ANIME MOVIES & SERIES ---
+  { id: 'demon-slayer-mugen-train', titleId: '635302', title: 'Demon Slayer: Mugen Train', type: 'MOVIE', genreId: 'anime', genreName: 'Anime', releaseYear: 2020, rating: 4.9, language: 'Japanese', posterUrl: 'https://image.tmdb.org/t/p/w500/h8Rb9gBr48ODigDrngZeqrTMr91.jpg', overview: 'Tanjiro and the Demon Slayer Corps board the infinity train to face a powerful demon.' },
+  { id: 'spirited-away', titleId: '129', title: 'Spirited Away', type: 'MOVIE', genreId: 'anime', genreName: 'Anime', releaseYear: 2001, rating: 5.0, language: 'Japanese', posterUrl: 'https://image.tmdb.org/t/p/w500/393rIHkrAnptSoJa3yJ0fD08d51.jpg', overview: 'A young girl wanders into a world ruled by gods, witches, and spirits where humans are changed into beasts.' },
+  { id: 'attack-on-titan', titleId: 'tv-1429', title: 'Attack on Titan', type: 'SERIES', genreId: 'anime', genreName: 'Anime', releaseYear: 2013, rating: 5.0, language: 'Japanese', posterUrl: 'https://image.tmdb.org/t/p/w500/hTP1DtLGFamjfu8WqjnuQdP1n4i.jpg', overview: 'After his hometown is destroyed, Eren Jaeger vows to cleanse the earth of the giant humanoid Titans.' },
+  { id: 'arcane', titleId: 'tv-94605', title: 'Arcane', type: 'SERIES', genreId: 'anime', genreName: 'Anime', releaseYear: 2021, rating: 5.0, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/fqldf2t8ztc9aiwn397mlOhG8w1.jpg', overview: 'Set in the utopian region of Piltover and the oppressed underground of Zaun, the story follows two iconic champions.' },
+  { id: 'death-note', titleId: 'tv-13916', title: 'Death Note', type: 'SERIES', genreId: 'anime', genreName: 'Anime', releaseYear: 2006, rating: 4.9, language: 'Japanese', posterUrl: 'https://image.tmdb.org/t/p/w500/iigTJJskR1vbhjj09lZ9.jpg', overview: 'A high school student discovers a supernatural notebook that grants him the ability to kill anyone by writing their name.' },
+
+  // --- THRILLER & CRIME ---
+  { id: 'maharaja', titleId: '1114513', title: 'Maharaja', type: 'MOVIE', genreId: 'thriller', genreName: 'Thriller', releaseYear: 2024, rating: 4.9, language: 'Tamil', posterUrl: 'https://image.tmdb.org/t/p/w500/7aE0N6kR1YdK3P6v0P9x5M0Q.jpg', overview: 'A barber seeks vengeance after his home is burglarized, cryptically telling police his lakshmi has been taken.' },
+  { id: 'drishyam', titleId: '360814', title: 'Drishyam', type: 'MOVIE', genreId: 'thriller', genreName: 'Thriller', releaseYear: 2015, rating: 4.9, language: 'Hindi', posterUrl: 'https://image.tmdb.org/t/p/w500/5kAG7r1Gg8e5L6p8.jpg', overview: 'Desperate measures are taken by a man who tries to save his family from the dark side of the law.' },
+  { id: 'breaking-bad', titleId: 'tv-1396', title: 'Breaking Bad', type: 'SERIES', genreId: 'thriller', genreName: 'Thriller', releaseYear: 2008, rating: 5.0, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/ggFHVNu6YYI5L9pCfOacjizRGt.jpg', overview: 'A chemistry teacher diagnosed with terminal lung cancer teams up with a former student to manufacture crystal meth.' },
+
+  // --- ROMANCE ---
+  { id: 'sita-ramam', titleId: '956101', title: 'Sita Ramam', type: 'MOVIE', genreId: 'romance', genreName: 'Romance', releaseYear: 2022, rating: 4.9, language: 'Telugu', posterUrl: 'https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg', overview: 'An orphaned soldier receives a letter from a girl named Sita claiming to be his wife.' },
+  { id: 'past-lives', titleId: '666277', title: 'Past Lives', type: 'MOVIE', genreId: 'romance', genreName: 'Romance', releaseYear: 2023, rating: 4.8, language: 'Korean', posterUrl: 'https://image.tmdb.org/t/p/w500/k3waqVXSnvCZWfJYNtdamTgTtTA.jpg', overview: 'Nora and Hae Sung, two deeply connected childhood friends, are wrest apart after Nora family emigrates from South Korea.' }
+];
+
+/**
+ * Pick a random title from ALL movies & series according to user specifications
+ */
+export function getRandomTitleFromAll({
+  appMovies = [],
   genreId = 'all',
   type = 'ANY', // 'ANY' | 'MOVIE' | 'SERIES'
-  unvotedOnly = false,
-  userId = null,
   mood = 'any',
 } = {}) {
-  const round = roundId ? getRoundById(roundId) : getActiveRound();
-  if (!round || !round.genreRounds) return null;
+  // Start with the universal catalog
+  let pool = [...UNIVERSAL_TITLES];
 
-  const candidatesList = [];
+  // Merge in app movies (from state.movies or database)
+  if (Array.isArray(appMovies) && appMovies.length > 0) {
+    const existingIds = new Set(pool.map(p => String(p.titleId || p.id)));
+    appMovies.forEach(m => {
+      const idKey = String(m.id || m.tmdbId);
+      if (!existingIds.has(idKey)) {
+        const rawGenre = Array.isArray(m.genres) ? m.genres[0] : (m.genre || 'Action');
+        const gLower = String(rawGenre).toLowerCase();
+        let gId = 'action';
+        if (gLower.includes('sci')) gId = 'scifi';
+        else if (gLower.includes('dram')) gId = 'drama';
+        else if (gLower.includes('horr')) gId = 'horror';
+        else if (gLower.includes('comed')) gId = 'comedy';
+        else if (gLower.includes('anim')) gId = 'anime';
+        else if (gLower.includes('thril') || gLower.includes('crim')) gId = 'thriller';
+        else if (gLower.includes('rom')) gId = 'romance';
 
-  // Mood to genre mapping if genreId is 'all' or 'surprise'
+        pool.push({
+          id: m.id,
+          titleId: m.id,
+          title: m.title,
+          type: m.isTv || m.type === 'SERIES' ? 'SERIES' : 'MOVIE',
+          genreId: gId,
+          genreName: rawGenre,
+          releaseYear: m.releaseDate ? parseInt(m.releaseDate.split('-')[0], 10) : 2024,
+          rating: 4.8,
+          language: m.language || 'Telugu',
+          posterUrl: m.posterUrl,
+          backdropUrl: m.backdropUrl,
+          overview: m.overview || '',
+        });
+      }
+    });
+  }
+
+  // Resolve target genre from mood if genre is 'all'
   let targetGenre = genreId;
-  if ((!targetGenre || targetGenre === 'all' || targetGenre === 'surprise') && mood !== 'any') {
+  if ((!targetGenre || targetGenre === 'all') && mood !== 'any') {
     const moodMap = {
       hyped: 'action',
       laugh: 'comedy',
@@ -1228,101 +1331,31 @@ export function getRandomVotingCandidate({
     if (moodMap[mood]) targetGenre = moodMap[mood];
   }
 
-  // Get user's voted genres if unvotedOnly is requested
-  let userVotes = [];
-  if (unvotedOnly && userId) {
-    userVotes = getUserVotes(userId, round.id);
-  }
-
-  // Collect candidates across relevant genre rounds
-  Object.entries(round.genreRounds).forEach(([gId, gRound]) => {
-    // Check genre match
-    if (targetGenre && targetGenre !== 'all' && targetGenre !== 'surprise' && gId !== targetGenre) {
-      return;
-    }
-
-    // If user wants only unvoted genres
-    if (unvotedOnly && userId && userVotes.some(v => v.genreId === gId)) {
-      return;
-    }
-
-    const res = calculateGenreResults(round.id, gId);
-    (res.candidates || []).forEach(cand => {
-      // Check type match
-      const candType = cand.type || 'MOVIE';
-      if (type && type !== 'ANY' && candType !== type) {
-        return;
-      }
-
-      candidatesList.push({
-        ...cand,
-        candidateId: cand.id,
-        genreId: gId,
-        genreName: res.genreName || gRound.genreName || gId,
-        roundId: round.id,
-        roundName: round.name,
-        votes: cand.votes || 0,
-        percentage: cand.percentage || 0,
-        rank: cand.rank || 1,
-        totalGenreVotes: res.totalVotes || 0,
-        communityScore: Math.round((cand.rating || 4.7) * 20),
-        isVotingCandidate: true,
-      });
-    });
-  });
-
-  if (candidatesList.length === 0) {
-    // Fallback: if unvotedOnly had no results, retry without unvoted filter
-    if (unvotedOnly) {
-      return getRandomVotingCandidate({ roundId, genreId, type, unvotedOnly: false, userId, mood });
-    }
-    // If specific genre had no results for selected type, retry across all genres
-    if (targetGenre && targetGenre !== 'all' && targetGenre !== 'surprise') {
-      return getRandomVotingCandidate({ roundId, genreId: 'all', type, unvotedOnly: false, userId, mood: 'any' });
-    }
-    // If still empty and type was specific, retry with ANY type
-    if (type !== 'ANY') {
-      return getRandomVotingCandidate({ roundId, genreId: 'all', type: 'ANY', unvotedOnly: false, userId, mood: 'any' });
-    }
-    return null;
-  }
-
-  // Pick a random candidate
-  const randomIndex = Math.floor(Math.random() * candidatesList.length);
-  return candidatesList[randomIndex];
-}
-
-/**
- * "Random Movie" Mood / Surprise generator — prefers active voting candidates
- */
-export function pickMyWeekendRecommendation({ genreId = null, mood = 'any', type = 'ANY', unvotedOnly = false, userId = null } = {}) {
-  // First try to pick from voting candidates
-  const votingCandidate = getRandomVotingCandidate({ genreId, mood, type, unvotedOnly, userId });
-  if (votingCandidate) {
-    return votingCandidate;
-  }
-
-  // Fallback to winners if no active round candidates
-  const seedWinners = getSeedWinners();
-  const winners = getAllWinners();
-  let pool = winners && winners.length > 0 ? [...winners] : [...seedWinners];
-
-  if (genreId && genreId !== 'surprise' && genreId !== 'all') {
-    const genreFiltered = pool.filter(p => p.genreId === genreId);
-    if (genreFiltered.length > 0) pool = genreFiltered;
-  }
-
+  // Filter by Type (MOVIE vs SERIES vs ANY)
   if (type && type !== 'ANY') {
     const typeFiltered = pool.filter(p => p.type === type);
     if (typeFiltered.length > 0) pool = typeFiltered;
   }
 
-  if (pool.length === 0) {
-    pool = [...seedWinners];
+  // Filter by Genre
+  if (targetGenre && targetGenre !== 'all') {
+    const genreFiltered = pool.filter(p => p.genreId === targetGenre);
+    if (genreFiltered.length > 0) pool = genreFiltered;
   }
 
-  const selected = pool[Math.floor(Math.random() * pool.length)] || seedWinners[0];
-  return selected;
+  if (pool.length === 0) {
+    pool = [...UNIVERSAL_TITLES];
+  }
+
+  const randomIndex = Math.floor(Math.random() * pool.length);
+  return pool[randomIndex];
+}
+
+/**
+ * Legacy wrapper
+ */
+export function pickMyWeekendRecommendation(params = {}) {
+  return getRandomTitleFromAll(params);
 }
 
 /**
