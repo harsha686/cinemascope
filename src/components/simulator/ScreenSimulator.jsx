@@ -443,57 +443,6 @@ export default function ScreenSimulator({
           </div>
         </div>
       </div>
-
-      {/* Source ratio info */}
-      <div style={{
-        marginTop: 10,
-        padding: '10px 14px',
-        background: 'rgba(0,0,0,0.4)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-sm)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 20,
-        flexWrap: 'wrap',
-        minHeight: 56,
-      }}>
-        <div style={{ minWidth: 120 }}>
-          <span style={{ fontSize: 9, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Demo Source</span>
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Big Buck Bunny (CC) · 1.78:1 (16:9)</div>
-        </div>
-        <div style={{ minWidth: 90 }}>
-          <span style={{ fontSize: 9, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Screen</span>
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{screenRatioLabel} · {screenFormatName}</div>
-        </div>
-        <div style={{ minWidth: 110 }}>
-          <span style={{ fontSize: 9, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Dimensions</span>
-          <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 2, fontFamily: 'monospace', fontWeight: 600 }}>
-            {widthFt} ft × {heightFt} ft
-          </div>
-        </div>
-        {mode === 'fit' && Math.abs(offsetY) > 1 && (
-          <div>
-            <span style={{ fontSize: 9, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Letterbox Bars</span>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{Math.round(offsetY)}px each (top & bottom)</div>
-          </div>
-        )}
-        {mode === 'fit' && Math.abs(offsetX) > 1 && (
-          <div>
-            <span style={{ fontSize: 9, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Pillarbox Bars</span>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{Math.round(offsetX)}px each (left & right)</div>
-          </div>
-        )}
-        {mode === 'crop' && (
-          <div>
-            <span style={{ fontSize: 9, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Edge Cropping</span>
-            <div style={{ fontSize: 11, color: percentCropped > 0 ? '#f87171' : 'var(--gold)', marginTop: 2 }}>
-              {percentCropped > 0
-                ? `${percentCropped}% cropped (${cropSide === 'sides' ? 'sides' : 'top & bottom'})`
-                : 'None (Exact Match)'}
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
