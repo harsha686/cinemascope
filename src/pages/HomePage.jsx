@@ -125,8 +125,8 @@ export default function HomePage() {
 
           <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(34px, 7vw, 84px)', color: 'var(--text-primary)', letterSpacing: '0.04em', lineHeight: 1.08, marginBottom: 20, maxWidth: 960 }}>
             EXPLORE MOVIES.<br />
-            <span style={{ color: 'var(--gold)' }}>UNDERSTAND THE SCREEN.</span><br />
-            SHARE YOUR OPINION.
+            <span style={{ color: 'var(--gold)' }}>EXPERIENCE THE SCREEN.</span><br />
+            SHARE YOUR VOICE.
           </h1>
           
           <p style={{ fontFamily: 'var(--font-italic)', fontSize: 'clamp(15px, 2vw, 20px)', color: 'var(--text-secondary)', maxWidth: 640, lineHeight: 1.8, marginBottom: 44 }}>
