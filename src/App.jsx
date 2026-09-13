@@ -39,7 +39,6 @@ export default function App() {
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/weekend" element={<WeekendPickPage />} />
-              <Route path="/weekend-pick" element={<WeekendPickPage />} />
               <Route path="/weekend-winners" element={<WeekendWinnersArchivePage />} />
               <Route path="/discover" element={<DiscoverPage />} />
               <Route path="/movies" element={<MoviesPage />} />

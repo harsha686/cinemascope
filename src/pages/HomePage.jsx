@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { MapPin, Search, Navigation, ChevronRight, Monitor, Film, Star, MessageSquare, Sparkles } from 'lucide-react';
+import { MapPin, Search, Navigation, ChevronRight, Monitor, Film, Star, MessageSquare } from 'lucide-react';
 import { useApp } from '../AppContext';
 import DustParticles from '../components/shared/DustParticles';
 import FormatSelector from '../components/simulator/FormatSelector';
@@ -8,6 +8,8 @@ import ScreenSimulator from '../components/simulator/ScreenSimulator';
 import MovieCard from '../components/movies/MovieCard';
 import StarRating from '../components/reviews/StarRating';
 import WeekendRecommendationHero from '../components/weekend/WeekendRecommendationHero';
+import SectionHeader from '../components/shared/SectionHeader';
+import EmptyState from '../components/shared/EmptyState';
 import { ASPECT_RATIOS } from '../data/formats';
 
 const STEPS = [
@@ -29,17 +31,9 @@ export default function HomePage() {
 
   const activeCity = state.selectedCity || allCities[0];
 
-  // Currently showing movies in active city
-  const currentMovies = useMemo(() => {
-    return getCityMovies(activeCity?.id, 'CURRENTLY_SHOWING');
-  }, [getCityMovies, activeCity]);
+  const currentMovies = useMemo(() => getCityMovies(activeCity?.id, 'CURRENTLY_SHOWING'), [getCityMovies, activeCity]);
+  const comingSoonMovies = useMemo(() => getCityMovies(activeCity?.id, 'COMING_SOON'), [getCityMovies, activeCity]);
 
-  // Coming soon movies
-  const comingSoonMovies = useMemo(() => {
-    return getCityMovies(activeCity?.id, 'COMING_SOON');
-  }, [getCityMovies, activeCity]);
-
-  // Top rated movies (calculated dynamically from reviews)
   const topRatedMovies = useMemo(() => {
     return [...state.movies]
       .map(m => {
@@ -51,7 +45,6 @@ export default function HomePage() {
       .slice(0, 4);
   }, [state.movies, getMovieRating]);
 
-  // Recent published reviews
   const recentReviews = useMemo(() => {
     return [...state.reviews]
       .filter(r => r.status === 'PUBLISHED')
@@ -70,10 +63,7 @@ export default function HomePage() {
   };
 
   const handleGeolocate = () => {
-    if (!navigator.geolocation) {
-      setLocationStatus('error');
-      return;
-    }
+    if (!navigator.geolocation) { setLocationStatus('error'); return; }
     setLocationStatus('loading');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -99,7 +89,7 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div style={{ minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
+    <div className="page-enter" style={{ minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
       {/* Background */}
       <div style={{
         position: 'fixed', inset: 0, zIndex: 0,
@@ -111,32 +101,50 @@ export default function HomePage() {
 
       {/* Content */}
       <div style={{ position: 'relative', zIndex: 2 }}>
-        
+
         {/* ========== HERO ========== */}
-        <section style={{ minHeight: '88vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px 48px', textAlign: 'center' }}>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-            <div style={{ height: 1, width: 40, background: 'var(--gold-dim)' }} />
-            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: 'var(--gold)' }}>
+        <section style={{
+          minHeight: '85vh',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: 'clamp(48px, 8vw, 80px) 24px clamp(32px, 5vw, 48px)',
+          textAlign: 'center',
+        }}>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <div style={{ height: 1, width: 36, background: 'var(--gold-dim)' }} />
+            <span style={{ fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: 'var(--gold)', fontWeight: 600 }}>
               Cinema Discovery & Review Platform
             </span>
-            <div style={{ height: 1, width: 40, background: 'var(--gold-dim)' }} />
+            <div style={{ height: 1, width: 36, background: 'var(--gold-dim)' }} />
           </div>
 
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(34px, 7vw, 84px)', color: 'var(--text-primary)', letterSpacing: '0.04em', lineHeight: 1.08, marginBottom: 20, maxWidth: 960 }}>
+          <h1 style={{
+            fontSize: 'clamp(30px, 6.5vw, 78px)',
+            color: 'var(--text-primary)',
+            letterSpacing: '0.04em',
+            lineHeight: 1.08,
+            marginBottom: 18,
+            maxWidth: 960,
+            fontWeight: 700,
+          }}>
             EXPLORE MOVIES.<br />
             <span style={{ color: 'var(--gold)' }}>EXPERIENCE THE SCREEN.</span><br />
             SHARE YOUR VOICE.
           </h1>
-          
-          <p style={{ fontFamily: 'var(--font-italic)', fontSize: 'clamp(15px, 2vw, 20px)', color: 'var(--text-secondary)', maxWidth: 640, lineHeight: 1.8, marginBottom: 44 }}>
-            Discover current movies in <strong style={{ color: 'var(--gold)', fontStyle: 'normal' }}>{activeCity?.name}</strong>, inspect screen aspect ratios, projection tech, and read authentic community reviews.
+
+          <p style={{
+            fontSize: 'clamp(14px, 1.8vw, 18px)',
+            color: 'var(--text-secondary)',
+            maxWidth: 600,
+            lineHeight: 1.8,
+            marginBottom: 40,
+          }}>
+            Discover current movies in <strong style={{ color: 'var(--gold)', fontWeight: 600 }}>{activeCity?.name}</strong>, inspect screen aspect ratios, projection tech, and read authentic community reviews.
           </p>
 
-          {/* City Location Search Selector */}
+          {/* City Search */}
           <div ref={searchRef} style={{ width: '100%', maxWidth: 480, position: 'relative', marginBottom: 16 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              
               <button
                 onClick={handleGeolocate}
                 disabled={locationStatus === 'loading'}
@@ -145,6 +153,8 @@ export default function HomePage() {
               >
                 {locationStatus === 'loading' ? (
                   <><div className="loading-spinner" style={{ width: 16, height: 16 }} /> Locating...</>
+                ) : locationStatus === 'error' ? (
+                  <><Navigation size={16} /> Explore Movies in {activeCity?.name}</>
                 ) : (
                   <><Navigation size={16} /> Explore Movies in {activeCity?.name}</>
                 )}
@@ -152,7 +162,7 @@ export default function HomePage() {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
-                <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-serif)', letterSpacing: '0.15em' }}>CHANGE CITY</span>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.15em', fontWeight: 600 }}>CHANGE CITY</span>
                 <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
               </div>
 
@@ -165,17 +175,20 @@ export default function HomePage() {
                   value={citySearch}
                   onChange={e => { setCitySearch(e.target.value); setShowCityList(true); }}
                   onFocus={() => setShowCityList(true)}
-                  aria-label="Search city"
+                  aria-label="Search and select a city"
+                  aria-autocomplete="list"
+                  aria-expanded={showCityList}
                 />
               </div>
             </div>
 
             {/* City Dropdown */}
-            {showCityList && (
+            {showCityList && filteredCities.length > 0 && (
               <div style={{
                 position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4,
                 background: 'var(--bg-card)', border: '1px solid var(--border)', zIndex: 50,
                 maxHeight: 220, overflowY: 'auto', boxShadow: 'var(--shadow-gold)',
+                borderRadius: 'var(--radius-sm)',
               }}>
                 {filteredCities.map(city => (
                   <button
@@ -188,14 +201,17 @@ export default function HomePage() {
                       border: 'none', cursor: 'pointer',
                       borderBottom: '1px solid var(--border-subtle)',
                       color: 'var(--text-primary)',
+                      transition: 'background var(--transition-fast)',
                     }}
+                    onMouseEnter={e => { if (activeCity?.id !== city.id) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                    onMouseLeave={e => { if (activeCity?.id !== city.id) e.currentTarget.style.background = 'none'; }}
                   >
                     <div>
-                      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 14 }}>{city.name}</div>
+                      <div style={{ fontSize: 14, fontWeight: 500 }}>{city.name}</div>
                       <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{city.state}</div>
                     </div>
                     {activeCity?.id === city.id && (
-                      <span style={{ fontSize: 10, color: 'var(--gold)', fontFamily: 'var(--font-serif)' }}>Selected</span>
+                      <span style={{ fontSize: 10, color: 'var(--gold)', fontWeight: 600 }}>Selected</span>
                     )}
                   </button>
                 ))}
@@ -204,7 +220,7 @@ export default function HomePage() {
           </div>
 
           {/* City Chips */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 16 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 8 }}>
             {allCities.map(city => (
               <button
                 key={city.id}
@@ -218,68 +234,45 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ========== WEEKEND COMMUNITY RECOMMENDATION HERO ========== */}
+        {/* ========== WEEKEND COMMUNITY RECOMMENDATION ========== */}
         <div className="container">
           <WeekendRecommendationHero />
         </div>
 
         {/* ========== CURRENT MOVIES SECTION ========== */}
-        <section style={{ padding: '40px 24px 80px', borderTop: '1px solid var(--border-subtle)' }}>
+        <section style={{ padding: '48px 24px 72px', borderTop: '1px solid var(--border-subtle)' }}>
           <div className="container">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32, flexWrap: 'wrap', gap: 16 }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <span className="badge badge-verified">Admin Listed</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-serif)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
-                    {activeCity?.name} Catalog
-                  </span>
-                </div>
-                <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(24px, 3.5vw, 36px)', color: 'var(--text-primary)', letterSpacing: '0.04em' }}>
-                  Currently Showing Movies
-                </h2>
-              </div>
-
-              <Link to="/movies" className="btn btn-outline btn-sm">
-                View Full Catalog →
-              </Link>
-            </div>
-
+            <SectionHeader
+              eyebrow={`${activeCity?.name} Catalog`}
+              title="Currently Showing Movies"
+              action={{
+                label: 'View Full Catalog →',
+                to: '/movies',
+                onClick: () => navigate('/movies'),
+              }}
+            />
             {currentMovies.length === 0 ? (
-              <div style={{ padding: '60px 0', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-                <Film size={36} color="var(--gold-dim)" style={{ marginBottom: 12 }} />
-                <h3 style={{ fontFamily: 'var(--font-serif)', color: 'var(--text-secondary)' }}>No movies listed for {activeCity?.name} right now</h3>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Select another city above or log in as Admin to assign movies to this city.</p>
-              </div>
+              <EmptyState
+                icon={Film}
+                title={`No movies listed for ${activeCity?.name} right now`}
+                subtitle="Select another city above or log in as Admin to assign movies to this city."
+                action={{ label: 'Explore All Movies', to: '/discover' }}
+              />
             ) : (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                gap: 24,
-              }}>
-                {currentMovies.map(movie => (
-                  <MovieCard key={movie.id} movie={movie} />
-                ))}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 20 }}>
+                {currentMovies.map(movie => <MovieCard key={movie.id} movie={movie} />)}
               </div>
             )}
           </div>
         </section>
 
-        {/* ========== COMING SOON SECTION ========== */}
+        {/* ========== COMING SOON ========== */}
         {comingSoonMovies.length > 0 && (
-          <section style={{ padding: '60px 24px', background: 'rgba(0,0,0,0.25)', borderTop: '1px solid var(--border-subtle)' }}>
+          <section style={{ padding: '48px 24px 64px', background: 'rgba(0,0,0,0.25)', borderTop: '1px solid var(--border-subtle)' }}>
             <div className="container">
-              <div style={{ marginBottom: 28 }}>
-                <span style={{ fontSize: 10, fontFamily: 'var(--font-serif)', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>
-                  Upcoming Theatrical Releases
-                </span>
-                <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 24, color: 'var(--text-primary)', marginTop: 4 }}>
-                  Coming Soon
-                </h2>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 20 }}>
-                {comingSoonMovies.map(movie => (
-                  <MovieCard key={movie.id} movie={movie} />
-                ))}
+              <SectionHeader eyebrow="Upcoming Theatrical Releases" title="Coming Soon" />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 18 }}>
+                {comingSoonMovies.map(movie => <MovieCard key={movie.id} movie={movie} />)}
               </div>
             </div>
           </section>
@@ -287,20 +280,11 @@ export default function HomePage() {
 
         {/* ========== TOP RATED BY USERS ========== */}
         {topRatedMovies.length > 0 && (
-          <section style={{ padding: '60px 24px 80px', borderTop: '1px solid var(--border-subtle)' }}>
+          <section style={{ padding: '48px 24px 64px', borderTop: '1px solid var(--border-subtle)' }}>
             <div className="container">
-              <div style={{ marginBottom: 28 }}>
-                <span style={{ fontSize: 10, fontFamily: 'var(--font-serif)', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>
-                  Community Favorites
-                </span>
-                <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 24, color: 'var(--text-primary)', marginTop: 4 }}>
-                  Top Rated by Moviegoers
-                </h2>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 20 }}>
-                {topRatedMovies.map(movie => (
-                  <MovieCard key={movie.id} movie={movie} />
-                ))}
+              <SectionHeader eyebrow="Community Favorites" title="Top Rated by Moviegoers" />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 18 }}>
+                {topRatedMovies.map(movie => <MovieCard key={movie.id} movie={movie} />)}
               </div>
             </div>
           </section>
@@ -308,39 +292,46 @@ export default function HomePage() {
 
         {/* ========== RECENT USER REVIEWS ========== */}
         {recentReviews.length > 0 && (
-          <section style={{ padding: '60px 24px', background: 'rgba(0,0,0,0.3)', borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
+          <section style={{ padding: '48px 24px 64px', background: 'rgba(0,0,0,0.3)', borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
             <div className="container">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
-                <div>
-                  <span style={{ fontSize: 10, fontFamily: 'var(--font-serif)', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>
-                    Community Feedback
-                  </span>
-                  <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 24, color: 'var(--text-primary)', marginTop: 4 }}>
-                    Recent User Reviews
-                  </h2>
-                </div>
-                <Link to="/movies" className="btn btn-ghost btn-sm">
-                  Write Your Review →
-                </Link>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 20 }}>
+              <SectionHeader
+                eyebrow="Community Feedback"
+                title="Recent Reviews"
+                action={{
+                  label: 'Discover & Review →',
+                  to: '/discover',
+                  onClick: () => navigate('/discover'),
+                }}
+              />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 16 }}>
                 {recentReviews.map(rev => {
                   const targetM = state.movies.find(m => m.id === rev.movieId);
                   return (
-                    <div key={rev.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', padding: 20, borderRadius: 4, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Link to={`/movie/${rev.movieId}`} style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--gold)', textDecoration: 'none', fontWeight: 600 }}>
+                    <div
+                      key={rev.id}
+                      className="card"
+                      style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10, borderRadius: 'var(--radius-sm)' }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                        <Link
+                          to={`/movie/${rev.movieId}`}
+                          style={{ fontSize: 14, color: 'var(--gold)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'opacity var(--transition-fast)' }}
+                          onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
+                          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                        >
                           {targetM?.title || rev.movieId}
                         </Link>
-                        <StarRating rating={rev.rating} readOnly size={13} />
+                        <StarRating rating={rev.rating} readOnly size={12} />
                       </div>
                       <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         "{rev.reviewText}"
                       </p>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span>— {rev.userDisplayName}</span>
-                        <Link to={`/movie/${rev.movieId}`} style={{ color: 'var(--gold)', textDecoration: 'none' }}>Read Full Review →</Link>
+                        <Link to={`/movie/${rev.movieId}`} style={{ color: 'var(--gold)', transition: 'opacity var(--transition-fast)' }}
+                          onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
+                          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                        >Read →</Link>
                       </div>
                     </div>
                   );
@@ -351,50 +342,37 @@ export default function HomePage() {
         )}
 
         {/* ========== HOW IT WORKS ========== */}
-        <section style={{ padding: '80px 24px', borderBottom: '1px solid var(--border-subtle)' }}>
+        <section style={{ padding: '72px 24px', borderBottom: '1px solid var(--border-subtle)' }}>
           <div className="container">
-            <div style={{ textAlign: 'center', marginBottom: 48 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'center', marginBottom: 16 }}>
-                <div style={{ height: 1, width: 30, background: 'var(--gold-dim)' }} />
-                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: 'var(--gold)' }}>Platform Journey</span>
-                <div style={{ height: 1, width: 30, background: 'var(--gold-dim)' }} />
-              </div>
-              <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, letterSpacing: '0.05em', color: 'var(--text-primary)' }}>Cinema Discovery + Technical Excellence</h2>
-            </div>
+            <SectionHeader eyebrow="Platform Journey" title="Cinema Discovery + Technical Excellence" align="center" />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2, background: 'var(--border-subtle)', border: '1px solid var(--border-subtle)' }}>
               {STEPS.map((step) => (
-                <div key={step.num} style={{ background: 'var(--bg-card)', padding: '32px 24px' }}>
-                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 36, color: 'rgba(220,182,91,0.15)', letterSpacing: '0.05em', marginBottom: 12 }}>{step.num}</div>
-                  <p style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--text-primary)', letterSpacing: '0.03em', lineHeight: 1.5 }}>{step.label}</p>
+                <div key={step.num} style={{ background: 'var(--bg-card)', padding: '28px 22px', transition: 'background var(--transition-fast)' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-card)'}
+                >
+                  <div style={{ fontSize: 32, color: 'rgba(220,182,91,0.15)', fontWeight: 800, letterSpacing: '0.05em', marginBottom: 10 }}>{step.num}</div>
+                  <p style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.55 }}>{step.label}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ========== LIVE ASPECT RATIO SIMULATOR PREVIEW ========== */}
-        <section style={{ padding: '80px 24px' }}>
+        {/* ========== ASPECT RATIO SIMULATOR PREVIEW ========== */}
+        <section style={{ padding: '72px 24px' }}>
           <div className="container" style={{ maxWidth: 900 }}>
-            <div style={{ textAlign: 'center', marginBottom: 40 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'center', marginBottom: 16 }}>
-                <div style={{ height: 1, width: 30, background: 'var(--gold-dim)' }} />
-                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: 'var(--gold)' }}>Technical Cinema Engine</span>
-                <div style={{ height: 1, width: 30, background: 'var(--gold-dim)' }} />
-              </div>
-              <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 24, letterSpacing: '0.05em', color: 'var(--text-primary)', marginBottom: 8 }}>
-                Simulate Screen Ratios
-              </h2>
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-                Select a format to see how real movie content fills or crops on different theater screens
-              </p>
-            </div>
-
+            <SectionHeader
+              eyebrow="Technical Cinema Engine"
+              title="Simulate Screen Ratios"
+              subtitle="Select a format to see how real movie content fills or crops on different theater screens"
+              align="center"
+            />
             <FormatSelector
               selectedRatio={selectedFormat?.ratio}
               onSelect={setSelectedFormat}
               availableRatios={['1.43:1', '1.90:1', '1.85:1', '2.39:1', '2.20:1', '1.78:1']}
             />
-
             <div style={{ marginTop: 24 }}>
               <ScreenSimulator
                 screenRatio={selectedFormat?.numeric || 2.39}

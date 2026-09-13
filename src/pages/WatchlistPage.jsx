@@ -146,8 +146,8 @@ export default function WatchlistPage() {
       {/* Content */}
       <div className="container" style={{ maxWidth: 1200, padding: '32px 24px 80px' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-muted)' }}>
-            <RefreshCw size={24} style={{ marginBottom: 12 }} />
+          <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+            <div className="loading-spinner" />
             <p>Loading your watchlist…</p>
           </div>
         ) : watchlistItems.length === 0 ? (

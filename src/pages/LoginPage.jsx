@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { LogIn, Key, Mail, ShieldAlert, Sparkles } from 'lucide-react';
+import { LogIn, Key, Mail, ShieldAlert } from 'lucide-react';
 import { useApp } from '../AppContext';
 
 export default function LoginPage() {
@@ -23,7 +23,6 @@ export default function LoginPage() {
       return;
     }
 
-    // Match against user DB
     const foundUser = state.users.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
 
     if (!foundUser) {
@@ -49,6 +48,7 @@ export default function LoginPage() {
 
   const handleQuickUserLogin = () => {
     const demoUser = state.users.find(u => u.email === 'harsha@cinema.com') || state.users[0];
+    if (!demoUser) { setError('No demo users available.'); return; }
     dispatch({ type: 'SET_CURRENT_USER', payload: demoUser });
     navigate(from);
   };
@@ -56,32 +56,37 @@ export default function LoginPage() {
   return (
     <div className="page-enter" style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
       <div style={{ maxWidth: 420, width: '100%', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', padding: 32, borderRadius: 'var(--radius-sm)', boxShadow: 'var(--shadow-card)' }}>
-        
+
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--gold-faint)', border: '1px solid var(--gold-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', color: 'var(--gold)' }}>
             <LogIn size={20} />
           </div>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--text-primary)' }}>Welcome Back</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Welcome Back</h1>
           <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
             Log in to submit reviews, vote, and manage your activity
           </p>
         </div>
 
         {error && (
-          <div style={{ padding: '10px 14px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171', fontSize: 12, marginBottom: 20 }}>
+          <div
+            role="alert"
+            aria-live="polite"
+            style={{ padding: '10px 14px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171', fontSize: 12, marginBottom: 20, borderRadius: 'var(--radius-sm)' }}
+          >
             {error}
           </div>
         )}
 
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 6, letterSpacing: '0.1em' }}>
+            <label htmlFor="login-email" style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 6, letterSpacing: '0.1em' }}>
               Email Address
             </label>
             <div style={{ position: 'relative' }}>
-              <Mail size={14} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
+              <Mail size={14} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
               <input
+                id="login-email"
                 type="email"
                 className="input"
                 style={{ paddingLeft: 38 }}
@@ -89,17 +94,19 @@ export default function LoginPage() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
+                autoComplete="email"
               />
             </div>
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 6, letterSpacing: '0.1em' }}>
+            <label htmlFor="login-password" style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 6, letterSpacing: '0.1em' }}>
               Password
             </label>
             <div style={{ position: 'relative' }}>
-              <Key size={14} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
+              <Key size={14} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
               <input
+                id="login-password"
                 type="password"
                 className="input"
                 style={{ paddingLeft: 38 }}
@@ -107,6 +114,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
+                autoComplete="current-password"
               />
             </div>
           </div>
@@ -116,15 +124,19 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Quick Demo Login */}
+        {/* Quick Demo Login Buttons */}
         <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <p style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Quick Demo Access</p>
           <button type="button" onClick={handleQuickUserLogin} className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', fontSize: 11 }}>
             Demo User Login
+          </button>
+          <button type="button" onClick={handleQuickAdminLogin} className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', fontSize: 11, color: 'var(--gold)', borderColor: 'var(--gold-dim)' }}>
+            <ShieldAlert size={13} /> Admin Demo Login
           </button>
         </div>
 
         {/* Footer Link */}
-        <div style={{ marginTop: 24, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)' }}>
+        <div style={{ marginTop: 20, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)' }}>
           Don't have an account?{' '}
           <Link to="/signup" style={{ color: 'var(--gold)', fontWeight: 500 }}>
             Sign Up
