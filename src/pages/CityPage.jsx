@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Search, Filter, Map, Grid, LayoutList, Plus } from 'lucide-react';
+import { Search, Filter, Map, Grid, LayoutList, Plus, Star } from 'lucide-react';
 import YoutubeIcon from '../components/shared/YoutubeIcon';
 import { useApp } from '../AppContext';
 import TheaterCard from '../components/city/TheaterCard';
@@ -21,7 +21,7 @@ const FILTERS = [
 export default function CityPage() {
   const { cityId } = useParams();
   const navigate = useNavigate();
-  const { getCity, getCityTheaters, state, dispatch, allCities } = useApp();
+  const { getCity, getCityTheaters, getTheaterRating, state, dispatch, allCities } = useApp();
 
   const currentUser = state.currentUser;
   const isAdmin = currentUser && currentUser.role === 'ADMIN';
@@ -65,7 +65,7 @@ export default function CityPage() {
   };
 
   const filtered = useMemo(() => {
-    return theaters.filter(t => {
+    const list = theaters.filter(t => {
       // Search
       const q = search.toLowerCase();
       const matchSearch = !q ||
@@ -93,7 +93,38 @@ export default function CityPage() {
 
       return matchSearch && matchFilter;
     });
-  }, [theaters, search, activeFilter]);
+
+    // Sort by top rating (highest rating first, more reviews on ties, then alphabetical)
+    return [...list].sort((a, b) => {
+      const rA = getTheaterRating ? getTheaterRating(a.id) : { average: 0, count: 0 };
+      const rB = getTheaterRating ? getTheaterRating(b.id) : { average: 0, count: 0 };
+
+      // Theaters with reviews come before theaters without reviews
+      if (rA.count > 0 && rB.count === 0) return -1;
+      if (rA.count === 0 && rB.count > 0) return 1;
+
+      // Both have reviews: compare average rating descending
+      if (rB.average !== rA.average) {
+        return rB.average - rA.average;
+      }
+
+      // If average rating is equal, compare review count descending
+      if (rB.count !== rA.count) {
+        return rB.count - rA.count;
+      }
+
+      // Tie breaker: alphabetical by theater name
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }, [theaters, search, activeFilter, getTheaterRating, state.reviews]);
+
+  // Determine top-rated theater (must have at least one review)
+  const topTheaterId = useMemo(() => {
+    if (!filtered || filtered.length === 0) return null;
+    const top = filtered[0];
+    const r = getTheaterRating ? getTheaterRating(top.id) : { average: 0, count: 0 };
+    return r.count > 0 ? top.id : null;
+  }, [filtered, getTheaterRating]);
 
   const totalScreens = theaters.reduce((s, t) => s + t.totalScreens, 0);
 
@@ -224,10 +255,26 @@ export default function CityPage() {
 
       {/* Content */}
       <div className="container" style={{ padding: '32px 24px' }}>
-        {/* Results count */}
-        <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* Results count & sort indicator */}
+        <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
           <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-serif)', letterSpacing: '0.1em' }}>
             {filtered.length} theater{filtered.length !== 1 ? 's' : ''} found
+          </span>
+          <span style={{
+            fontSize: 10,
+            color: 'var(--gold)',
+            fontFamily: 'var(--font-serif)',
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            background: 'rgba(201,168,76,0.08)',
+            border: '1px solid rgba(201,168,76,0.2)',
+            padding: '3px 9px',
+            borderRadius: 3,
+          }}>
+            <Star size={10} fill="var(--gold)" color="var(--gold)" /> Ordered by Top Rating
           </span>
         </div>
 
@@ -268,6 +315,7 @@ export default function CityPage() {
                   key={t.id}
                   theater={t}
                   compact={view === 'list'}
+                  isTopRated={t.id === topTheaterId}
                   isAdmin={isAdmin}
                   onEdit={handleOpenEditTheater}
                   onDelete={handleDeleteTheater}

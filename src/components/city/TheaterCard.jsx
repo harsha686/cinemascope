@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Monitor, MapPin, Layers, ChevronRight, Star, Edit3, Trash2 } from 'lucide-react';
+import { Monitor, MapPin, Layers, ChevronRight, Star, Edit3, Trash2, Trophy } from 'lucide-react';
 import { useApp } from '../../AppContext';
 
 
@@ -36,7 +36,7 @@ function FeatureBadge({ label }) {
   );
 }
 
-export default function TheaterCard({ theater, compact = false, onEdit, onDelete, isAdmin = false }) {
+export default function TheaterCard({ theater, compact = false, onEdit, onDelete, isAdmin = false, isTopRated = false }) {
   const navigate = useNavigate();
   const { getTheaterRating } = useApp();
   if (!theater) return null;
@@ -55,10 +55,46 @@ export default function TheaterCard({ theater, compact = false, onEdit, onDelete
 
   return (
     <div
-      className="card"
+      className={`card ${isTopRated ? 'top-rated-theater-card' : ''}`}
       onClick={() => navigate(`/theater/${theater.id}`)}
-      style={{ cursor: 'pointer', padding: compact ? 16 : 24, display: 'flex', flexDirection: 'column', gap: compact ? 10 : 16, borderRadius: 2, position: 'relative' }}
+      style={{
+        cursor: 'pointer',
+        padding: compact ? 16 : 24,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: compact ? 10 : 16,
+        borderRadius: 4,
+        position: 'relative',
+        transition: 'all 0.25s ease',
+        ...(isTopRated ? {
+          border: '1px solid rgba(201, 168, 76, 0.65)',
+          background: 'linear-gradient(160deg, rgba(201, 168, 76, 0.1) 0%, rgba(24, 21, 16, 0.98) 45%, rgba(12, 10, 8, 0.98) 100%)',
+          boxShadow: '0 8px 30px rgba(201, 168, 76, 0.15), inset 0 1px 0 rgba(201, 168, 76, 0.35)',
+        } : {}),
+      }}
     >
+      {/* Top Rated Highlight Badge */}
+      {isTopRated && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: -4 }}>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '3px 10px',
+            background: 'linear-gradient(135deg, #f3d47a 0%, #c9a84c 50%, #997424 100%)',
+            color: '#080705',
+            fontSize: 9.5,
+            fontWeight: 800,
+            fontFamily: 'var(--font-serif)',
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            borderRadius: 2,
+            boxShadow: '0 2px 10px rgba(201, 168, 76, 0.35)',
+          }}>
+            <Trophy size={11} strokeWidth={2.5} color="#080705" /> #1 Top Rated Theater
+          </span>
+        </div>
+      )}
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -165,12 +201,22 @@ export default function TheaterCard({ theater, compact = false, onEdit, onDelete
       {/* CTA */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
         {ratingInfo.count > 0 ? (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            ...(isTopRated ? {
+              background: 'rgba(201, 168, 76, 0.15)',
+              border: '1px solid rgba(201, 168, 76, 0.35)',
+              padding: '2px 8px',
+              borderRadius: 3,
+            } : {})
+          }}>
             <Star size={11} fill="var(--gold)" color="var(--gold)" />
             <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-serif)' }}>
               {ratingInfo.average}
             </span>
-            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: 10, color: isTopRated ? 'var(--gold)' : 'var(--text-muted)', opacity: isTopRated ? 0.9 : 1 }}>
               ({ratingInfo.count} {ratingInfo.count === 1 ? 'review' : 'reviews'})
             </span>
           </div>
