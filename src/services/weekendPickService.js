@@ -340,7 +340,7 @@ const getSeedRounds = () => {
             rating: 4.9,
             language: 'English',
             posterUrl: 'https://image.tmdb.org/t/p/w500/hA2ple9q4qnwxp3hKVNhroipsir.jpg',
-            backdropUrl: 'https://image.tmdb.org/t/p/original/nlCHUW2Y9XWbuEUQauCBgnY8ymF.jpg',
+            backdropUrl: 'https://image.tmdb.org/t/p/original/8h2FzT9O43c08B7Z2aYt2KjS7sF.jpg',
             overview: 'An apocalyptic story set in the furthest reaches of our planet, in a stark desert landscape.',
             initialVoteSeed: 1180,
           },

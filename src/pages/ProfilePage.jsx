@@ -3,6 +3,7 @@ import { useNavigate, Link, useParams } from 'react-router-dom';
 import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import ReviewCard from '../components/reviews/ReviewCard';
+import ProfessionalRatingBadge from '../components/reviews/ProfessionalRatingBadge';
 import * as LibService from '../services/movieLibraryService';
 import ApplicationStatusBanner from '../components/pro/ApplicationStatusBanner';
 import { getUserApplication } from '../services/proReviewerService';
