@@ -44,9 +44,279 @@ export default function AestheticCardRenderer({
   const isStats = content.type === SOCIAL_CONTENT_TYPES.USER_STATS;
   const isWeekendWinner = content.type === SOCIAL_CONTENT_TYPES.WEEKEND_WINNER;
   const isKeyArt = template.isKeyArt;
+  const isTheatre = template.isTheatre || template.id === 'theatre';
 
   // Background image source priority for full-bleed key-art mode
   const keyArtImage = content.backdropUrl || content.posterUrl;
+
+  if (isTheatre) {
+    const movieImage = content.backdropUrl || content.posterUrl || '/cinema_theatre_backdrop.jpg';
+    return (
+      <div
+        ref={cardRef}
+        className="modal-studio-rendered-card modal-theatre-rendered-card"
+        style={{
+          width: '100%',
+          height: '100%',
+          flex: 1,
+          aspectRatio: format.aspectRatio,
+          minHeight: isStory ? 480 : isPortrait ? 380 : isSquare ? 280 : 180,
+          background: '#040206',
+          color: '#ffffff',
+          position: 'relative',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          padding: isStory ? '28px 24px' : isLandscape ? '20px 32px' : '22px 22px',
+          boxSizing: 'border-box',
+          fontFamily: 'var(--font-sans, "Inter", sans-serif)',
+          border: '1px solid rgba(255,255,255,0.12)',
+          flexShrink: 0,
+        }}
+      >
+        {/* Full Theatre Environment Background */}
+        <img
+          src="/cinema_theatre_backdrop.jpg"
+          alt="Cinema Theatre"
+          crossOrigin="anonymous"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center top',
+            display: 'block',
+          }}
+          onError={(e) => {
+            // Fallback gradient if file is not served directly
+            e.target.style.display = 'none';
+          }}
+        />
+
+        {/* Ambient Vignette & Cinema Projection Glow Overlay */}
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'radial-gradient(ellipse at 50% 38%, rgba(235,60,40,0.18) 0%, transparent 60%)',
+          pointerEvents: 'none',
+        }} />
+
+        {/* Top Gradient for subtle header readability */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 100,
+          background: 'linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 65%, transparent 100%)',
+          pointerEvents: 'none',
+        }} />
+
+        {/* Bottom Rich Editorial Darkening Gradient for verdict and rating legibility */}
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: isStory ? '42%' : isLandscape ? '55%' : '48%',
+          background: 'linear-gradient(0deg, rgba(4,2,6,0.98) 0%, rgba(4,2,6,0.92) 50%, rgba(4,2,6,0.55) 75%, transparent 100%)',
+          pointerEvents: 'none',
+        }} />
+
+        {/* ================= TOP SECTION: THEATRE METADATA ================= */}
+        <div style={{
+          position: 'relative',
+          zIndex: 3,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+        }}>
+          {/* Subtle Platform / Studio Brand */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 9.5,
+            fontWeight: 700,
+            letterSpacing: '0.22em',
+            textTransform: 'uppercase',
+            color: 'rgba(255,255,255,0.85)',
+          }}>
+            <Film size={12} color="#fce08b" />
+            <span>{customAppName || 'CINEMASCOPE'}</span>
+          </div>
+
+          {/* Date / Metadata */}
+          <div style={{
+            fontSize: 9,
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            color: 'rgba(255,255,255,0.55)',
+            fontWeight: 500,
+          }}>
+            {content.dateStr || 'SEP 13, 2026'}
+          </div>
+        </div>
+
+        {/* Subtle Side Theatre Badge */}
+        <div style={{
+          position: 'absolute',
+          top: '46%',
+          right: 14,
+          transform: 'rotate(90deg) translateX(-50%)',
+          transformOrigin: 'right center',
+          fontSize: 7.5,
+          letterSpacing: '0.22em',
+          textTransform: 'uppercase',
+          color: 'rgba(252,224,139,0.45)',
+          fontWeight: 700,
+          pointerEvents: 'none',
+          zIndex: 2,
+        }}>
+          AUDITORIUM 04 · ROW J · SEAT 22
+        </div>
+
+        {/* ================= BOTTOM SECTION: PREMIUM EDITORIAL VERDICT ================= */}
+        <div style={{
+          position: 'relative',
+          zIndex: 3,
+          textAlign: 'center',
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}>
+          {/* Accent Gold Divider Rule */}
+          <div style={{
+            width: 50,
+            height: 1,
+            margin: '0 auto 8px',
+            background: 'linear-gradient(90deg, transparent, rgba(252,224,139,0.7), transparent)',
+          }} />
+
+          {/* Mini Genre / Studio Eyebrow */}
+          <div style={{
+            fontSize: 8.5,
+            fontWeight: 800,
+            letterSpacing: '0.24em',
+            textTransform: 'uppercase',
+            color: '#fce08b',
+            marginBottom: 4,
+            opacity: 0.9,
+          }}>
+            {customGenreBadge || (content.genres && content.genres.length > 0 ? content.genres[0] : 'THEATRICAL RELEASE')}
+          </div>
+
+          {/* Movie Title */}
+          <h2 style={{
+            fontSize: isStory ? 'clamp(18px, 4.5vw, 26px)' : isLandscape ? '19px' : '22px',
+            fontWeight: 800,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            fontFamily: 'var(--font-serif, "Cinzel", Georgia, serif)',
+            color: '#ffffff',
+            margin: '0 0 6px',
+            lineHeight: 1.15,
+            textShadow: '0 2px 16px rgba(0,0,0,0.95)',
+            maxWidth: '92%',
+          }}>
+            {customTitle || content.title}
+          </h2>
+
+          {/* Star Rating Row */}
+          {showRating && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              marginBottom: 8,
+            }}>
+              <div style={{ display: 'flex', gap: 2.5, color: '#fce08b' }}>
+                {Array.from({ length: 5 }).map((_, idx) => (
+                  <Star
+                    key={idx}
+                    size={14}
+                    fill={idx < fullStars ? '#fce08b' : 'none'}
+                    color="#fce08b"
+                  />
+                ))}
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#ffffff', letterSpacing: '0.04em' }}>
+                {effectiveRating}
+                <span style={{ fontSize: 9.5, opacity: 0.6, marginLeft: 2 }}> / 5.0</span>
+              </span>
+            </div>
+          )}
+
+          {/* Personal Review Quote */}
+          {quote && (
+            <p style={{
+              fontFamily: 'var(--font-serif, "Playfair Display", Georgia, serif)',
+              fontStyle: 'italic',
+              fontSize: isStory ? 13 : 12,
+              fontWeight: 400,
+              color: 'rgba(255,255,255,0.92)',
+              margin: '0 auto 10px',
+              textShadow: '0 2px 10px rgba(0,0,0,0.95)',
+              maxWidth: '88%',
+              lineHeight: 1.45,
+              display: '-webkit-box',
+              WebkitLineClamp: isLandscape ? 2 : 3,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}>
+              {`"${quote}"`}
+            </p>
+          )}
+
+          {/* Reviewer / Personal Take Line */}
+          {showAuthor && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              fontSize: 9,
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              color: 'rgba(255,255,255,0.65)',
+              fontWeight: 600,
+              marginBottom: 8,
+            }}>
+              <span>{content.authorName ? `${content.authorName.toUpperCase()}'S TAKE` : "HARSHA'S TAKE"}</span>
+              <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(252,224,139,0.6)' }} />
+              <span>MY VERDICT</span>
+            </div>
+          )}
+
+          {/* Bottom Micro Ticket Strip */}
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '3px 12px',
+            border: '1px solid rgba(252,224,139,0.22)',
+            borderRadius: 2,
+            fontSize: 7.5,
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+            color: 'rgba(252,224,139,0.6)',
+            fontWeight: 700,
+          }}>
+            <span>CINEMASCOPE SELECTION</span>
+            <span style={{ width: 1, height: 8, background: 'rgba(252,224,139,0.25)' }} />
+            <span>SCREEN 04</span>
+            <span style={{ width: 1, height: 8, background: 'rgba(252,224,139,0.25)' }} />
+            <span>LAST ROW</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isKeyArt) {
     return (
