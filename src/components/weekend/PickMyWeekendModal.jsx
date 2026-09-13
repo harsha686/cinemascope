@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Sparkles, Dices, Trophy, Star, ArrowRight, Bookmark, Check, Heart } from 'lucide-react';
-import { getGenreOptions, pickMyWeekendRecommendation } from '../../services/weekendPickService';
-import { toggleWatchlist, toggleFavorite, toggleWatched, getMovieStatusSync } from '../../services/movieLibraryService';
+import { X, Sparkles, Dices, Trophy, Star, ArrowRight, Bookmark, Check, Heart, Film, Tv, RotateCcw } from 'lucide-react';
+import {
+  getGenreOptions,
+  getRandomVotingCandidate,
+  submitVote,
+  hasUserVotedInGenre,
+  getUserVoteInGenre,
+  getActiveRound,
+} from '../../services/weekendPickService';
+import { toggleWatchlist, toggleFavorite, getMovieStatusSync } from '../../services/movieLibraryService';
 import { useApp } from '../../AppContext';
 
 const MOODS = [
-  { id: 'any', label: 'Any Mood', emoji: '✨' },
+  { id: 'any', label: 'Any Vibe', emoji: '✨' },
   { id: 'hyped', label: 'Adrenaline / High Energy', emoji: '⚡', preferredGenre: 'action' },
   { id: 'laugh', label: 'Need a Good Laugh', emoji: '😂', preferredGenre: 'comedy' },
   { id: 'spooky', label: 'Dark & Chilling', emoji: '🌙', preferredGenre: 'horror' },
@@ -21,12 +28,17 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
   const currentUser = state.currentUser;
 
   const [genres, setGenres] = useState(() => getGenreOptions());
-  const [selectedGenre, setSelectedGenre] = useState('surprise');
+  const [selectedGenre, setSelectedGenre] = useState('all');
   const [selectedMood, setSelectedMood] = useState('any');
   const [selectedType, setSelectedType] = useState('ANY'); // ANY | MOVIE | SERIES
+  const [unvotedOnly, setUnvotedOnly] = useState(false);
   const [result, setResult] = useState(null);
   const [isSpinning, setIsSpinning] = useState(false);
   const [currentStatus, setCurrentStatus] = useState({});
+  const [votedInGenre, setVotedInGenre] = useState(false);
+  const [userVotedCandidateId, setUserVotedCandidateId] = useState(null);
+
+  const activeRound = getActiveRound();
 
   useEffect(() => {
     if (isOpen) {
@@ -63,38 +75,54 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
     if (result?.titleId) {
       setCurrentStatus(getMovieStatusSync(result.titleId, currentUser?.id));
     }
-  }, [result?.titleId, currentUser?.id]);
+    if (result && currentUser?.id && result.roundId && result.genreId) {
+      const hasVoted = hasUserVotedInGenre(currentUser.id, result.roundId, result.genreId);
+      setVotedInGenre(hasVoted);
+      if (hasVoted) {
+        const vote = getUserVoteInGenre(currentUser.id, result.roundId, result.genreId);
+        setUserVotedCandidateId(vote?.candidateId || null);
+      } else {
+        setUserVotedCandidateId(null);
+      }
+    }
+  }, [result, currentUser?.id]);
 
   if (!isOpen) return null;
 
   const handleGenerate = () => {
     setIsSpinning(true);
-    setResult(null);
-
-    // Resolve genre preference from mood if set to surprise
-    let targetGenre = selectedGenre;
-    if (targetGenre === 'surprise' && selectedMood !== 'any') {
-      const moodObj = MOODS.find(m => m.id === selectedMood);
-      if (moodObj?.preferredGenre) targetGenre = moodObj.preferredGenre;
-    }
 
     setTimeout(() => {
       try {
-        const pick = pickMyWeekendRecommendation({
-          genreId: targetGenre,
+        const pick = getRandomVotingCandidate({
+          roundId: activeRound?.id,
+          genreId: selectedGenre,
           mood: selectedMood,
           type: selectedType,
+          unvotedOnly,
+          userId: currentUser?.id,
         });
         setResult(pick);
-        if (pick?.titleId) {
-          setCurrentStatus(getMovieStatusSync(pick.titleId, currentUser?.id));
-        }
       } catch (err) {
-        console.error('Error generating weekend pick:', err);
+        console.error('Error picking random voting title:', err);
       } finally {
         setIsSpinning(false);
       }
-    }, 400);
+    }, 350);
+  };
+
+  const handleVoteForCandidate = () => {
+    if (!currentUser) return alert('Please log in to cast your vote.');
+    if (!result?.roundId || !result?.genreId || !result?.id) return;
+    try {
+      submitVote(currentUser.id, result.roundId, result.genreId, result.id);
+      setVotedInGenre(true);
+      setUserVotedCandidateId(result.id);
+      setResult(prev => prev ? { ...prev, votes: (prev.votes || 0) + 1 } : prev);
+      window.dispatchEvent(new Event('cinemascope_vote_submitted'));
+    } catch (err) {
+      alert(err.message || 'Could not register vote.');
+    }
   };
 
   const handleToggleWatchlist = async () => {
@@ -118,6 +146,8 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
       console.error(err);
     }
   };
+
+  const isCurrentCandidateVotedByUser = votedInGenre && userVotedCandidateId === result?.id;
 
   return (
     <div
@@ -184,25 +214,100 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
           </div>
           <div>
             <div style={{ fontSize: 10, fontFamily: 'var(--font-serif)', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--gold)' }}>
-              Weekend Discovery
+              Weekend Voting Polls
             </div>
             <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--text-primary)', margin: 0 }}>
-              Pick My Weekend
+              Random Movie / Series
             </h3>
           </div>
         </div>
 
-        {/* Options */}
+        {/* Filter Configuration */}
         {!result && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Not sure what to watch? Tell us your mood and format preference, and we’ll recommend the community's crowned Weekend Winner.
+              Specify your preferences to discover a random title competing in this weekend's active voting poll:
             </p>
 
-            {/* Mood selector */}
+            {/* Format selector */}
             <div>
               <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-                1. What's your vibe this weekend?
+                1. Format Preference
+              </label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[
+                  { id: 'ANY', label: '🎬 Any Format' },
+                  { id: 'MOVIE', label: '🍿 Movies Only' },
+                  { id: 'SERIES', label: '📺 TV Series Only' },
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setSelectedType(t.id)}
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      fontSize: 11,
+                      background: selectedType === t.id ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${selectedType === t.id ? 'var(--gold)' : 'var(--border-subtle)'}`,
+                      borderRadius: 4,
+                      color: selectedType === t.id ? 'var(--gold)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Genre selector */}
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                2. Voting Genre
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedGenre('all')}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: 11,
+                    background: selectedGenre === 'all' ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${selectedGenre === 'all' ? 'var(--gold)' : 'var(--border-subtle)'}`,
+                    borderRadius: 20,
+                    color: selectedGenre === 'all' ? 'var(--gold)' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  🎲 All Genres
+                </button>
+                {genres.map(g => (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => setSelectedGenre(g.id)}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: 11,
+                      background: selectedGenre === g.id ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${selectedGenre === g.id ? 'var(--gold)' : 'var(--border-subtle)'}`,
+                      borderRadius: 20,
+                      color: selectedGenre === g.id ? 'var(--gold)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {g.emoji} {g.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Mood selector (optional) */}
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                3. Mood / Vibe (Optional)
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
                 {MOODS.map(m => {
@@ -234,80 +339,20 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
               </div>
             </div>
 
-            {/* Genre selector */}
-            <div>
-              <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-                2. Genre preference
+            {/* Unvoted categories toggle */}
+            {currentUser && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
+                <input
+                  type="checkbox"
+                  checked={unvotedOnly}
+                  onChange={e => setUnvotedOnly(e.target.checked)}
+                  style={{ accentColor: 'var(--gold)' }}
+                />
+                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  Only show titles from genres I haven't voted in yet (help me decide my vote)
+                </span>
               </label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedGenre('surprise')}
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: 11,
-                    background: selectedGenre === 'surprise' ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
-                    border: `1px solid ${selectedGenre === 'surprise' ? 'var(--gold)' : 'var(--border-subtle)'}`,
-                    borderRadius: 20,
-                    color: selectedGenre === 'surprise' ? 'var(--gold)' : 'var(--text-secondary)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  🎲 Surprise Me
-                </button>
-                {genres.map(g => (
-                  <button
-                    key={g.id}
-                    type="button"
-                    onClick={() => setSelectedGenre(g.id)}
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: 11,
-                      background: selectedGenre === g.id ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
-                      border: `1px solid ${selectedGenre === g.id ? 'var(--gold)' : 'var(--border-subtle)'}`,
-                      borderRadius: 20,
-                      color: selectedGenre === g.id ? 'var(--gold)' : 'var(--text-secondary)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {g.emoji} {g.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Type selector */}
-            <div>
-              <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-                3. Format
-              </label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {[
-                  { id: 'ANY', label: '🎬 Any Format' },
-                  { id: 'MOVIE', label: '🍿 Movies Only' },
-                  { id: 'SERIES', label: '📺 TV Shows Only' },
-                ].map(t => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setSelectedType(t.id)}
-                    style={{
-                      flex: 1,
-                      padding: '8px 12px',
-                      fontSize: 11,
-                      background: selectedType === t.id ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
-                      border: `1px solid ${selectedType === t.id ? 'var(--gold)' : 'var(--border-subtle)'}`,
-                      borderRadius: 4,
-                      color: selectedType === t.id ? 'var(--gold)' : 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      textAlign: 'center',
-                    }}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            )}
 
             <button
               type="button"
@@ -324,8 +369,8 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                 gap: 8,
               }}
             >
-              <Dices size={16} />
-              {isSpinning ? 'Consulting the Community...' : 'Find My Weekend Winner'}
+              <Dices size={16} style={{ animation: isSpinning ? 'spin 1s linear infinite' : 'none' }} />
+              {isSpinning ? 'Rolling the Candidates...' : '🎲 Roll Random Movie'}
             </button>
           </div>
         )}
@@ -348,8 +393,8 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                   src={result.posterUrl}
                   alt={result.title}
                   style={{
-                    width: 100,
-                    height: 150,
+                    width: 105,
+                    height: 155,
                     objectFit: 'cover',
                     borderRadius: 4,
                     border: '1px solid rgba(201,168,76,0.4)',
@@ -359,21 +404,27 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
               )}
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
-                  <span className="badge badge-gold" style={{ fontSize: 9 }}>
-                    {result.voteCount ? '🏆 COMMUNITY WINNER' : '✨ FEATURED PICK'}
+                  <span className="badge badge-gold" style={{ fontSize: 9, fontWeight: 700 }}>
+                    🗳️ VOTING CANDIDATE
                   </span>
-                  <span className="badge badge-dim" style={{ fontSize: 9 }}>{result.genreName}</span>
-                  <span className="badge badge-dim" style={{ fontSize: 9 }}>{result.type}</span>
+                  <span className="badge badge-dim" style={{ fontSize: 9 }}>
+                    {result.genreName}
+                  </span>
+                  <span className="badge badge-dim" style={{ fontSize: 9 }}>
+                    {result.type === 'SERIES' ? 'TV SERIES' : 'MOVIE'}
+                  </span>
                 </div>
                 <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: '#fff', marginBottom: 6 }}>
                   {result.title}
                 </h4>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span>⭐ {result.communityScore ? `${result.communityScore}% score` : '4.8 rating'}</span>
-                  {result.voteCount && (
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span>⭐ {result.rating || 4.8} rating</span>
+                  <span>·</span>
+                  <span style={{ color: 'var(--gold)', fontWeight: 600 }}>{result.votes || 0} votes</span>
+                  {result.rank && (
                     <>
                       <span>·</span>
-                      <span>{result.voteCount.toLocaleString()} votes</span>
+                      <span>Rank #{result.rank} in {result.genreName}</span>
                     </>
                   )}
                   {result.releaseYear && (
@@ -383,11 +434,54 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                     </>
                   )}
                 </div>
-                <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {result.overview || 'Voted by the Cinemascope community as the absolute top recommendation for this weekend.'}
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                  {result.overview || 'Competing in this weekend\'s community vote. Cast your ballot to make it this week\'s official winner!'}
                 </p>
               </div>
             </div>
+
+            {/* Voting Action Banner */}
+            {currentUser && (
+              <div style={{
+                padding: '12px 16px',
+                borderRadius: 4,
+                border: `1px solid ${isCurrentCandidateVotedByUser ? 'rgba(74,222,128,0.4)' : 'var(--gold-dim)'}`,
+                background: isCurrentCandidateVotedByUser ? 'rgba(74,222,128,0.1)' : 'rgba(201,168,76,0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 10,
+              }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: isCurrentCandidateVotedByUser ? '#4ade80' : 'var(--gold)' }}>
+                    {isCurrentCandidateVotedByUser
+                      ? '✓ You voted for this title in ' + result.genreName + '!'
+                      : votedInGenre
+                        ? `You have already voted in ${result.genreName}`
+                        : `Ready to back ${result.title}?`}
+                  </div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                    {isCurrentCandidateVotedByUser
+                      ? 'Your vote is currently counted toward the weekend standings.'
+                      : votedInGenre
+                        ? 'You can change your vote directly from the category poll.'
+                        : `1-click cast your vote for ${result.genreName} category`}
+                  </div>
+                </div>
+
+                {!votedInGenre && (
+                  <button
+                    type="button"
+                    onClick={handleVoteForCandidate}
+                    className="btn btn-primary btn-sm"
+                    style={{ fontSize: 11, padding: '6px 14px' }}
+                  >
+                    <Trophy size={13} /> Vote for This Title
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Action Bar */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -418,21 +512,35 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                     navigate(`/movie/${formattedUrl}`);
                   }
                 }}
-                className="btn btn-primary btn-sm"
+                className="btn btn-outline btn-sm"
                 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}
               >
                 View Title <ArrowRight size={13} />
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setResult(null)}
-              className="btn btn-ghost btn-sm"
-              style={{ alignSelf: 'center', fontSize: 11 }}
-            >
-              ← Pick another title
-            </button>
+            {/* Quick Roll Again or Filter Adjust */}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 4 }}>
+              <button
+                type="button"
+                disabled={isSpinning}
+                onClick={handleGenerate}
+                className="btn btn-primary btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, padding: '8px 16px' }}
+              >
+                <Dices size={14} style={{ animation: isSpinning ? 'spin 1s linear infinite' : 'none' }} />
+                {isSpinning ? 'Rolling...' : '🎲 Roll Another Movie'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setResult(null)}
+                className="btn btn-ghost btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}
+              >
+                <RotateCcw size={13} /> Change Filters
+              </button>
+            </div>
           </div>
         )}
       </div>

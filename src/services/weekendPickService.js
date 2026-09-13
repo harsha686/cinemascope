@@ -1198,47 +1198,120 @@ export function setUserPreferredGenre(userId, genreId) {
 }
 
 /**
- * "Pick My Weekend" Mood / Surprise generator
+ * Pick a random movie/series strictly from the current voting candidates
+ * according to user specifications (type, genre, unvoted only, mood)
  */
-export function pickMyWeekendRecommendation({ genreId = null, mood = 'any', type = 'ANY' } = {}) {
-  const seedWinners = getSeedWinners();
-  const winners = getAllWinners();
-  const activeRound = getActiveRound();
+export function getRandomVotingCandidate({
+  roundId = null,
+  genreId = 'all',
+  type = 'ANY', // 'ANY' | 'MOVIE' | 'SERIES'
+  unvotedOnly = false,
+  userId = null,
+  mood = 'any',
+} = {}) {
+  const round = roundId ? getRoundById(roundId) : getActiveRound();
+  if (!round || !round.genreRounds) return null;
 
-  let pool = winners && winners.length > 0 ? [...winners] : [...seedWinners];
+  const candidatesList = [];
 
-  // Include candidates from active round purely as candidate options
-  if (activeRound && activeRound.genreRounds) {
-    Object.keys(activeRound.genreRounds).forEach(gId => {
-      const res = calculateGenreResults(activeRound.id, gId);
-      if (res.candidates && res.candidates.length > 0) {
-        res.candidates.forEach(cand => {
-          pool.push({
-            roundId: activeRound.id,
-            roundName: activeRound.name,
-            genreId: gId,
-            genreName: res.genreName,
-            titleId: cand.titleId,
-            title: cand.title,
-            type: cand.type || 'MOVIE',
-            releaseYear: cand.releaseYear,
-            posterUrl: cand.posterUrl,
-            backdropUrl: cand.backdropUrl,
-            overview: cand.overview,
-            communityScore: Math.round((cand.rating || 4.7) * 20),
-          });
-        });
-      }
-    });
+  // Mood to genre mapping if genreId is 'all' or 'surprise'
+  let targetGenre = genreId;
+  if ((!targetGenre || targetGenre === 'all' || targetGenre === 'surprise') && mood !== 'any') {
+    const moodMap = {
+      hyped: 'action',
+      laugh: 'comedy',
+      spooky: 'horror',
+      mindblown: 'scifi',
+      edge: 'thriller',
+      cozy: 'romance',
+    };
+    if (moodMap[mood]) targetGenre = moodMap[mood];
   }
 
-  // Filter by genre
-  if (genreId && genreId !== 'surprise') {
+  // Get user's voted genres if unvotedOnly is requested
+  let userVotes = [];
+  if (unvotedOnly && userId) {
+    userVotes = getUserVotes(userId, round.id);
+  }
+
+  // Collect candidates across relevant genre rounds
+  Object.entries(round.genreRounds).forEach(([gId, gRound]) => {
+    // Check genre match
+    if (targetGenre && targetGenre !== 'all' && targetGenre !== 'surprise' && gId !== targetGenre) {
+      return;
+    }
+
+    // If user wants only unvoted genres
+    if (unvotedOnly && userId && userVotes.some(v => v.genreId === gId)) {
+      return;
+    }
+
+    const res = calculateGenreResults(round.id, gId);
+    (res.candidates || []).forEach(cand => {
+      // Check type match
+      const candType = cand.type || 'MOVIE';
+      if (type && type !== 'ANY' && candType !== type) {
+        return;
+      }
+
+      candidatesList.push({
+        ...cand,
+        candidateId: cand.id,
+        genreId: gId,
+        genreName: res.genreName || gRound.genreName || gId,
+        roundId: round.id,
+        roundName: round.name,
+        votes: cand.votes || 0,
+        percentage: cand.percentage || 0,
+        rank: cand.rank || 1,
+        totalGenreVotes: res.totalVotes || 0,
+        communityScore: Math.round((cand.rating || 4.7) * 20),
+        isVotingCandidate: true,
+      });
+    });
+  });
+
+  if (candidatesList.length === 0) {
+    // Fallback: if unvotedOnly had no results, retry without unvoted filter
+    if (unvotedOnly) {
+      return getRandomVotingCandidate({ roundId, genreId, type, unvotedOnly: false, userId, mood });
+    }
+    // If specific genre had no results for selected type, retry across all genres
+    if (targetGenre && targetGenre !== 'all' && targetGenre !== 'surprise') {
+      return getRandomVotingCandidate({ roundId, genreId: 'all', type, unvotedOnly: false, userId, mood: 'any' });
+    }
+    // If still empty and type was specific, retry with ANY type
+    if (type !== 'ANY') {
+      return getRandomVotingCandidate({ roundId, genreId: 'all', type: 'ANY', unvotedOnly: false, userId, mood: 'any' });
+    }
+    return null;
+  }
+
+  // Pick a random candidate
+  const randomIndex = Math.floor(Math.random() * candidatesList.length);
+  return candidatesList[randomIndex];
+}
+
+/**
+ * "Random Movie" Mood / Surprise generator — prefers active voting candidates
+ */
+export function pickMyWeekendRecommendation({ genreId = null, mood = 'any', type = 'ANY', unvotedOnly = false, userId = null } = {}) {
+  // First try to pick from voting candidates
+  const votingCandidate = getRandomVotingCandidate({ genreId, mood, type, unvotedOnly, userId });
+  if (votingCandidate) {
+    return votingCandidate;
+  }
+
+  // Fallback to winners if no active round candidates
+  const seedWinners = getSeedWinners();
+  const winners = getAllWinners();
+  let pool = winners && winners.length > 0 ? [...winners] : [...seedWinners];
+
+  if (genreId && genreId !== 'surprise' && genreId !== 'all') {
     const genreFiltered = pool.filter(p => p.genreId === genreId);
     if (genreFiltered.length > 0) pool = genreFiltered;
   }
 
-  // Filter by type
   if (type && type !== 'ANY') {
     const typeFiltered = pool.filter(p => p.type === type);
     if (typeFiltered.length > 0) pool = typeFiltered;

@@ -280,7 +280,7 @@ export default function WeekendWinnersArchivePage() {
                 className="btn btn-outline btn-sm"
                 style={{ display: 'flex', alignItems: 'center', gap: 6 }}
               >
-                <Dices size={13} /> Pick My Weekend
+                <Dices size={13} /> 🎲 Random Movie
               </button>
               <button
                 type="button"

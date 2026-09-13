@@ -304,7 +304,7 @@ export default function WeekendRecommendationHero() {
             className="btn btn-outline btn-sm weekend-hero-btn"
             style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}
           >
-            <Dices size={13} /> Pick My Weekend
+            <Dices size={13} /> 🎲 Random Movie
           </button>
 
           <button
@@ -427,7 +427,7 @@ export default function WeekendRecommendationHero() {
                   className="btn btn-outline"
                   style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', fontSize: 13 }}
                 >
-                  <Dices size={15} /> 🎲 Pick My Weekend
+                  <Dices size={15} /> 🎲 Random Movie
                 </button>
               </div>
             </div>

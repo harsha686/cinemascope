@@ -195,7 +195,7 @@ export default function WeekendPickPage() {
                   className="btn btn-outline btn-sm"
                   style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                 >
-                  <Dices size={14} /> 🎲 Pick My Weekend
+                  <Dices size={14} /> 🎲 Random Movie
                 </button>
 
                 <button

@@ -42,216 +42,56 @@ export default function ScreenPage() {
 
   return (
     <>
-      {/* ========== CINEMA EXPERIENCE MODE (REALISTIC LAST-ROW AUDITORIUM) ========== */}
+      {/* ========== CINEMA EXPERIENCE MODE ========== */}
       {isExperience && (
         <div style={{
           position: 'fixed',
           inset: 0,
-          zIndex: 250,
-          background: '#030205',
+          zIndex: 200,
+          background: '#000',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          overflow: 'hidden',
+          justifyContent: 'center',
+          padding: 24,
         }}>
-          {/* Subtle Ambient Auditorium Lighting & Glow from Screen */}
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'radial-gradient(ellipse 80% 50% at 50% 35%, rgba(201,168,76,0.08) 0%, rgba(5,3,8,0.95) 80%)',
-            pointerEvents: 'none',
-          }} />
+          {/* Exit */}
+          <button
+            onClick={() => setIsExperience(false)}
+            className="btn btn-ghost btn-sm"
+            style={{ position: 'absolute', top: 16, right: 16, display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <X size={14} /> Exit Experience
+          </button>
 
-          {/* Projector Light Beam Cone Haze */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: '60vw',
-            height: '45vh',
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(201,168,76,0.03) 60%, transparent 100%)',
-            clipPath: 'polygon(45% 0%, 55% 0%, 100% 100%, 0% 100%)',
-            filter: 'blur(10px)',
-            pointerEvents: 'none',
-            zIndex: 1,
-          }} />
-
-          {/* Top Bar: Controls & Exit */}
-          <div style={{
-            position: 'relative',
-            zIndex: 10,
-            width: '100%',
-            padding: '16px 24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'linear-gradient(180deg, rgba(0,0,0,0.85) 0%, transparent 100%)',
-          }}>
-            {/* Theatre & Screen Identity */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{
-                fontFamily: 'var(--font-serif)',
-                fontSize: 10,
-                letterSpacing: '0.22em',
-                textTransform: 'uppercase',
-                color: 'var(--gold)',
-                background: 'rgba(201,168,76,0.12)',
-                padding: '4px 10px',
-                border: '1px solid rgba(201,168,76,0.25)',
-                borderRadius: 20,
-              }}>
-                🍿 LAST ROW PERSPECTIVE
-              </div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: 13, letterSpacing: '0.04em' }}>
-                <span style={{ color: '#fff', fontWeight: 600 }}>{theater.name}</span> · {screen.name} ({displayRatioLabel})
-              </div>
+          {/* Theater / screen info */}
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 6 }}>
+              {theater.name}
             </div>
-
-            {/* Exit Button */}
-            <button
-              onClick={() => setIsExperience(false)}
-              className="btn btn-ghost btn-sm"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                background: 'rgba(0,0,0,0.6)',
-                border: '1px solid rgba(255,255,255,0.15)',
-                color: '#fff',
-              }}
-            >
-              <X size={14} /> Exit Experience
-            </button>
-          </div>
-
-          {/* Central Area: Massive Screen in Auditorium */}
-          <div style={{
-            position: 'relative',
-            zIndex: 3,
-            width: '100%',
-            maxWidth: 1180,
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: '0 20px',
-          }}>
-            {/* Format selector inside experience */}
-            <div style={{ marginBottom: 16 }}>
-              <FormatSelector
-                selectedRatio={displayRatioLabel}
-                onSelect={setSelectedFormat}
-              />
-            </div>
-
-            {/* The Big Projected Screen Simulator */}
-            <div style={{
-              width: '100%',
-              display: 'flex',
-              justifyContent: 'center',
-              position: 'relative',
-            }}>
-              <ScreenSimulator
-                screenRatio={displayRatio}
-                screenRatioLabel={displayRatioLabel}
-                screenFormatName={displayFormatName}
-                screenWidthM={screen?.screenWidthM}
-                screenHeightM={screen?.screenHeightM}
-                mode={simMode}
-                onModeChange={setSimMode}
-                isExperience={true}
-              />
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', letterSpacing: '0.08em' }}>
+              {screen.name} · {displayRatioLabel}
             </div>
           </div>
 
-          {/* Bottom Foreground Cinema Auditorium Seats */}
-          <div style={{
-            position: 'relative',
-            width: '100%',
-            zIndex: 4,
-            pointerEvents: 'none',
-            marginTop: -50,
-          }}>
-            {/* Gradient shadow separating seats from floor */}
-            <div style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 120,
-              background: 'linear-gradient(0deg, #020104 0%, rgba(2,1,4,0.95) 45%, transparent 100%)',
-              pointerEvents: 'none',
-            }} />
+          {/* Format selector */}
+          <FormatSelector
+            selectedRatio={displayRatioLabel}
+            onSelect={setSelectedFormat}
+          />
 
-            {/* Detailed Realistic Velvet Cinema Seat Backs Silhouette with Screen Glow Reflections */}
-            <svg
-              viewBox="0 0 1440 180"
-              preserveAspectRatio="none"
-              style={{
-                width: '100%',
-                height: '140px',
-                display: 'block',
-                filter: 'drop-shadow(0 -8px 24px rgba(0,0,0,0.9))',
-              }}
-            >
-              <defs>
-                {/* Velvet seat lighting gradient */}
-                <linearGradient id="seatGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3d151c" />
-                  <stop offset="25%" stopColor="#240c12" />
-                  <stop offset="100%" stopColor="#080305" />
-                </linearGradient>
-                <linearGradient id="seatHighlight" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="rgba(255,200,120,0.25)" />
-                  <stop offset="100%" stopColor="transparent" />
-                </linearGradient>
-              </defs>
-
-              {/* Row 2 (Mid-distance seats) */}
-              <g opacity="0.6" transform="translate(0, 10)">
-                {Array.from({ length: 14 }).map((_, i) => {
-                  const x = i * 105 + 15;
-                  return (
-                    <g key={`mid-${i}`}>
-                      <rect x={x} y={35} width={75} height={60} rx={10} fill="#14060a" stroke="#2a0e14" strokeWidth="1" />
-                      <rect x={x + 10} y={28} width={55} height={20} rx={8} fill="#1d0a10" />
-                    </g>
-                  );
-                })}
-              </g>
-
-              {/* Central Aisle Guide Glow */}
-              <polygon points="660,180 780,180 740,60 700,60" fill="rgba(201,168,76,0.025)" />
-
-              {/* Row 1 (Immediate Foreground / Last Row Viewer Seats) */}
-              {Array.from({ length: 10 }).map((_, i) => {
-                const x = i * 150 + 8;
-                // Leave a gap for the center aisle
-                if (i === 4 || i === 5) {
-                  return (
-                    <g key={`front-${i}`}>
-                      <rect x={x + (i === 4 ? -15 : 15)} y={55} width={105} height={125} rx={14} fill="url(#seatGradient)" stroke="#451821" strokeWidth="1.5" />
-                      {/* Headrest */}
-                      <rect x={x + (i === 4 ? -5 : 25)} y={42} width={85} height={32} rx={10} fill="url(#seatGradient)" stroke="#521f2a" strokeWidth="1" />
-                      {/* Headrest Top Rim Screen Reflection */}
-                      <path d={`M${x + (i === 4 ? -3 : 27)},44 Q${x + (i === 4 ? 37 : 67)},41 ${x + (i === 4 ? 77 : 107)},44`} stroke="url(#seatHighlight)" strokeWidth="2.5" fill="none" />
-                    </g>
-                  );
-                }
-                return (
-                  <g key={`front-${i}`}>
-                    <rect x={x} y={55} width={115} height={125} rx={14} fill="url(#seatGradient)" stroke="#38131b" strokeWidth="1.5" />
-                    {/* Headrest */}
-                    <rect x={x + 10} y={42} width={95} height={32} rx={10} fill="url(#seatGradient)" stroke="#451821" strokeWidth="1" />
-                    {/* Top Rim Screen Glow Reflection */}
-                    <path d={`M${x + 12},44 Q${x + 57},41 ${x + 102},44`} stroke="url(#seatHighlight)" strokeWidth="2.5" fill="none" />
-                  </g>
-                );
-              })}
-            </svg>
+          {/* Big simulator */}
+          <div style={{ width: '100%', maxWidth: 1100, marginTop: 16 }}>
+            <ScreenSimulator
+              screenRatio={displayRatio}
+              screenRatioLabel={displayRatioLabel}
+              screenFormatName={displayFormatName}
+              screenWidthM={screen?.screenWidthM}
+              screenHeightM={screen?.screenHeightM}
+              mode={simMode}
+              onModeChange={setSimMode}
+              isExperience={true}
+            />
           </div>
         </div>
       )}
