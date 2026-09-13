@@ -110,8 +110,6 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
     }
   };
 
-  const isCurrentCandidateVotedByUser = votedInGenre && userVotedCandidateId === result?.id;
-
   return (
     <div
       onClick={(e) => {
