@@ -244,10 +244,16 @@ function reducer(state, action) {
       return newState;
     }
 
+    case 'SET_CITIES':
+      newState = { ...state, citiesList: action.payload };
+      saveStorage('cinemascope_cities', action.payload);
+      return newState;
+
     case 'ADD_CITY':
       const newCities = [...state.citiesList.filter(c => c.id !== action.payload.id), action.payload];
       newState = { ...state, citiesList: newCities };
       saveStorage('cinemascope_cities', newCities);
+      if (isSupabaseConfigured()) supabaseService.saveCitiesData(newCities).catch(console.warn);
       return newState;
 
     case 'DELETE_CITY': {
@@ -260,14 +266,26 @@ function reducer(state, action) {
         newState.selectedCity = 'visakhapatnam';
       }
       saveStorage('cinemascope_cities', filteredCities);
+      if (isSupabaseConfigured()) supabaseService.saveCitiesData(filteredCities).catch(console.warn);
       return newState;
     }
 
     // --- THEATER ACTIONS (ADMIN) ---
+    case 'SET_THEATERS': {
+      newState = { ...state, theatersList: action.payload };
+      if (state.selectedTheater) {
+        const matching = action.payload.find(t => t.id === state.selectedTheater.id);
+        if (matching) newState.selectedTheater = matching;
+      }
+      saveStorage('cinemascope_theaters', action.payload);
+      return newState;
+    }
+
     case 'ADD_THEATER': {
       const newTheaters = [action.payload, ...state.theatersList.filter(t => t.id !== action.payload.id)];
       newState = { ...state, theatersList: newTheaters };
       saveStorage('cinemascope_theaters', newTheaters);
+      if (isSupabaseConfigured()) supabaseService.saveTheatersData(newTheaters).catch(console.warn);
       return newState;
     }
 
@@ -281,6 +299,7 @@ function reducer(state, action) {
         newState.selectedTheater = { ...state.selectedTheater, ...action.payload };
       }
       saveStorage('cinemascope_theaters', updatedTheaters);
+      if (isSupabaseConfigured()) supabaseService.saveTheatersData(updatedTheaters).catch(console.warn);
       return newState;
     }
 
@@ -292,6 +311,7 @@ function reducer(state, action) {
         newState.selectedScreen = null;
       }
       saveStorage('cinemascope_theaters', remainingTheaters);
+      if (isSupabaseConfigured()) supabaseService.saveTheatersData(remainingTheaters).catch(console.warn);
       return newState;
     }
 
@@ -381,13 +401,21 @@ export function AppProvider({ children }) {
             await supabaseService.saveReview(r).catch(console.warn);
           }
         }
+        if (currentState.theatersList?.length > 0) {
+          await supabaseService.saveTheatersData(currentState.theatersList).catch(console.warn);
+        }
+        if (currentState.citiesList?.length > 0) {
+          await supabaseService.saveCitiesData(currentState.citiesList).catch(console.warn);
+        }
         pushWeekendPickDataToCloud();
       }
 
-      const [remoteMovies, remoteReviews, remoteUsers] = await Promise.all([
+      const [remoteMovies, remoteReviews, remoteUsers, remoteTheaters, remoteCities] = await Promise.all([
         supabaseService.getMovies(),
         supabaseService.getReviews(),
         supabaseService.getUsers(),
+        supabaseService.getTheatersData(),
+        supabaseService.getCitiesData(),
         syncWeekendPickDataFromCloud({ force: forcePush }),
       ]);
 
@@ -451,6 +479,60 @@ export function AppProvider({ children }) {
         dispatch({ type: 'SET_REVIEWS', payload: mergedList });
       }
 
+      // Theaters Synchronization across all devices (Desktop, Mobile, Tablet)
+      const currentLocalTheaters = currentState.theatersList || [];
+      if (remoteTheaters && Array.isArray(remoteTheaters) && remoteTheaters.length > 0) {
+        const remoteMap = new Map(remoteTheaters.map(t => [t.id, t]));
+        let hasLocalChanges = false;
+
+        // Use local theater if it has more screens or details, otherwise remote
+        const mergedTheaters = remoteTheaters.map(rem => {
+          const loc = currentLocalTheaters.find(t => t.id === rem.id);
+          if (loc && (loc.screens?.length || 0) > (rem.screens?.length || 0)) {
+            hasLocalChanges = true;
+            return loc;
+          }
+          return rem;
+        });
+
+        // Add any theaters created on local that aren't yet in remote
+        currentLocalTheaters.forEach(loc => {
+          if (!remoteMap.has(loc.id)) {
+            mergedTheaters.push(loc);
+            hasLocalChanges = true;
+          }
+        });
+
+        dispatch({ type: 'SET_THEATERS', payload: mergedTheaters });
+        if (hasLocalChanges) {
+          supabaseService.saveTheatersData(mergedTheaters).catch(console.warn);
+        }
+      } else if (currentLocalTheaters.length > 0) {
+        // Remote has no theaters yet: auto-seed Supabase with local theaters (all 12 from desktop)
+        dispatch({ type: 'SET_THEATERS', payload: currentLocalTheaters });
+        supabaseService.saveTheatersData(currentLocalTheaters).catch(console.warn);
+      }
+
+      // Cities Synchronization
+      const currentLocalCities = currentState.citiesList || [];
+      if (remoteCities && Array.isArray(remoteCities) && remoteCities.length > 0) {
+        const remoteCityMap = new Map(remoteCities.map(c => [c.id, c]));
+        let hasCityChanges = false;
+        const mergedCities = [...remoteCities];
+        currentLocalCities.forEach(loc => {
+          if (!remoteCityMap.has(loc.id)) {
+            mergedCities.push(loc);
+            hasCityChanges = true;
+          }
+        });
+        dispatch({ type: 'SET_CITIES', payload: mergedCities });
+        if (hasCityChanges) {
+          supabaseService.saveCitiesData(mergedCities).catch(console.warn);
+        }
+      } else if (currentLocalCities.length > 0) {
+        supabaseService.saveCitiesData(currentLocalCities).catch(console.warn);
+      }
+
       // Sync personal movie library if a user is logged in
       if (currentState.currentUser && currentState.currentUser.id) {
         await syncUserLibraryWithCloud(currentState.currentUser.id).catch(console.warn);
@@ -461,7 +543,7 @@ export function AppProvider({ children }) {
       saveStorage('cinemascope_last_synced_at', now);
       setSyncStatus('success');
       setSyncMessage('Cloud synchronized successfully.');
-      return { success: true, timestamp: now, moviesCount, reviewsCount };
+      return { success: true, timestamp: now, moviesCount, reviewsCount, theatersCount: (currentState.theatersList?.length || 0), citiesCount: (currentState.citiesList?.length || 0) };
     } catch (e) {
       console.warn('Supabase remote sync skipped or failed:', e);
       setSyncStatus('error');

@@ -105,6 +105,42 @@ CREATE TABLE IF NOT EXISTS public.collections (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 7. THEATERS & SCREENS TABLE
+CREATE TABLE IF NOT EXISTS public.theaters (
+  id TEXT PRIMARY KEY,
+  city_id TEXT NOT NULL DEFAULT 'visakhapatnam',
+  name TEXT NOT NULL,
+  chain TEXT,
+  type TEXT DEFAULT 'multiplex',
+  total_screens INT DEFAULT 1,
+  area TEXT,
+  address TEXT,
+  latitude NUMERIC(10,6),
+  longitude NUMERIC(10,6),
+  description TEXT,
+  features JSONB DEFAULT '[]'::jsonb,
+  screens JSONB DEFAULT '[]'::jsonb,
+  data_source TEXT DEFAULT 'TheatreBabu',
+  source_confidence TEXT DEFAULT 'reported',
+  verified BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 8. CITIES TABLE
+CREATE TABLE IF NOT EXISTS public.cities (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  state TEXT,
+  country TEXT DEFAULT 'India',
+  latitude NUMERIC(10,6),
+  longitude NUMERIC(10,6),
+  theater_count INT DEFAULT 0,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ============================================================
 -- ENABLE ROW LEVEL SECURITY (RLS) & SET PERMISSIVE POLICIES
 -- ============================================================
@@ -115,6 +151,8 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_movies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.diary_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.collections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.theaters ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cities ENABLE ROW LEVEL SECURITY;
 
 -- Safely apply public policies
 DROP POLICY IF EXISTS "Allow public all on movies" ON public.movies;
@@ -128,6 +166,8 @@ DROP POLICY IF EXISTS "Allow public insert/update on reviews" ON public.reviews;
 CREATE POLICY "Allow public all on reviews" ON public.reviews FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Allow public all on users" ON public.users;
+DROP POLICY IF EXISTS "Allow public read on users" ON public.users;
+DROP POLICY IF EXISTS "Allow public insert/update on users" ON public.users;
 CREATE POLICY "Allow public all on users" ON public.users FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Allow public all on user_movies" ON public.user_movies;
@@ -139,6 +179,12 @@ CREATE POLICY "Allow public all on diary_entries" ON public.diary_entries FOR AL
 DROP POLICY IF EXISTS "Allow public all on collections" ON public.collections;
 CREATE POLICY "Allow public all on collections" ON public.collections FOR ALL USING (true) WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Allow public all on theaters" ON public.theaters;
+CREATE POLICY "Allow public all on theaters" ON public.theaters FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public all on cities" ON public.cities;
+CREATE POLICY "Allow public all on cities" ON public.cities FOR ALL USING (true) WITH CHECK (true);
+
 -- ============================================================
 -- INDEXES FOR MAXIMUM QUERY PERFORMANCE
 -- ============================================================
@@ -148,3 +194,4 @@ CREATE INDEX IF NOT EXISTS idx_reviews_theater_id ON public.reviews(theater_id);
 CREATE INDEX IF NOT EXISTS idx_user_movies_user_id ON public.user_movies(user_id);
 CREATE INDEX IF NOT EXISTS idx_diary_entries_user_id ON public.diary_entries(user_id);
 CREATE INDEX IF NOT EXISTS idx_collections_user_id ON public.collections(user_id);
+CREATE INDEX IF NOT EXISTS idx_theaters_city_id ON public.theaters(city_id);

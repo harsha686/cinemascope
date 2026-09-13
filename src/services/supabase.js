@@ -373,4 +373,90 @@ export const supabaseService = {
       return false;
     }
   },
+
+  // Theaters & Screens Cloud Sync across all devices (Desktop, Mobile, Tablet)
+  async getTheatersData() {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('collections')
+        .select('*')
+        .eq('id', 'system_theaters_data')
+        .maybeSingle();
+
+      if (error || !data || !data.description) return null;
+      return JSON.parse(data.description);
+    } catch (e) {
+      console.warn('Supabase getTheatersData error:', e);
+      return null;
+    }
+  },
+
+  async saveTheatersData(theatersList) {
+    const supabase = getSupabaseClient();
+    if (!supabase || !theatersList) return false;
+    try {
+      const { error } = await supabase.from('collections').upsert({
+        id: 'system_theaters_data',
+        user_id: 'system',
+        name: 'theaters_state',
+        description: JSON.stringify(theatersList),
+        visibility: 'public',
+        movie_ids: [],
+        updated_at: new Date().toISOString(),
+      });
+      if (error) {
+        console.warn('Supabase saveTheatersData error:', error);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.warn('Supabase saveTheatersData error:', e);
+      return false;
+    }
+  },
+
+  // Cities Cloud Sync across all devices
+  async getCitiesData() {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('collections')
+        .select('*')
+        .eq('id', 'system_cities_data')
+        .maybeSingle();
+
+      if (error || !data || !data.description) return null;
+      return JSON.parse(data.description);
+    } catch (e) {
+      console.warn('Supabase getCitiesData error:', e);
+      return null;
+    }
+  },
+
+  async saveCitiesData(citiesList) {
+    const supabase = getSupabaseClient();
+    if (!supabase || !citiesList) return false;
+    try {
+      const { error } = await supabase.from('collections').upsert({
+        id: 'system_cities_data',
+        user_id: 'system',
+        name: 'cities_state',
+        description: JSON.stringify(citiesList),
+        visibility: 'public',
+        movie_ids: [],
+        updated_at: new Date().toISOString(),
+      });
+      if (error) {
+        console.warn('Supabase saveCitiesData error:', error);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.warn('Supabase saveCitiesData error:', e);
+      return false;
+    }
+  },
 };

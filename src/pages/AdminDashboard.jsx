@@ -1040,7 +1040,7 @@ export default function AdminDashboard() {
                           setSbStatusMsg('Running bidirectional 2-way sync with Supabase...');
                           const res = await syncCloudData({ forcePush: false });
                           if (res?.success) {
-                            setSbStatusMsg(`✓ Cloud sync complete! Synced ${state.movies.length} movies & ${state.reviews.length} reviews.`);
+                            setSbStatusMsg(`✓ Cloud sync complete! Synced ${state.movies.length} movies, ${state.reviews.length} reviews, and ${state.theatersList?.length || 0} theaters across all devices.`);
                           } else {
                             setSbStatusMsg(`Sync issue: ${res?.error?.message || 'Check database settings'}`);
                           }
@@ -1058,10 +1058,10 @@ export default function AdminDashboard() {
                         disabled={isRefreshing || sbLoading}
                         onClick={async () => {
                           setSbLoading(true);
-                          setSbStatusMsg('Force pushing all local movies, reviews, and weekend votes to Supabase...');
+                          setSbStatusMsg('Force pushing all local movies, reviews, theaters, and weekend votes to Supabase...');
                           const res = await syncCloudData({ forcePush: true });
                           if (res?.success) {
-                            setSbStatusMsg(`✓ Successfully pushed all local data (${state.movies.length} movies) to Supabase!`);
+                            setSbStatusMsg(`✓ Successfully pushed all local data (${state.movies.length} movies, ${state.theatersList?.length || 0} theaters) to Supabase!`);
                           } else {
                             setSbStatusMsg(`Push issue: ${res?.error?.message || 'Check database connection'}`);
                           }
