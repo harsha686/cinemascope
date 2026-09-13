@@ -1192,6 +1192,13 @@ CREATE POLICY "Public all collections" ON public.collections FOR ALL USING (true
               <WeekendVotingAdminTab />
             )}
 
+            {/* SOCIAL PREVIEW & OG DEBUGGER TAB */}
+            {activeTab === 'social-preview' && (
+              <div style={{ background: 'var(--bg-card)', padding: 24, borderRadius: 6, border: '1px solid var(--border-subtle)' }}>
+                <SocialPreviewTestPage />
+              </div>
+            )}
+
           </div>
         </div>
       </div>
@@ -1850,13 +1857,6 @@ function ProReviewersPanel({ dispatch, currentUser }) {
               </div>
             );
           })}
-        </div>
-      )}
-
-      {/* SOCIAL PREVIEW & OG DEBUGGER TAB */}
-      {activeTab === 'social-preview' && (
-        <div style={{ background: 'var(--bg-card)', padding: 24, borderRadius: 6, border: '1px solid var(--border-subtle)' }}>
-          <SocialPreviewTestPage />
         </div>
       )}
     </div>

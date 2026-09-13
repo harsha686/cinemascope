@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useParams } from 'react-router-dom';
 import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import ReviewCard from '../components/reviews/ReviewCard';
@@ -11,10 +11,25 @@ import ShareButton from '../components/social/ShareButton';
 import { SOCIAL_CONTENT_TYPES } from '../services/socialSharingService';
 
 export default function ProfilePage() {
+  const { userId } = useParams();
   const navigate = useNavigate();
   const { state, dispatch, getMovie, getTheater, isVerifiedPro } = useApp();
 
-  const currentUser = state.currentUser;
+  // If userId param is provided, try to find that user; otherwise use currentUser
+  const targetUser = useMemo(() => {
+    if (userId) {
+      const found = state.users?.find(u => u.id === userId || u.email === userId);
+      if (found) return found;
+      if (state.currentUser && (state.currentUser.id === userId || state.currentUser.email === userId)) {
+        return state.currentUser;
+      }
+      return { id: userId, displayName: 'User', email: '' };
+    }
+    return state.currentUser;
+  }, [userId, state.users, state.currentUser]);
+
+  const currentUser = targetUser;
+  const isOwnProfile = !userId || (state.currentUser && state.currentUser.id === currentUser?.id);
 
   const [libStats, setLibStats] = useState({ totalWatchlist: 0, totalWatched: 0, totalFavorites: 0, totalRated: 0, avgRating: 0 });
   const [diaryStats, setDiaryStats] = useState({ totalEntries: 0, thisYearCount: 0, thisMonthCount: 0, rewatches: 0 });

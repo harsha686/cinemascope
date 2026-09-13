@@ -15,7 +15,7 @@ export default function MobileBottomNav() {
     { to: '/weekend', label: 'Weekend', icon: Trophy },
     { to: '/movies', label: 'Now Showing', icon: Film },
     {
-      to: currentUser ? `/profile/${currentUser.id || 'admin-1'}` : '/login',
+      to: currentUser ? '/profile' : '/login',
       label: currentUser ? 'Profile' : 'Sign In',
       icon: User,
     },

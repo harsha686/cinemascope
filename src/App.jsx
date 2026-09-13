@@ -58,6 +58,7 @@ export default function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/profile/:userId" element={<ProfilePage />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/*" element={<AdminDashboard />} />
               <Route path="/apply-professional" element={<ProReviewerApplyPage />} />
