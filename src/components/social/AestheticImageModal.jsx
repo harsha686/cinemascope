@@ -41,6 +41,14 @@ export default function AestheticImageModal({
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  useEffect(() => {
+    if (toastMessage) {
+      const t = setTimeout(() => setToastMessage(''), 4500);
+      return () => clearTimeout(t);
+    }
+  }, [toastMessage]);
 
   // Auto-scroll the share card into clear view on mount or format switch
   useEffect(() => {
@@ -150,9 +158,10 @@ export default function AestheticImageModal({
     }
   }, [normalized]);
 
-  // Lock body scroll while modal is open
+  // Lock body scroll while modal is open & reset controls to hidden by default
   useEffect(() => {
     if (isOpen) {
+      setShowControls(false);
       const originalOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       return () => {
@@ -210,13 +219,14 @@ export default function AestheticImageModal({
   const handleWebShare = async () => {
     if (!cardRef.current) return;
     setIsGenerating(true);
+    const shareText = `🎬 *${normalized.title}* on CinemaScope\n${normalized.canonicalUrl}`;
     try {
       const blob = await toBlob(cardRef.current, { cacheBust: true, pixelRatio: 2 });
       if (blob && navigator.canShare && navigator.canShare({ files: [new File([blob], 'share.png', { type: 'image/png' })] })) {
-        const file = new File([blob], `cinemascope-${normalized.title}.png`, { type: 'image/png' });
+        const file = new File([blob], `cinemascope-${normalized.title.replace(/[^a-zA-Z0-9]/g, '_')}.png`, { type: 'image/png' });
         await navigator.share({
-          title: normalized.title,
-          text: customQuote || `Check out ${normalized.title} on CinemaScope!`,
+          title: `${normalized.title} - CinemaScope`,
+          text: shareText,
           files: [file],
         });
         trackShareEvent({
@@ -229,8 +239,10 @@ export default function AestheticImageModal({
         handleDownload();
       }
     } catch (e) {
-      console.warn('Native share failed, downloading instead:', e);
-      handleDownload();
+      if (e.name !== 'AbortError') {
+        console.warn('Native share failed, downloading instead:', e);
+        handleDownload();
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -238,7 +250,7 @@ export default function AestheticImageModal({
 
   // 3. Share to X (Twitter)
   const handleShareToTwitter = () => {
-    const text = `Just experienced ${normalized.title} on @CinemaScope!\n\n${customQuote ? `"${customQuote}"\n\n` : ''}${normalized.canonicalUrl}`;
+    const text = `🎬 Check out "${normalized.title}" on CinemaScope:\n\n${normalized.canonicalUrl}`;
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank', 'noopener,noreferrer');
     trackShareEvent({
@@ -249,17 +261,65 @@ export default function AestheticImageModal({
     });
   };
 
-  // 4. Share to WhatsApp
-  const handleShareToWhatsApp = () => {
-    const text = `🎬 ${normalized.title} on CinemaScope\n\n${customQuote ? `"${customQuote}"\n\n` : ''}${normalized.canonicalUrl}`;
-    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
-    trackShareEvent({
-      contentType,
-      format: selectedFormat.id,
-      templateId: selectedTemplate.id,
-      method: 'WHATSAPP_SHARE',
-    });
+  // 4. Share to WhatsApp (Direct Image + Link, No "About" text)
+  const handleShareToWhatsApp = async () => {
+    if (!cardRef.current) return;
+    setIsGenerating(true);
+    const shareText = `🎬 *${normalized.title}* on CinemaScope\n${normalized.canonicalUrl}`;
+
+    try {
+      const blob = await toBlob(cardRef.current, { cacheBust: true, pixelRatio: 2 });
+      const file = blob ? new File([blob], `cinemascope-${normalized.title.replace(/[^a-zA-Z0-9]/g, '_')}.png`, { type: 'image/png' }) : null;
+
+      // 1. If native file share is supported (mobile devices / supported browsers)
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: `${normalized.title} on CinemaScope`,
+          text: shareText,
+          files: [file],
+        });
+        trackShareEvent({
+          contentType,
+          format: selectedFormat.id,
+          templateId: selectedTemplate.id,
+          method: 'WHATSAPP_SHARE',
+        });
+        return;
+      }
+
+      // 2. Desktop fallback: Copy rendered poster image to clipboard & download for easy WhatsApp paste
+      if (blob) {
+        try {
+          if (navigator.clipboard && window.ClipboardItem) {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': blob }),
+            ]);
+            setToastMessage('📋 Poster copied to clipboard! Paste (Ctrl+V) in WhatsApp to attach.');
+          }
+        } catch (clipErr) {
+          console.warn('Clipboard image write failed:', clipErr);
+        }
+      }
+
+      // Open WhatsApp with clean link (without about text)
+      const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
+
+      trackShareEvent({
+        contentType,
+        format: selectedFormat.id,
+        templateId: selectedTemplate.id,
+        method: 'WHATSAPP_SHARE',
+      });
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('Failed to share to WhatsApp:', err);
+        const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   // 5. Copy Dynamic Link
@@ -345,16 +405,18 @@ export default function AestheticImageModal({
             <button
               type="button"
               onClick={() => {
-                setShowControls(true);
-                setTimeout(() => {
-                  const target = document.querySelector('#customization-controls-section') || document.querySelector('.modal-studio-sidebar');
-                  if (target) {
-                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    // Focus the first input inside for immediate typing
-                    const firstInput = target.querySelector('input, textarea');
-                    if (firstInput) firstInput.focus();
-                  }
-                }, 60);
+                const next = !showControls;
+                setShowControls(next);
+                if (next) {
+                  setTimeout(() => {
+                    const target = document.querySelector('#customization-controls-section') || document.querySelector('.modal-studio-sidebar');
+                    if (target) {
+                      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      const firstInput = target.querySelector('input, textarea');
+                      if (firstInput) firstInput.focus();
+                    }
+                  }, 60);
+                }
               }}
               className="btn btn-ghost btn-sm"
               style={{
@@ -363,14 +425,18 @@ export default function AestheticImageModal({
                 gap: 6,
                 fontSize: 12,
                 color: 'var(--gold)',
-                background: 'rgba(201,168,76,0.12)',
-                border: '1px solid rgba(201,168,76,0.3)',
+                background: showControls ? 'rgba(201,168,76,0.22)' : 'rgba(201,168,76,0.08)',
+                border: showControls ? '1px solid var(--gold)' : '1px solid rgba(201,168,76,0.3)',
                 padding: '6px 12px',
                 borderRadius: 4,
                 cursor: 'pointer',
+                fontWeight: showControls ? 700 : 500,
+                transition: 'all 150ms ease',
               }}
+              title={showControls ? 'Hide Customization Controls' : 'Click to customize title, quote, rating and details'}
             >
-              <Sliders size={14} /> Customize Content
+              <Sliders size={14} />
+              {showControls ? 'Customizing (Click to Hide)' : 'Customize Content'}
             </button>
             <button
               type="button"
@@ -540,138 +606,208 @@ export default function AestheticImageModal({
                 </div>
               </div>
 
-              {/* ---- Text Customization Controls ---- */}
+              {/* ---- Text Customization Controls (Hidden unless user clicks customize) ---- */}
               <div id="customization-controls-section" style={{
                 marginBottom: 16,
-                padding: '14px',
-                background: showControls ? 'rgba(201,168,76,0.06)' : 'transparent',
-                border: showControls ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent',
+                padding: showControls ? '14px' : '12px 14px',
+                background: showControls ? 'rgba(201,168,76,0.06)' : 'rgba(255,255,255,0.02)',
+                border: showControls ? '1px solid rgba(201,168,76,0.35)' : '1px dashed var(--border-subtle)',
                 borderRadius: 6,
                 transition: 'all 200ms ease',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--gold)', fontWeight: 700, margin: 0 }}>
-                    ✍️ Customize Content & Text
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCustomHeadline(normalized?.headline || '');
-                      setCustomQuote(normalized?.quote || '');
-                      setCustomTitle(normalized?.title || '');
-                      setCustomSubtitle(normalized?.subtitle || '');
-                      setCustomRating(normalized?.userRating != null ? String(normalized.userRating) : (normalized?.rating != null ? String(normalized.rating) : '5.0'));
-                      setCustomAppName('CINEMASCOPE');
-                      setCustomGenreBadge(normalized?.genres && normalized.genres.length > 0 ? normalized.genres.join(' · ') : 'CINEMASCOPE SELECTION');
-                      setCustomBottomLeft('CINEMASCOPE EXCLUSIVE');
-                      setCustomBottomRight('NOW STREAMING');
+                {!showControls ? (
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setShowControls(true)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowControls(true); }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      cursor: 'pointer',
                     }}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 10, cursor: 'pointer', textDecoration: 'underline' }}
                   >
-                    Reset
-                  </button>
-                </div>
-
-                {/* Movie Title */}
-                <div style={{ marginBottom: 10 }}>
-                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Movie / Item Title</label>
-                  <input
-                    type="text"
-                    className="input"
-                    style={{ width: '100%', fontSize: 12 }}
-                    value={customTitle}
-                    onChange={e => setCustomTitle(e.target.value)}
-                    placeholder={normalized?.title || 'Movie Title'}
-                  />
-                </div>
-
-                {/* Subtitle */}
-                <div style={{ marginBottom: 10 }}>
-                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Subtitle / Info (e.g. 2026 · HINDI · 2h 45m)</label>
-                  <input
-                    type="text"
-                    className="input"
-                    style={{ width: '100%', fontSize: 12 }}
-                    value={customSubtitle}
-                    onChange={e => setCustomSubtitle(e.target.value)}
-                    placeholder={normalized?.subtitle || '2026 · ENGLISH'}
-                  />
-                </div>
-
-                {/* Rating score */}
-                <div style={{ marginBottom: 10 }}>
-                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Score / Rating (0 to 5.0)</label>
-                  <input
-                    type="text"
-                    className="input"
-                    style={{ width: '100%', fontSize: 12 }}
-                    value={customRating}
-                    onChange={e => setCustomRating(e.target.value)}
-                    placeholder={String(normalized?.userRating ?? normalized?.rating ?? '4.5')}
-                  />
-                </div>
-
-                {/* Headline / Accolade */}
-                <div style={{ marginBottom: 10 }}>
-                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Headline / Badge Tag</label>
-                  <input
-                    type="text"
-                    className="input"
-                    style={{ width: '100%', fontSize: 12 }}
-                    value={customHeadline}
-                    onChange={e => setCustomHeadline(e.target.value)}
-                    placeholder="e.g. FEATURE FILM OF THE YEAR"
-                  />
-                </div>
-
-                {/* Quote / Review */}
-                <div style={{ marginBottom: selectedTemplate.isKeyArt ? 10 : 0 }}>
-                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Quote / Review Excerpt</label>
-                  <textarea
-                    className="input"
-                    rows={2}
-                    style={{ width: '100%', fontSize: 12, lineHeight: 1.5, resize: 'none' }}
-                    value={customQuote}
-                    onChange={e => setCustomQuote(e.target.value)}
-                    placeholder="Add your thoughts or tagline..."
-                  />
-                </div>
-
-                {/* Studio Accolade extra fields */}
-                {selectedTemplate.isKeyArt && (
-                  <div style={{ marginTop: 10, background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--gold)', marginBottom: 2 }}>
-                      🏆 Additional Poster Fields
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>App Name (top center)</label>
-                      <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
-                        value={customAppName} onChange={e => setCustomAppName(e.target.value)}
-                        placeholder="CINEMASCOPE" />
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Genre Badge</label>
-                      <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
-                        value={customGenreBadge} onChange={e => setCustomGenreBadge(e.target.value)}
-                        placeholder="ACTION · ADVENTURE" />
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Bottom Left</label>
-                        <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
-                          value={customBottomLeft} onChange={e => setCustomBottomLeft(e.target.value)}
-                          placeholder="CINEMASCOPE EXCLUSIVE" />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 4,
+                        background: 'rgba(201,168,76,0.15)',
+                        color: 'var(--gold)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}>
+                        <Sliders size={14} />
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Bottom Right</label>
-                        <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
-                          value={customBottomRight} onChange={e => setCustomBottomRight(e.target.value)}
-                          placeholder="NOW STREAMING" />
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)' }}>
+                          Click here to customize content
+                        </div>
+                        <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2 }}>
+                          Edit title, rating, quote, and text overlays
+                        </div>
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowControls(true);
+                      }}
+                      className="btn btn-outline btn-sm"
+                      style={{ fontSize: 11, padding: '4px 10px', color: 'var(--gold)', borderColor: 'var(--gold-dim)', flexShrink: 0 }}
+                    >
+                      Customize
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid rgba(201,168,76,0.2)' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontFamily: 'var(--font-serif)', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--gold)', fontWeight: 700, margin: 0 }}>
+                        <Sliders size={13} /> ✍️ Customize Content & Text
+                      </label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomHeadline(normalized?.headline || '');
+                            setCustomQuote(normalized?.quote || '');
+                            setCustomTitle(normalized?.title || '');
+                            setCustomSubtitle(normalized?.subtitle || '');
+                            setCustomRating(normalized?.userRating != null ? String(normalized.userRating) : (normalized?.rating != null ? String(normalized.rating) : '5.0'));
+                            setCustomAppName('CINEMASCOPE');
+                            setCustomGenreBadge(normalized?.genres && normalized.genres.length > 0 ? normalized.genres.join(' · ') : 'CINEMASCOPE SELECTION');
+                            setCustomBottomLeft('CINEMASCOPE EXCLUSIVE');
+                            setCustomBottomRight('NOW STREAMING');
+                          }}
+                          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 10, cursor: 'pointer', textDecoration: 'underline' }}
+                        >
+                          Reset
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowControls(false)}
+                          style={{
+                            background: 'rgba(255,255,255,0.06)',
+                            border: '1px solid var(--border-subtle)',
+                            color: 'var(--text-muted)',
+                            fontSize: 10,
+                            padding: '2px 8px',
+                            borderRadius: 3,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Hide
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Movie Title */}
+                    <div style={{ marginBottom: 10 }}>
+                      <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Movie / Item Title</label>
+                      <input
+                        type="text"
+                        className="input"
+                        style={{ width: '100%', fontSize: 12 }}
+                        value={customTitle}
+                        onChange={e => setCustomTitle(e.target.value)}
+                        placeholder={normalized?.title || 'Movie Title'}
+                      />
+                    </div>
+
+                    {/* Subtitle */}
+                    <div style={{ marginBottom: 10 }}>
+                      <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Subtitle / Info (e.g. 2026 · HINDI · 2h 45m)</label>
+                      <input
+                        type="text"
+                        className="input"
+                        style={{ width: '100%', fontSize: 12 }}
+                        value={customSubtitle}
+                        onChange={e => setCustomSubtitle(e.target.value)}
+                        placeholder={normalized?.subtitle || '2026 · ENGLISH'}
+                      />
+                    </div>
+
+                    {/* Rating score */}
+                    <div style={{ marginBottom: 10 }}>
+                      <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Score / Rating (0 to 5.0)</label>
+                      <input
+                        type="text"
+                        className="input"
+                        style={{ width: '100%', fontSize: 12 }}
+                        value={customRating}
+                        onChange={e => setCustomRating(e.target.value)}
+                        placeholder={String(normalized?.userRating ?? normalized?.rating ?? '4.5')}
+                      />
+                    </div>
+
+                    {/* Headline / Accolade */}
+                    <div style={{ marginBottom: 10 }}>
+                      <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Headline / Badge Tag</label>
+                      <input
+                        type="text"
+                        className="input"
+                        style={{ width: '100%', fontSize: 12 }}
+                        value={customHeadline}
+                        onChange={e => setCustomHeadline(e.target.value)}
+                        placeholder="e.g. FEATURE FILM OF THE YEAR"
+                      />
+                    </div>
+
+                    {/* Quote / Review */}
+                    <div style={{ marginBottom: selectedTemplate.isKeyArt ? 10 : 0 }}>
+                      <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Quote / Review Excerpt</label>
+                      <textarea
+                        className="input"
+                        rows={2}
+                        style={{ width: '100%', fontSize: 12, lineHeight: 1.5, resize: 'none' }}
+                        value={customQuote}
+                        onChange={e => setCustomQuote(e.target.value)}
+                        placeholder="Add your thoughts or tagline..."
+                      />
+                    </div>
+
+                    {/* Studio Accolade extra fields */}
+                    {selectedTemplate.isKeyArt && (
+                      <div style={{ marginTop: 10, background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--gold)', marginBottom: 2 }}>
+                          🏆 Additional Poster Fields
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>App Name (top center)</label>
+                          <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
+                            value={customAppName} onChange={e => setCustomAppName(e.target.value)}
+                            placeholder="CINEMASCOPE" />
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Genre Badge</label>
+                          <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
+                            value={customGenreBadge} onChange={e => setCustomGenreBadge(e.target.value)}
+                            placeholder="ACTION · ADVENTURE" />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Bottom Left</label>
+                            <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
+                              value={customBottomLeft} onChange={e => setCustomBottomLeft(e.target.value)}
+                              placeholder="CINEMASCOPE EXCLUSIVE" />
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Bottom Right</label>
+                            <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
+                              value={customBottomRight} onChange={e => setCustomBottomRight(e.target.value)}
+                              placeholder="NOW STREAMING" />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -760,6 +896,23 @@ export default function AestheticImageModal({
                   {copiedLink ? 'Copied!' : 'Copy Link'}
                 </button>
               </div>
+
+              {/* In-Modal Feedback Notification */}
+              {toastMessage && (
+                <div style={{
+                  padding: '8px 12px',
+                  background: 'rgba(201, 168, 76, 0.15)',
+                  border: '1px solid var(--accent-border)',
+                  borderRadius: 4,
+                  color: '#ffffff',
+                  fontSize: 12,
+                  textAlign: 'center',
+                  fontWeight: 500,
+                  animation: 'fadeIn 150ms ease',
+                }}>
+                  {toastMessage}
+                </div>
+              )}
             </div>
           </div>
         </div>
