@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Film, Menu, X, ChevronRight, User, LogOut, ShieldAlert, MapPin } from 'lucide-react';
+import { Film, Menu, X, ChevronRight, User, LogOut, ShieldAlert, MapPin, Trophy } from 'lucide-react';
 import { useApp } from '../../AppContext';
 
 export default function Navbar() {
@@ -257,6 +257,23 @@ export default function Navbar() {
                   >
                     <Film size={14} color="var(--gold)" /> My Library
                   </Link>
+                  <Link
+                    to="/leaderboard"
+                    style={{
+                      padding: '10px 16px',
+                      fontSize: 12,
+                      color: 'var(--text-primary)',
+                      textDecoration: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      transition: 'background var(--transition-fast)',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(220,182,91,0.08)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                  >
+                    <Trophy size={14} color="var(--gold)" /> Leaderboard
+                  </Link>
 
                   {currentUser.role === 'ADMIN' && (
                     <Link
@@ -483,12 +500,15 @@ export default function Navbar() {
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{currentUser.email}</div>
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
-                <Link to="/profile" onClick={() => setMenuOpen(false)} className="btn btn-ghost btn-sm" style={{ justifyContent: 'center', fontSize: 11 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 4 }}>
+                <Link to="/profile" onClick={() => setMenuOpen(false)} className="btn btn-ghost btn-sm" style={{ justifyContent: 'center', fontSize: 11, padding: '6px 4px' }}>
                   <User size={13} /> Profile
                 </Link>
-                <Link to="/library" onClick={() => setMenuOpen(false)} className="btn btn-ghost btn-sm" style={{ justifyContent: 'center', fontSize: 11 }}>
+                <Link to="/library" onClick={() => setMenuOpen(false)} className="btn btn-ghost btn-sm" style={{ justifyContent: 'center', fontSize: 11, padding: '6px 4px' }}>
                   <Film size={13} /> Library
+                </Link>
+                <Link to="/leaderboard" onClick={() => setMenuOpen(false)} className="btn btn-ghost btn-sm" style={{ justifyContent: 'center', fontSize: 11, padding: '6px 4px', color: 'var(--gold)' }}>
+                  <Trophy size={13} /> Ranking
                 </Link>
               </div>
               <button

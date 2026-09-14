@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
-import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2 } from 'lucide-react';
+import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, ChevronDown, ChevronUp, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import ReviewCard from '../components/reviews/ReviewCard';
 import ProfessionalRatingBadge from '../components/reviews/ProfessionalRatingBadge';
@@ -37,6 +37,7 @@ export default function ProfilePage() {
   const [collectionsCount, setCollectionsCount] = useState(0);
   const [weekendVotingStats, setWeekendVotingStats] = useState({ totalVotes: 0, distinctRounds: 0, distinctGenres: 0, winnersVotedCount: 0 });
   const [userPastVotes, setUserPastVotes] = useState([]);
+  const [showOurComments, setShowOurComments] = useState(false);
 
   useEffect(() => {
     if (!currentUser) {
@@ -212,6 +213,26 @@ export default function ProfilePage() {
           <Link to="/library" className="btn btn-outline btn-sm">My Library</Link>
           <Link to="/diary" className="btn btn-outline btn-sm">Movie Diary</Link>
           <Link to="/watchlist" className="btn btn-outline btn-sm">Watchlist</Link>
+          <Link to="/leaderboard" className="btn btn-outline btn-sm" style={{ borderColor: 'var(--gold-dim)', color: 'var(--gold)' }}>
+            <Trophy size={14} /> Community Leaderboard
+          </Link>
+          <button
+            type="button"
+            onClick={() => setShowOurComments(prev => !prev)}
+            className="btn btn-outline btn-sm"
+            style={{
+              borderColor: showOurComments ? 'var(--gold)' : 'var(--border-subtle)',
+              background: showOurComments ? 'var(--gold-faint)' : 'transparent',
+              color: showOurComments ? 'var(--gold)' : 'var(--text-primary)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <MessageSquare size={14} color="var(--gold)" />
+            <span>Our Comments ({userReviews.length})</span>
+            {showOurComments ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
         </div>
 
         {/* Professional Reviewer Status */}
@@ -309,188 +330,126 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* User Reviews List */}
-        <div>
-          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-primary)', marginBottom: 20 }}>
-            Your Reviews &amp; Ratings
-          </h2>
-
-          {userReviews.length === 0 ? (
-            <div style={{ padding: '48px 24px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
-              <MessageSquare size={32} color="var(--text-muted)" style={{ marginBottom: 12 }} />
-              <h4 style={{ fontFamily: 'var(--font-serif)', color: 'var(--text-secondary)', marginBottom: 6 }}>You haven't written any reviews yet</h4>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>Browse movies to rate and share your thoughts!</p>
-              <button onClick={() => navigate('/discover')} className="btn btn-primary btn-sm">
-                Explore Movies
-              </button>
+        {/* Collapsible "Our Comments" Menu */}
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+          <button
+            type="button"
+            onClick={() => setShowOurComments(prev => !prev)}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '18px 20px',
+              background: showOurComments ? 'rgba(220,182,91,0.06)' : 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              borderBottom: showOurComments ? '1px solid var(--border-subtle)' : 'none',
+              textAlign: 'left',
+              transition: 'background 0.15s ease',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: 'var(--gold-faint)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <MessageSquare size={18} color="var(--gold)" />
+              </div>
+              <div>
+                <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', margin: 0 }}>
+                  Our Comments &amp; Reviews
+                </h3>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 0' }}>
+                  {userReviews.length} {userReviews.length === 1 ? 'review written' : 'reviews written'} · Click to {showOurComments ? 'hide' : 'view'} all
+                </p>
+              </div>
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {userReviews.map(rev => {
-                const isTheater = !!rev.theaterId;
-                const targetMovie = !isTheater && rev.movieId ? getMovie(rev.movieId) : null;
-                const targetTheater = isTheater ? getTheater(rev.theaterId) : null;
-                const targetUrl = isTheater ? `/theater/${rev.theaterId}` : `/movie/${rev.movieId}`;
-                
-                // Fallback title resolution
-                let targetTitle = isTheater
-                  ? (targetTheater?.name || rev.theaterName || 'Theater')
-                  : (targetMovie?.title || rev.movieTitle || rev.parameterRatings?.movieTitle);
 
-                if (!targetTitle && rev.movieId) {
-                  const cleaned = String(rev.movieId).replace(/^tmdb-/, '');
-                  targetTitle = cleaned.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                }
-                if (!targetTitle) targetTitle = isTheater ? 'Theater' : 'Movie';
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span className="badge badge-gold" style={{ fontSize: 11, padding: '3px 10px' }}>
+                {userReviews.length} {userReviews.length === 1 ? 'Comment' : 'Comments'}
+              </span>
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.05)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                {showOurComments ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </div>
+            </div>
+          </button>
 
-                const posterSrc = !isTheater ? (targetMovie?.posterUrl || rev.posterUrl) : null;
-                const formattedDate = rev.createdAt
-                  ? new Date(rev.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-                  : '';
+          {/* Collapsible Content */}
+          {showOurComments && (
+            <div style={{ padding: 20 }}>
+              {userReviews.length === 0 ? (
+                <div style={{ padding: '36px 20px', background: 'rgba(0,0,0,0.2)', border: '1px dashed var(--border-subtle)', textAlign: 'center', borderRadius: 4 }}>
+                  <MessageSquare size={28} color="var(--text-muted)" style={{ marginBottom: 10 }} />
+                  <h4 style={{ fontFamily: 'var(--font-serif)', color: 'var(--text-secondary)', marginBottom: 6 }}>No comments or reviews written yet</h4>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>Browse films &amp; theaters to rate and leave your comments!</p>
+                  <button onClick={() => navigate('/discover')} className="btn btn-primary btn-sm">
+                    Explore Movies
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {userReviews.map(rev => {
+                    const isTheater = !!rev.theaterId;
+                    const targetMovie = !isTheater && rev.movieId ? getMovie(rev.movieId) : null;
+                    const targetTheater = isTheater ? getTheater(rev.theaterId) : null;
+                    const targetUrl = isTheater ? `/theater/${rev.theaterId}` : `/movie/${rev.movieId}`;
+                    
+                    // Fallback title resolution
+                    let targetTitle = isTheater
+                      ? (targetTheater?.name || rev.theaterName || 'Theater')
+                      : (targetMovie?.title || rev.movieTitle || rev.parameterRatings?.movieTitle);
 
-                return (
-                  <div
-                    key={rev.id}
-                    style={{
-                      background: 'var(--bg-card)',
-                      border: '1px solid var(--border-subtle)',
-                      padding: 16,
-                      borderRadius: 'var(--radius-sm)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 12,
-                      transition: 'border-color 0.15s ease',
-                    }}
-                  >
-                    {/* Top Row: Title, Rating, & Actions */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-                      <Link
-                        to={targetUrl}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          textDecoration: 'none',
-                          minWidth: 0,
-                          flex: 1,
-                        }}
-                      >
-                        {posterSrc ? (
-                          <img
-                            src={posterSrc}
-                            alt={targetTitle}
-                            style={{ width: 32, height: 46, objectFit: 'cover', borderRadius: 3, flexShrink: 0 }}
-                          />
-                        ) : (
-                          <div
-                            style={{
-                              width: 32,
-                              height: 46,
-                              borderRadius: 3,
-                              background: 'rgba(255,255,255,0.04)',
-                              border: '1px solid var(--border-subtle)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexShrink: 0,
-                            }}
-                          >
+                    if (!targetTitle && rev.movieId) {
+                      const cleaned = String(rev.movieId).replace(/^tmdb-/, '');
+                      targetTitle = cleaned.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                    }
+                    if (!targetTitle) targetTitle = isTheater ? 'Theater' : 'Movie';
+
+                    return (
+                      <div key={rev.id} style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-subtle)', padding: 18, borderRadius: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--border-subtle)' }}>
+                          <Link to={targetUrl} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
                             {isTheater ? <Building2 size={16} color="var(--gold)" /> : <Film size={16} color="var(--gold)" />}
-                          </div>
-                        )}
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                            <span
-                              style={{
-                                fontFamily: 'var(--font-serif)',
-                                fontSize: 16,
-                                color: 'var(--text-primary)',
-                                fontWeight: 600,
-                              }}
-                            >
+                            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', fontWeight: 600 }}>
                               {targetTitle}
                             </span>
                             {isTheater && (
                               <span className="badge badge-dim" style={{ fontSize: 9 }}>Theater</span>
                             )}
-                          </div>
-                          {formattedDate && (
-                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                              {formattedDate}
-                            </div>
-                          )}
+                            <ChevronRight size={14} color="var(--gold)" />
+                          </Link>
+                          <span className="badge badge-verified" style={{ fontSize: 9 }}>{rev.status || 'PUBLISHED'}</span>
                         </div>
-                      </Link>
-
-                      {/* Right side: Score & Quick Actions */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                        {rev.rating > 0 && (
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              padding: '3px 10px',
-                              borderRadius: 16,
-                              background: 'var(--gold-faint)',
-                              border: '1px solid var(--gold-dim)',
-                              fontSize: 13,
-                              fontWeight: 700,
-                              color: 'var(--gold)',
-                            }}
-                          >
-                            <span>★</span>
-                            <span>{rev.rating}</span>
-                          </div>
-                        )}
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <button
-                            type="button"
-                            onClick={() => navigate(targetUrl)}
-                            className="btn btn-ghost btn-sm"
-                            style={{ fontSize: 12, padding: '4px 8px', color: 'var(--text-secondary)' }}
-                            title="Edit Review"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (window.confirm('Are you sure you want to delete this review?')) {
-                                dispatch({ type: 'DELETE_REVIEW', payload: rev.id });
-                              }
-                            }}
-                            className="btn btn-ghost btn-sm"
-                            style={{ fontSize: 12, padding: '4px 8px', color: '#f87171' }}
-                            title="Delete Review"
-                          >
-                            Delete
-                          </button>
-                        </div>
+                        <ReviewCard
+                          review={rev}
+                          onEdit={() => navigate(targetUrl)}
+                          onDelete={(id) => dispatch({ type: 'DELETE_REVIEW', payload: id })}
+                        />
                       </div>
-                    </div>
-
-                    {/* Review text excerpt if available */}
-                    {rev.reviewText && (
-                      <p
-                        style={{
-                          fontSize: 13,
-                          color: 'var(--text-secondary)',
-                          lineHeight: 1.6,
-                          margin: 0,
-                          display: '-webkit-box',
-                          WebkitLineClamp: 3,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {rev.reviewText}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
