@@ -27,7 +27,6 @@ import ProReviewerProfilePage from './pages/ProReviewerProfilePage';
 import WeekendPickPage from './pages/WeekendPickPage';
 import WeekendWinnersArchivePage from './pages/WeekendWinnersArchivePage';
 import PublicReviewPage from './pages/PublicReviewPage';
-import SocialPreviewTestPage from './pages/SocialPreviewTestPage';
 
 export default function App() {
   return (
@@ -63,8 +62,6 @@ export default function App() {
               <Route path="/apply-professional" element={<ProReviewerApplyPage />} />
               <Route path="/reviewer/:userId" element={<ProReviewerProfilePage />} />
               <Route path="/review/:reviewId" element={<PublicReviewPage />} />
-              <Route path="/share/preview" element={<SocialPreviewTestPage />} />
-              <Route path="/admin/social-preview" element={<SocialPreviewTestPage />} />
             </Routes>
           </main>
           <Footer />
