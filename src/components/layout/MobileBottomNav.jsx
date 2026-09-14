@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Compass, Trophy, Film, User } from 'lucide-react';
+import { Home, Compass, Trophy, Building2, User } from 'lucide-react';
 import { useApp } from '../../AppContext';
 
 export default function MobileBottomNav() {
@@ -13,7 +13,7 @@ export default function MobileBottomNav() {
     { to: '/', label: 'Home', icon: Home },
     { to: '/discover', label: 'Discover', icon: Compass },
     { to: '/weekend', label: 'Weekend', icon: Trophy },
-    { to: '/movies', label: 'Now Showing', icon: Film },
+    { to: `/city/${activeCity?.id || 'visakhapatnam'}`, label: 'Theaters', icon: Building2 },
     {
       to: currentUser ? '/profile' : '/login',
       label: currentUser ? 'Profile' : 'Sign In',
@@ -55,6 +55,8 @@ export default function MobileBottomNav() {
           const isActive =
             item.to === '/'
               ? location.pathname === '/'
+              : item.label === 'Theaters'
+              ? location.pathname.startsWith('/city') || location.pathname.startsWith('/theater')
               : location.pathname.startsWith(item.to);
 
           return (
