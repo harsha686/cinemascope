@@ -42,7 +42,12 @@ import {
   pushWeekendPickDataToCloud,
   syncWeekendPickDataFromCloud,
 } from '../../services/weekendPickService';
-import { searchTmdbMovies, fetchFullTmdbMovieDetails } from '../../services/tmdbService';
+import {
+  searchTmdbMovies,
+  searchTmdbTv,
+  searchTmdbMulti,
+  fetchFullTmdbMovieDetails,
+} from '../../services/tmdbService';
 
 export default function WeekendVotingAdminTab() {
   const [rounds, setRounds] = useState(() => getAllRounds());
@@ -62,6 +67,7 @@ export default function WeekendVotingAdminTab() {
   // Candidate TMDB Search
   const [candidateSearchQuery, setCandidateSearchQuery] = useState('');
   const [candidateSearchResults, setCandidateSearchResults] = useState([]);
+  const [candidateMediaType, setCandidateMediaType] = useState('all'); // 'all' | 'tv' | 'movie'
   const [isSearchingTmdb, setIsSearchingTmdb] = useState(false);
 
   useEffect(() => {
@@ -273,6 +279,20 @@ export default function WeekendVotingAdminTab() {
     }
   };
 
+  const handleOpenAddCandidateModal = () => {
+    const currentGenreObj = genres.find(g => g.id === activeGenreTab);
+    const genreNameLower = (currentGenreObj?.name || activeGenreTab || '').toLowerCase();
+    const isSeriesGenre =
+      genreNameLower.includes('series') ||
+      genreNameLower.includes('tv') ||
+      genreNameLower.includes('show') ||
+      genreNameLower.includes('web');
+    setCandidateMediaType(isSeriesGenre ? 'tv' : 'all');
+    setCandidateSearchQuery('');
+    setCandidateSearchResults([]);
+    setShowAddCandidateModal(true);
+  };
+
   // Add Candidate handler
   const handleAddCandidate = (movieData) => {
     if (!currentRound) return;
@@ -283,11 +303,19 @@ export default function WeekendVotingAdminTab() {
       candidates: [],
     };
 
+    const isSeries = !!(
+      movieData.isTv ||
+      movieData.mediaType === 'tv' ||
+      movieData.type === 'SERIES' ||
+      candidateMediaType === 'tv'
+    );
+
     const newCandidate = {
       id: `cand-${activeGenreTab}-${Date.now()}`,
       titleId: String(movieData.tmdbId || movieData.id),
       title: movieData.title || movieData.name,
-      type: movieData.isTv || movieData.type === 'SERIES' ? 'SERIES' : 'MOVIE',
+      type: isSeries ? 'SERIES' : 'MOVIE',
+      isTv: isSeries,
       releaseYear: movieData.releaseYear || (movieData.releaseDate ? movieData.releaseDate.split('-')[0] : 2024),
       rating: movieData.voteAverage ? Math.round((movieData.voteAverage / 2) * 10) / 10 : 4.5,
       language: movieData.language || 'English',
@@ -331,15 +359,41 @@ export default function WeekendVotingAdminTab() {
     reloadData();
   };
 
-  const handleSearchTmdbForCandidate = async (e) => {
+  const handleSearchTmdbForCandidate = async (e, forcedType = null) => {
     e?.preventDefault();
     if (!candidateSearchQuery.trim()) return;
     setIsSearchingTmdb(true);
+    const searchType = forcedType || candidateMediaType;
+
     try {
-      const res = await searchTmdbMovies(candidateSearchQuery);
+      let res;
+      if (searchType === 'tv') {
+        res = await searchTmdbTv(candidateSearchQuery);
+      } else if (searchType === 'movie') {
+        res = await searchTmdbMovies(candidateSearchQuery);
+      } else {
+        // Multi search (both movies and TV series)
+        res = await searchTmdbMulti(candidateSearchQuery);
+        // If multi search returned empty or sparse, also query both tv and movie in parallel
+        if (!res?.results || res.results.length === 0) {
+          const [tvRes, movieRes] = await Promise.all([
+            searchTmdbTv(candidateSearchQuery).catch(() => ({ results: [] })),
+            searchTmdbMovies(candidateSearchQuery).catch(() => ({ results: [] })),
+          ]);
+          const combined = [...(tvRes.results || []), ...(movieRes.results || [])];
+          res = { results: combined };
+        }
+      }
       setCandidateSearchResults(res.results || []);
     } catch (err) {
       console.error(err);
+      // Fallback: try searchTmdbTv in case query is specifically a TV show
+      try {
+        const tvFallback = await searchTmdbTv(candidateSearchQuery);
+        setCandidateSearchResults(tvFallback.results || []);
+      } catch (fallbackErr) {
+        console.error(fallbackErr);
+      }
     }
     setIsSearchingTmdb(false);
   };
@@ -635,7 +689,7 @@ export default function WeekendVotingAdminTab() {
 
               <button
                 type="button"
-                onClick={() => setShowAddCandidateModal(true)}
+                onClick={handleOpenAddCandidateModal}
                 className="btn btn-outline btn-sm"
                 style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}
               >
@@ -651,7 +705,7 @@ export default function WeekendVotingAdminTab() {
               <p>No candidates added in this genre yet.</p>
               <button
                 type="button"
-                onClick={() => setShowAddCandidateModal(true)}
+                onClick={handleOpenAddCandidateModal}
                 className="btn btn-primary btn-sm"
                 style={{ marginTop: 8 }}
               >
@@ -884,11 +938,41 @@ export default function WeekendVotingAdminTab() {
               Search TMDB to select an official movie or TV series candidate.
             </p>
 
+            {/* Type selector tabs: All, TV Series, Movies */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+              {[
+                { id: 'all', label: 'All (Movies & Series)' },
+                { id: 'tv', label: '📺 TV Series / Web Shows' },
+                { id: 'movie', label: '🎬 Movies' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    setCandidateMediaType(tab.id);
+                    if (candidateSearchQuery.trim()) {
+                      handleSearchTmdbForCandidate(null, tab.id);
+                    }
+                  }}
+                  className={`filter-chip ${candidateMediaType === tab.id ? 'active' : ''}`}
+                  style={{ fontSize: 11, padding: '4px 10px' }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
             {/* Search form */}
             <form onSubmit={handleSearchTmdbForCandidate} style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
               <input
                 className="input"
-                placeholder="Search movie or TV series title..."
+                placeholder={
+                  candidateMediaType === 'tv'
+                    ? 'Search TV series or web show title (e.g. Breaking Bad, Mirzapur)...'
+                    : candidateMediaType === 'movie'
+                    ? 'Search movie title (e.g. Kalki, Interstellar)...'
+                    : 'Search movie or TV series title...'
+                }
                 value={candidateSearchQuery}
                 onChange={e => setCandidateSearchQuery(e.target.value)}
                 autoFocus
@@ -900,46 +984,95 @@ export default function WeekendVotingAdminTab() {
 
             {/* Results */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 360, overflowY: 'auto' }}>
-              {candidateSearchResults.map(m => (
-                <div
-                  key={m.id || m.tmdbId}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: 8,
-                    background: 'rgba(255,255,255,0.02)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 4,
-                    gap: 12,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    {m.posterUrl && (
-                      <img
-                        src={m.posterUrl}
-                        alt={m.title}
-                        style={{ width: 36, height: 52, objectFit: 'cover', borderRadius: 2 }}
-                      />
-                    )}
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{m.title}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        {m.releaseYear || m.releaseDate?.split('-')[0]} · {m.language} · ★ {m.voteAverage || 0}
+              {candidateSearchResults.map(m => {
+                const isTvShow = m.isTv || m.mediaType === 'tv' || candidateMediaType === 'tv';
+                return (
+                  <div
+                    key={m.id || m.tmdbId}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: 8,
+                      background: 'rgba(255,255,255,0.02)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 4,
+                      gap: 12,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      {m.posterUrl && (
+                        <img
+                          src={m.posterUrl}
+                          alt={m.title}
+                          style={{ width: 36, height: 52, objectFit: 'cover', borderRadius: 2 }}
+                        />
+                      )}
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{m.title}</span>
+                          {isTvShow ? (
+                            <span className="badge" style={{ background: 'rgba(168, 85, 247, 0.2)', color: '#c084fc', border: '1px solid rgba(192, 132, 252, 0.4)', fontSize: 9, padding: '1px 5px' }}>
+                              📺 Series
+                            </span>
+                          ) : (
+                            <span className="badge" style={{ background: 'rgba(234, 179, 8, 0.16)', color: 'var(--gold)', border: '1px solid var(--gold-dim)', fontSize: 9, padding: '1px 5px' }}>
+                              🎬 Movie
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {m.releaseYear || m.releaseDate?.split('-')[0]} · {m.language} · ★ {m.voteAverage || 0}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleAddCandidate(m)}
-                    className="btn btn-outline btn-sm"
-                    style={{ fontSize: 11 }}
-                  >
-                    + Add
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddCandidate(m)}
+                      className="btn btn-outline btn-sm"
+                      style={{ fontSize: 11 }}
+                    >
+                      + Add
+                    </button>
+                  </div>
+                );
+              })}
+
+              {/* No results fallback */}
+              {candidateSearchResults.length === 0 && !isSearchingTmdb && candidateSearchQuery.trim() && (
+                <div style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--text-muted)', fontSize: 12 }}>
+                  <p style={{ margin: 0, marginBottom: 10 }}>
+                    No results found for "{candidateSearchQuery}" in {candidateMediaType === 'tv' ? 'TV Series' : candidateMediaType === 'movie' ? 'Movies' : 'catalog'}.
+                  </p>
+                  {candidateMediaType !== 'tv' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCandidateMediaType('tv');
+                        handleSearchTmdbForCandidate(null, 'tv');
+                      }}
+                      className="btn btn-outline btn-sm"
+                      style={{ fontSize: 11, marginRight: 8 }}
+                    >
+                      Search in 📺 TV Series
+                    </button>
+                  )}
+                  {candidateMediaType !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCandidateMediaType('all');
+                        handleSearchTmdbForCandidate(null, 'all');
+                      }}
+                      className="btn btn-outline btn-sm"
+                      style={{ fontSize: 11 }}
+                    >
+                      Search All Catalog
+                    </button>
+                  )}
                 </div>
-              ))}
+              )}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
