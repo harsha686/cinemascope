@@ -8,6 +8,7 @@ import { getFormat } from '../data/formats';
 import RatingBreakdown from '../components/reviews/RatingBreakdown';
 import ReviewCard from '../components/reviews/ReviewCard';
 import ReviewComposer from '../components/reviews/ReviewComposer';
+import { getFeatureBadgeStyle } from '../components/city/TheaterCard';
 
 
 function ScreenMiniCard({ screen, theaterId }) {
@@ -65,10 +66,22 @@ function ScreenMiniCard({ screen, theaterId }) {
 
       {/* Badges */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-        {screen.dolbyAtmos && <span className="badge badge-gold">Dolby Atmos</span>}
-        {screen.projection?.includes('Laser') && <span className="badge badge-dim">Laser</span>}
-        {screen.resolution?.includes('4096') && <span className="badge badge-dim">4K</span>}
-        {screen.capacity && <span className="badge badge-dim">{screen.capacity} seats</span>}
+        {screen.dolbyAtmos && (
+          <span className="badge" style={{ ...getFeatureBadgeStyle('Dolby Atmos'), fontSize: 9, padding: '2px 6px' }}>
+            Dolby Atmos
+          </span>
+        )}
+        {screen.projection?.includes('Laser') && (
+          <span className="badge" style={{ ...getFeatureBadgeStyle('4K Laser'), fontSize: 9, padding: '2px 6px' }}>
+            Laser
+          </span>
+        )}
+        {screen.resolution?.includes('4096') && (
+          <span className="badge" style={{ ...getFeatureBadgeStyle('4K'), fontSize: 9, padding: '2px 6px' }}>
+            4K
+          </span>
+        )}
+        {screen.capacity && <span className="badge badge-dim" style={{ fontSize: 9, padding: '2px 6px' }}>{screen.capacity} seats</span>}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--gold)', fontSize: 10, fontFamily: 'var(--font-serif)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>

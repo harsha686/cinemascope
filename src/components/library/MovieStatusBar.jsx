@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Bookmark, Heart, Eye, FolderPlus } from 'lucide-react';
+import { Bookmark, Heart, Eye, FolderPlus, BookOpen } from 'lucide-react';
 import { useApp } from '../../AppContext';
 import { getMovieStatus, toggleWatchlist, toggleWatched, toggleFavorite } from '../../services/movieLibraryService';
 import CollectionPicker from './CollectionPicker';
+import DiaryEntryForm from './DiaryEntryForm';
 
 export default function MovieStatusBar({ tmdbId, movieMeta, compact, onStatusChange }) {
   const { currentUser, state } = useApp();
@@ -12,6 +13,7 @@ export default function MovieStatusBar({ tmdbId, movieMeta, compact, onStatusCha
 
   const [status, setStatus] = useState({ inWatchlist: false, isWatched: false, isFavorite: false, rating: 0 });
   const [showCollectionPicker, setShowCollectionPicker] = useState(false);
+  const [showDiaryModal, setShowDiaryModal] = useState(false);
 
   useEffect(() => {
     if (cleanTmdbId) {
@@ -116,11 +118,42 @@ export default function MovieStatusBar({ tmdbId, movieMeta, compact, onStatusCha
         {!compact && <span style={{ marginLeft: '6px' }}>Collection</span>}
       </button>
 
+      <button
+        type="button"
+        className={`btn ${compact ? 'btn-sm' : ''} btn-ghost`}
+        onClick={() => {
+          if (!activeUser) {
+            alert('Please log in to log movies in your diary.');
+            return;
+          }
+          setShowDiaryModal(true);
+        }}
+        style={{
+          color: 'var(--text-secondary)'
+        }}
+        title="Log in Diary"
+      >
+        <BookOpen size={iconSize} color="var(--gold)" />
+        {!compact && <span style={{ marginLeft: '6px' }}>Log it</span>}
+      </button>
+
       {showCollectionPicker && (
         <CollectionPicker
           tmdbId={cleanTmdbId}
           movieMeta={movieMeta}
           onClose={() => setShowCollectionPicker(false)}
+        />
+      )}
+
+      {showDiaryModal && (
+        <DiaryEntryForm
+          tmdbId={cleanTmdbId}
+          movieMeta={movieMeta}
+          onClose={() => setShowDiaryModal(false)}
+          onSave={() => {
+            loadStatus();
+            if (onStatusChange) onStatusChange({ ...status, isWatched: true });
+          }}
         />
       )}
     </div>

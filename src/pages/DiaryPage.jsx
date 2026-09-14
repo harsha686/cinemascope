@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Star, Trash2, Calendar, Film, RefreshCw } from 'lucide-react';
+import { BookOpen, Star, Trash2, Calendar, Film, RefreshCw, Plus } from 'lucide-react';
 import { useApp } from '../AppContext';
 import * as LibService from '../services/movieLibraryService';
 import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
+import DiaryEntryForm from '../components/library/DiaryEntryForm';
 
 export default function DiaryPage() {
   const { state } = useApp();
@@ -15,6 +16,16 @@ export default function DiaryPage() {
   const [moviesData, setMoviesData] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState('all');
+  const [showLogModal, setShowLogModal] = useState(false);
+
+  const loadDiaryData = async () => {
+    if (!currentUser) return;
+    const d = await LibService.getDiary(currentUser.id);
+    setEntries(d);
+    const s = await LibService.getDiaryStats(currentUser.id);
+    setStats(s);
+    setLoading(false);
+  };
 
   useEffect(() => {
     if (!currentUser) {
@@ -121,7 +132,7 @@ export default function DiaryPage() {
                 {stats.totalEntries} entries · {stats.thisYearCount} this year · {stats.rewatches} rewatches
               </p>
             </div>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
               <select
                 className="input"
                 value={selectedYear}
@@ -131,6 +142,14 @@ export default function DiaryPage() {
                 <option value="all" style={{ background: '#18140e', color: '#ffffff' }}>All Years</option>
                 {years.map(y => <option key={y} value={y} style={{ background: '#18140e', color: '#ffffff' }}>{y}</option>)}
               </select>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => setShowLogModal(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}
+              >
+                <Plus size={14} /> Log a Movie
+              </button>
               <button className="btn btn-outline btn-sm" onClick={() => navigate('/discover')}>
                 <Film size={14} /> Discover Movies
               </button>
@@ -168,7 +187,14 @@ export default function DiaryPage() {
             <BookOpen size={40} color="var(--text-muted)" style={{ marginBottom: 16 }} />
             <h3 style={{ fontFamily: 'var(--font-serif)', color: 'var(--text-secondary)', marginBottom: 8 }}>Your movie diary starts here</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: 20, fontSize: 13 }}>Record the movies you've watched and build your personal cinema history.</p>
-            <button className="btn btn-primary" onClick={() => navigate('/discover')}>Explore Movies</button>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button className="btn btn-primary" onClick={() => setShowLogModal(true)}>
+                <Plus size={14} /> Log a Movie
+              </button>
+              <button className="btn btn-outline" onClick={() => navigate('/discover')}>
+                <Film size={14} /> Explore Movies
+              </button>
+            </div>
           </div>
         ) : (
           Object.entries(grouped).map(([monthYear, monthEntries]) => (
@@ -249,6 +275,13 @@ export default function DiaryPage() {
           ))
         )}
       </div>
+
+      {showLogModal && (
+        <DiaryEntryForm
+          onClose={() => setShowLogModal(false)}
+          onSave={() => loadDiaryData()}
+        />
+      )}
     </div>
   );
 }

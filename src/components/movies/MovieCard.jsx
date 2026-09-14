@@ -1,11 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star } from 'lucide-react';
+import { Star, Trophy, Medal, Award } from 'lucide-react';
 import StarRating from '../reviews/StarRating';
 import { useApp } from '../../AppContext';
 import PosterPlaceholder from '../shared/PosterPlaceholder';
 
-export default function MovieCard({ movie, compact = false }) {
+export default function MovieCard({ movie, compact = false, topRank = null }) {
   const navigate = useNavigate();
   const { getMovieRating } = useApp();
 
@@ -19,6 +19,45 @@ export default function MovieCard({ movie, compact = false }) {
     ARCHIVED: { label: 'Archived', class: 'badge-dim' },
   }[movie.status] || { label: movie.status, class: 'badge-dim' };
 
+  const rankConfig = {
+    1: {
+      label: '#1 Top Rated',
+      Icon: Trophy,
+      style: {
+        background: 'rgba(234, 179, 8, 0.22)',
+        color: '#facc15',
+        border: '1px solid rgba(250, 204, 21, 0.65)',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
+      },
+      cardBorder: '1px solid rgba(250, 204, 21, 0.5)',
+      cardShadow: '0 0 16px rgba(234, 179, 8, 0.08)',
+    },
+    2: {
+      label: '#2 Top Rated',
+      Icon: Medal,
+      style: {
+        background: 'rgba(226, 232, 240, 0.2)',
+        color: '#f1f5f9',
+        border: '1px solid rgba(226, 232, 240, 0.55)',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
+      },
+      cardBorder: '1px solid rgba(226, 232, 240, 0.4)',
+      cardShadow: '0 0 14px rgba(226, 232, 240, 0.06)',
+    },
+    3: {
+      label: '#3 Top Rated',
+      Icon: Award,
+      style: {
+        background: 'rgba(205, 127, 50, 0.22)',
+        color: '#fdba74',
+        border: '1px solid rgba(205, 127, 50, 0.55)',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
+      },
+      cardBorder: '1px solid rgba(205, 127, 50, 0.4)',
+      cardShadow: '0 0 14px rgba(205, 127, 50, 0.06)',
+    },
+  }[topRank];
+
   const handleClick = () => navigate(`/movie/${movie.id}`);
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -31,7 +70,7 @@ export default function MovieCard({ movie, compact = false }) {
     <div
       role="link"
       tabIndex={0}
-      className="card interactive-card"
+      className={`card interactive-card ${topRank ? `top-rated-movie-card rank-${topRank}` : ''}`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       aria-label={`${movie.title} — ${statusBadge.label}`}
@@ -42,8 +81,11 @@ export default function MovieCard({ movie, compact = false }) {
         height: '100%',
         borderRadius: 'var(--radius-sm)',
         background: 'var(--bg-card)',
-        border: '1px solid var(--border-subtle)',
+        border: rankConfig ? rankConfig.cardBorder : '1px solid var(--border-subtle)',
+        boxShadow: rankConfig ? rankConfig.cardShadow : 'none',
         outline: 'none',
+        position: 'relative',
+        transition: 'all var(--transition-fast)',
       }}
     >
       {/* Poster Image Container */}
@@ -85,6 +127,28 @@ export default function MovieCard({ movie, compact = false }) {
             {statusBadge.label}
           </span>
         </div>
+
+        {/* Top Rated Podium Rank Overlay */}
+        {rankConfig && (
+          <div style={{ position: 'absolute', top: 6, right: 6, zIndex: 2 }}>
+            <span
+              className="badge"
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                backdropFilter: 'blur(8px)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                ...rankConfig.style,
+              }}
+            >
+              <rankConfig.Icon size={10} />
+              {rankConfig.label}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Movie Details */}

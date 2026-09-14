@@ -117,12 +117,21 @@ export default function CityPage() {
     });
   }, [theaters, search, activeFilter, getTheaterRating, state.reviews]);
 
-  // Determine top-rated theater (must have at least one review)
-  const topTheaterId = useMemo(() => {
-    if (!filtered || filtered.length === 0) return null;
-    const top = filtered[0];
-    const r = getTheaterRating ? getTheaterRating(top.id) : { average: 0, count: 0 };
-    return r.count > 0 ? top.id : null;
+  // Determine top 3 rated theaters (must have at least one review)
+  const topTheaterRanks = useMemo(() => {
+    const ranks = {};
+    if (!filtered || filtered.length === 0) return ranks;
+
+    let currentRank = 1;
+    for (const t of filtered) {
+      if (currentRank > 3) break;
+      const r = getTheaterRating ? getTheaterRating(t.id) : { average: 0, count: 0 };
+      if (r.count > 0) {
+        ranks[t.id] = currentRank;
+        currentRank++;
+      }
+    }
+    return ranks;
   }, [filtered, getTheaterRating]);
 
   const totalScreens = theaters.reduce((s, t) => s + t.totalScreens, 0);
@@ -285,7 +294,7 @@ export default function CityPage() {
                   key={t.id}
                   theater={t}
                   compact={view === 'list'}
-                  isTopRated={t.id === topTheaterId}
+                  topRank={topTheaterRanks[t.id]}
                 />
               ))}
             </div>

@@ -6,7 +6,7 @@ import MovieCard from '../components/movies/MovieCard';
 
 export default function MoviesPage() {
   const navigate = useNavigate();
-  const { state, allCities } = useApp();
+  const { state, allCities, getMovieRating } = useApp();
 
   const [search, setSearch] = useState('');
   const [selectedCity, setSelectedCity] = useState(state.selectedCity?.id || 'all');
@@ -38,6 +38,29 @@ export default function MoviesPage() {
       return matchQuery && matchStatus && matchCity && matchLang;
     });
   }, [state.movies, search, selectedStatus, selectedCity, selectedLang]);
+
+  // Compute top 3 rated movies (with reviews count > 0)
+  const topMovieRanks = useMemo(() => {
+    const ranks = {};
+    if (!filteredMovies || filteredMovies.length === 0) return ranks;
+
+    const rated = [...filteredMovies]
+      .map(m => {
+        const r = getMovieRating ? getMovieRating(m.id) : { average: 0, count: 0 };
+        return { id: m.id, average: r?.average || 0, count: r?.count || 0 };
+      })
+      .filter(m => m.count > 0)
+      .sort((a, b) => {
+        if (b.average !== a.average) return b.average - a.average;
+        return b.count - a.count;
+      });
+
+    rated.slice(0, 3).forEach((item, index) => {
+      ranks[item.id] = index + 1;
+    });
+
+    return ranks;
+  }, [filteredMovies, getMovieRating, state.reviews]);
 
   return (
     <div className="page-enter">
@@ -146,7 +169,7 @@ export default function MoviesPage() {
             gap: 20,
           }}>
             {filteredMovies.map(movie => (
-              <MovieCard key={movie.id} movie={movie} />
+              <MovieCard key={movie.id} movie={movie} topRank={topMovieRanks[movie.id]} />
             ))}
           </div>
         )}
