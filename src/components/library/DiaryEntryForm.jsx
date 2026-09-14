@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Search, Film } from 'lucide-react';
 import { useApp } from '../../AppContext';
 import { addDiaryEntry } from '../../services/movieLibraryService';
@@ -65,9 +66,26 @@ export default function DiaryEntryForm({ tmdbId: initialTmdbId, movieMeta: initi
     }
   };
 
-  return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(4px)' }}>
-      <div style={{ backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-sm)', width: '100%', maxWidth: '820px', display: 'flex', flexDirection: 'row', overflow: 'hidden', position: 'relative', border: '1px solid var(--border)', boxShadow: '0 20px 40px rgba(0,0,0,0.8)' }}>
+  return createPortal(
+    <div 
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      style={{ 
+        position: 'fixed', 
+        inset: 0,
+        backgroundColor: 'rgba(0,0,0,0.85)', 
+        zIndex: 2500, 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        padding: '20px', 
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
+        animation: 'fadeIn 180ms ease',
+      }}
+    >
+      <div style={{ backgroundColor: 'var(--bg)', borderRadius: 'var(--radius-sm)', width: '100%', maxWidth: '820px', display: 'flex', flexDirection: 'row', overflow: 'hidden', position: 'relative', border: '1px solid var(--border)', boxShadow: '0 20px 50px rgba(0,0,0,0.8)' }}>
         
         <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', zIndex: 10 }}>
           <X size={24} />
@@ -202,6 +220,7 @@ export default function DiaryEntryForm({ tmdbId: initialTmdbId, movieMeta: initi
           </form>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

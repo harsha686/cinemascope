@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Copy, Check, Share2, Sparkles, MessageCircle, Send, Globe, Folder, Film } from 'lucide-react';
 import { getCollectionShareUrl } from '../../services/movieLibraryService';
 import AestheticImageModal from '../social/AestheticImageModal';
@@ -93,10 +94,11 @@ export default function ShareCollectionModal({
 
   return (
     <>
-      <div
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onClose();
-        }}
+      {createPortal(
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onClose();
+          }}
         style={{
           position: 'fixed',
           inset: 0,
@@ -491,7 +493,9 @@ export default function ShareCollectionModal({
             </div>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
+    )}
 
       {/* Aesthetic Image Generator Modal if opened */}
       {showAestheticModal && (

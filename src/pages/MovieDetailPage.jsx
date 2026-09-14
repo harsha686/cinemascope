@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck, Tv, Film, Users, Layers } from 'lucide-react';
+import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck, Tv, Film, Users, Layers, Share2 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import RatingBreakdown from '../components/reviews/RatingBreakdown';
 import ReviewCard from '../components/reviews/ReviewCard';
@@ -66,6 +66,42 @@ export default function MovieDetailPage() {
   const [reviewTab, setReviewTab] = useState('all'); // 'all' | 'audience' | 'professional'
   const [submitAsPro, setSubmitAsPro] = useState(currentUserIsPro);
   const [activeSectionTab, setActiveSectionTab] = useState('reviews'); // 'reviews' | 'about' | 'cast' | 'all'
+  const [sharingPoster, setSharingPoster] = useState(false);
+
+  const handleSharePoster = async () => {
+    if (!movie || !movie.posterUrl) return;
+    setSharingPoster(true);
+    const title = movie.title;
+    const url = `${window.location.origin}/#/movie/${movie.id || movie.tmdbId}`;
+    const text = `🎬 *${title}* on CinemaScope\n${url}`;
+
+    if (navigator.canShare) {
+      try {
+        const res = await fetch(movie.posterUrl, { mode: 'cors' });
+        if (res.ok) {
+          const blob = await res.blob();
+          const file = new File([blob], `${title.replace(/[^a-zA-Z0-9]/g, '_')}_poster.jpg`, { type: blob.type || 'image/jpeg' });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: `${title} - CinemaScope`,
+              text,
+              files: [file],
+            });
+            setSharingPoster(false);
+            return;
+          }
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.warn('Direct poster share failed:', err);
+        }
+      }
+    }
+
+    // Fallback: Open WhatsApp with clean link
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
+    setSharingPoster(false);
+  };
 
   useEffect(() => {
     if (currentUserIsPro) {
@@ -285,6 +321,40 @@ export default function MovieDetailPage() {
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 onError={(e) => { e.target.src = '/demo-frame.jpg'; }}
               />
+              {/* Direct Share Poster Button */}
+              {movie.posterUrl && (
+                <button
+                  type="button"
+                  onClick={handleSharePoster}
+                  title="Share poster directly with link"
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    background: 'rgba(0, 0, 0, 0.78)',
+                    backdropFilter: 'blur(8px)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    color: '#ffffff',
+                    borderRadius: 4,
+                    padding: '3px 8px',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: '0.04em',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    cursor: 'pointer',
+                    zIndex: 3,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                    transition: 'all var(--transition-fast)',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.95)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.78)'}
+                >
+                  <Share2 size={11} />
+                  <span>{sharingPoster ? 'Sharing...' : 'Share Poster'}</span>
+                </button>
+              )}
               <div style={{
                 position: 'absolute',
                 bottom: 8,

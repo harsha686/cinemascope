@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Share2, Copy, Check, MessageCircle, MoreHorizontal } from 'lucide-react';
+import { Sparkles, Share2, Copy, Check, MessageCircle, MoreHorizontal, Image as ImageIcon } from 'lucide-react';
 import AestheticImageModal from './AestheticImageModal';
 import { SOCIAL_CONTENT_TYPES, trackShareEvent } from '../../services/socialSharingService';
 
@@ -79,11 +79,73 @@ export default function ShareButton({
     setShowMenu(false);
   };
 
-  const handleWhatsAppShare = (e) => {
+  const handleSharePosterDirectly = async (e) => {
+    e.stopPropagation();
+    const posterUrl = data.posterUrl || data.poster_url;
+    const title = data.title || data.movieTitle || 'CinemaScope';
+    const url = getCanonicalUrl();
+    const text = `🎬 *${title}* on CinemaScope\n${url}`;
+
+    if (posterUrl && navigator.canShare) {
+      try {
+        const res = await fetch(posterUrl, { mode: 'cors' });
+        if (res.ok) {
+          const blob = await res.blob();
+          const file = new File([blob], `${title.replace(/[^a-zA-Z0-9]/g, '_')}_poster.jpg`, { type: blob.type || 'image/jpeg' });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: `${title} - CinemaScope`,
+              text,
+              files: [file],
+            });
+            setShowMenu(false);
+            return;
+          }
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.warn('Direct poster share failed:', err);
+        }
+      }
+    }
+
+    // Fallback: open Aesthetic Studio
+    setShowModal(true);
+    setShowMenu(false);
+  };
+
+  const handleWhatsAppShare = async (e) => {
     e.stopPropagation();
     const url = getCanonicalUrl();
     const title = data.title || data.movieTitle || 'CinemaScope';
     const text = `🎬 *${title}* on CinemaScope\n${url}`;
+    const posterUrl = data.posterUrl || data.poster_url;
+
+    // If posterUrl is available and navigator.canShare files is supported, share image file directly!
+    if (posterUrl && navigator.canShare) {
+      try {
+        const res = await fetch(posterUrl, { mode: 'cors' });
+        if (res.ok) {
+          const blob = await res.blob();
+          const file = new File([blob], `${title.replace(/[^a-zA-Z0-9]/g, '_')}_poster.jpg`, { type: blob.type || 'image/jpeg' });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title,
+              text,
+              files: [file],
+            });
+            setShowMenu(false);
+            return;
+          }
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.warn('WhatsApp direct poster share failed:', err);
+        }
+      }
+    }
+
+    // Fallback: Open WhatsApp with clean link
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
     setShowMenu(false);
   };
@@ -235,6 +297,31 @@ export default function ShareButton({
             <XIcon size={14} />
             <span>Share to X</span>
           </button>
+
+          {(data.posterUrl || data.poster_url) && (
+            <button
+              type="button"
+              onClick={handleSharePosterDirectly}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                fontSize: 12,
+                textAlign: 'left',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}
+            >
+              <ImageIcon size={14} />
+              <span>Share Poster Directly</span>
+            </button>
+          )}
 
           <button
             type="button"

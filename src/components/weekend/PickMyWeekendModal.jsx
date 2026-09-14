@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { X, Sparkles, Dices, Star, ArrowRight, Bookmark, Heart, Film, Tv, RotateCcw } from 'lucide-react';
 import {
@@ -110,7 +111,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
     }
   };
 
-  return (
+  return createPortal(
     <div
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -447,6 +448,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

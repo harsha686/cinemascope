@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Folder, Edit2, Trash2, Check, X, ArrowLeft, Plus, Share2, Bookmark, Globe, Sparkles } from 'lucide-react';
 import { useApp } from '../AppContext';
@@ -75,9 +76,26 @@ function AddMoviesModal({ collection, onClose, onCollectionUpdated, userId }) {
     }
   };
 
-  return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-      <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', width: '100%', maxWidth: '540px', border: '1px solid var(--border)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '85vh' }}>
+  return createPortal(
+    <div 
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      style={{ 
+        position: 'fixed', 
+        inset: 0, 
+        backgroundColor: 'rgba(0,0,0,0.85)', 
+        zIndex: 2500, 
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        padding: '16px',
+        animation: 'fadeIn 180ms ease',
+      }}
+    >
+      <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', width: '100%', maxWidth: '540px', border: '1px solid var(--border)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '85vh', boxShadow: '0 20px 50px rgba(0,0,0,0.7)' }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ margin: 0, color: 'var(--text-primary)', fontFamily: 'var(--font-serif)' }}>Add Movies to "{collection.name}"</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
@@ -160,7 +178,8 @@ function AddMoviesModal({ collection, onClose, onCollectionUpdated, userId }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
