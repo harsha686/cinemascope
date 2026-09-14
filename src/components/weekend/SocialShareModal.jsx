@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Trophy, Share2, Copy, Check, MessageSquare } from 'lucide-react';
 
 export default function SocialShareModal({
@@ -35,13 +36,18 @@ export default function SocialShareModal({
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 3000,
-      background: 'rgba(0,0,0,0.85)',
-      backdropFilter: 'blur(8px)',
+  return createPortal(
+    <div 
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 3000,
+        background: 'rgba(0,0,0,0.85)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -163,6 +169,7 @@ export default function SocialShareModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

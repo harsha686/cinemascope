@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, SlidersHorizontal, RotateCcw, Check } from 'lucide-react';
 
 export default function FilterDrawerModal({
@@ -18,17 +19,15 @@ export default function FilterDrawerModal({
 }) {
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div
       style={{
         position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 1000,
+        inset: 0,
+        zIndex: 2500,
         backgroundColor: 'rgba(0, 0, 0, 0.75)',
         backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'flex-end',
@@ -323,6 +322,7 @@ export default function FilterDrawerModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
