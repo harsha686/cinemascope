@@ -1199,8 +1199,87 @@ export function setUserPreferredGenre(userId, genreId) {
 }
 
 /**
- * Universal Catalog of Movies & Series for "Random Movie" Discovery (All Movies & Series)
+ * Check if a title or ID corresponds to a TV series in universal catalog,
+ * active voting rounds, or crowned winners.
  */
+export function isWeekendSeries(titleIdOrTmdbId) {
+  if (!titleIdOrTmdbId) return false;
+  const clean = String(titleIdOrTmdbId).replace(/^tmdb-tv-/, '').replace(/^tmdb-/, '').replace(/^tv-/, '').toLowerCase().trim();
+  if (!clean) return false;
+
+  // 1. Check UNIVERSAL_TITLES catalog
+  if (typeof UNIVERSAL_TITLES !== 'undefined' && Array.isArray(UNIVERSAL_TITLES)) {
+    const uniMatch = UNIVERSAL_TITLES.find(t => {
+      const tClean = String(t.titleId || t.id).replace(/^tmdb-tv-/, '').replace(/^tmdb-/, '').replace(/^tv-/, '').toLowerCase();
+      return (tClean === clean || String(t.title || '').toLowerCase() === clean) && (t.type === 'SERIES' || t.isTv);
+    });
+    if (uniMatch) return true;
+  }
+
+  // 2. Check all rounds (active + historical)
+  try {
+    const rounds = getAllRounds();
+    for (const r of rounds) {
+      if (r && r.genreRounds) {
+        for (const gr of Object.values(r.genreRounds)) {
+          if (Array.isArray(gr.candidates)) {
+            const cand = gr.candidates.find(c => {
+              const cClean = String(c.titleId || c.id).replace(/^tmdb-tv-/, '').replace(/^tmdb-/, '').replace(/^tv-/, '').toLowerCase();
+              return (cClean === clean || String(c.title || '').toLowerCase() === clean) && (c.type === 'SERIES' || c.isTv);
+            });
+            if (cand) return true;
+          }
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 3. Check declared winners
+  try {
+    const winners = getAllWinners();
+    const winMatch = winners.find(w => {
+      const wClean = String(w.titleId).replace(/^tmdb-tv-/, '').replace(/^tmdb-/, '').replace(/^tv-/, '').toLowerCase();
+      return (wClean === clean || String(w.title || '').toLowerCase() === clean) && (w.type === 'SERIES' || w.isTv);
+    });
+    if (winMatch) return true;
+  } catch (e) {}
+
+  return false;
+}
+
+/**
+ * Helper to build the canonical route URL for any movie or TV series candidate/winner.
+ * Preserves 'tmdb-tv-' prefix for TV shows so MovieDetailPage correctly fetches
+ * TV series endpoint /3/tv/{id} rather than /3/movie/{id}.
+ */
+export function formatMediaDetailUrl(item) {
+  if (!item) return '';
+  const rawId = String(item.titleId || item.tmdbId || item.id || '').trim();
+  if (!rawId) return '';
+
+  const isTv = !!(
+    item.isTv ||
+    item.type === 'SERIES' ||
+    item.mediaType === 'tv' ||
+    rawId.startsWith('tv-') ||
+    rawId.startsWith('tmdb-tv-') ||
+    rawId.includes('-series') ||
+    rawId.includes('-show') ||
+    rawId.includes('-tv') ||
+    isWeekendSeries(rawId) ||
+    isWeekendSeries(item.title)
+  );
+
+  const cleanId = rawId
+    .replace(/^tmdb-tv-/, '')
+    .replace(/^tmdb-/, '')
+    .replace(/^tv-/, '');
+
+  if (!cleanId) return '';
+
+  return isTv ? `tmdb-tv-${cleanId}` : `tmdb-${cleanId}`;
+}
+
 /**
  * Universal Catalog of Movies & Series for "Random Movie" Discovery (All Movies & Series)
  */

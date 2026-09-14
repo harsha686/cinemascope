@@ -5,6 +5,7 @@ import {
   getAllWinners,
   getHistoricalWinners,
   getGenreOptions,
+  formatMediaDetailUrl,
 } from '../services/weekendPickService';
 import { toggleWatchlist, toggleFavorite, toggleWatched, getMovieStatusSync } from '../services/movieLibraryService';
 import { useApp } from '../AppContext';
@@ -61,7 +62,7 @@ function WinnerArchiveCard({ winner, onShare }) {
     }
   };
 
-  const formattedUrl = winner.titleId?.startsWith('tmdb-') ? winner.titleId : `tmdb-${winner.titleId}`;
+  const formattedUrl = formatMediaDetailUrl(winner);
 
   return (
     <div

@@ -25,6 +25,7 @@ import {
   hasUserVotedInAllGenres,
   getUserVotedGenresCount,
   syncWeekendPickDataFromCloud,
+  formatMediaDetailUrl,
 } from '../services/weekendPickService';
 import { useApp } from '../AppContext';
 import CandidateVoteCard from '../components/weekend/CandidateVoteCard';
@@ -466,7 +467,7 @@ export default function WeekendPickPage() {
                 return (
                   <div
                     key={g.id}
-                    onClick={() => navigate(`/movie/${winner.titleId.startsWith('tmdb-') ? winner.titleId : `tmdb-${winner.titleId}`}`)}
+                    onClick={() => navigate(`/movie/${formatMediaDetailUrl(winner)}`)}
                     style={{
                       background: 'var(--bg-card)',
                       border: '1px solid var(--border)',

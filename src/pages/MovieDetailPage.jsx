@@ -14,7 +14,7 @@ import WeekendWinnerBadge from '../components/weekend/WeekendWinnerBadge';
 import ShareButton from '../components/social/ShareButton';
 import SocialMetaTags from '../components/social/SocialMetaTags';
 import { SOCIAL_CONTENT_TYPES } from '../services/socialSharingService';
-import { getMovieWinningHistory } from '../services/weekendPickService';
+import { getMovieWinningHistory, isWeekendSeries } from '../services/weekendPickService';
 import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
 
 export default function MovieDetailPage() {
@@ -35,10 +35,11 @@ export default function MovieDetailPage() {
     dispatch,
   } = useApp();
 
-  const isTmdbTv = movieId?.startsWith('tmdb-tv-') || movieId?.startsWith('tv-');
-  const isTmdbMovie = movieId?.startsWith('tmdb-') || movieId?.startsWith('tv-');
+  const isWeekendTv = isWeekendSeries(movieId);
+  const isTmdbTv = movieId?.startsWith('tmdb-tv-') || movieId?.startsWith('tv-') || isWeekendTv;
+  const isTmdbMovie = movieId?.startsWith('tmdb-') || movieId?.startsWith('tv-') || isWeekendTv;
   const tmdbId = isTmdbTv 
-    ? (movieId.startsWith('tmdb-tv-') ? movieId.replace('tmdb-tv-', 'tv-') : (movieId.startsWith('tv-') ? movieId : `tv-${movieId}`))
+    ? (movieId.startsWith('tmdb-tv-') ? movieId.replace('tmdb-tv-', 'tv-') : (movieId.startsWith('tv-') ? movieId : `tv-${movieId.replace('tmdb-', '')}`))
     : (isTmdbMovie ? movieId.replace('tmdb-', '') : null);
 
   const [tmdbMovie, setTmdbMovie] = useState(null);

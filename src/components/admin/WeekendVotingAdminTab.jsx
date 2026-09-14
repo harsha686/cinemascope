@@ -310,9 +310,10 @@ export default function WeekendVotingAdminTab() {
       candidateMediaType === 'tv'
     );
 
+    const rawId = String(movieData.tmdbId || movieData.id);
     const newCandidate = {
       id: `cand-${activeGenreTab}-${Date.now()}`,
-      titleId: String(movieData.tmdbId || movieData.id),
+      titleId: isSeries ? (rawId.startsWith('tv-') ? rawId : `tv-${rawId}`) : rawId,
       title: movieData.title || movieData.name,
       type: isSeries ? 'SERIES' : 'MOVIE',
       isTv: isSeries,

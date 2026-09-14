@@ -11,6 +11,7 @@ import {
   hasUserVotedInAllGenres,
   getUserVotedGenresCount,
   syncWeekendPickDataFromCloud,
+  formatMediaDetailUrl,
 } from '../../services/weekendPickService';
 import { toggleWatchlist, toggleFavorite, toggleWatched, getMovieStatusSync } from '../../services/movieLibraryService';
 import { useApp } from '../../AppContext';
@@ -180,9 +181,7 @@ export default function WeekendRecommendationHero() {
     }
   };
 
-  const formattedUrl = winner
-    ? (winner.titleId?.startsWith('tmdb-') ? winner.titleId : `tmdb-${winner.titleId}`)
-    : '';
+  const formattedUrl = winner ? formatMediaDetailUrl(winner) : '';
 
   const genreObj = genres.find(g => g.id === selectedGenre) || genres[0] || { id: selectedGenre, name: selectedGenre, emoji: '🎬' };
 

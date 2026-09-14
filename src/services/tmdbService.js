@@ -626,6 +626,28 @@ export function normalizeMultiResults(data) {
  */
 export async function fetchFullTmdbTvDetails(tmdbId) {
   const cleanId = String(tmdbId).replace(/^(tmdb-)?(tv-)?/, '');
+  if (!/^\d+$/.test(cleanId)) {
+    try {
+      const searchQuery = cleanId
+        .replace(/-series$/i, '')
+        .replace(/-show$/i, '')
+        .replace(/-tv$/i, '')
+        .replace(/-/g, ' ')
+        .trim();
+      const searchRes = await searchTmdbTv(searchQuery);
+      const topMatch = searchRes.results && searchRes.results[0];
+      if (topMatch) {
+        const details = await fetchFullTmdbTvDetails(topMatch.tmdbId || topMatch.id);
+        return {
+          ...details,
+          requestedId: tmdbId,
+          cleanId: cleanId,
+        };
+      }
+    } catch (slugErr) {
+      console.warn(`Could not resolve TV slug "${cleanId}" via TMDB search:`, slugErr);
+    }
+  }
   const data = await tmdbFetch(`/tv/${cleanId}?append_to_response=credits,images,external_ids,watch/providers,content_ratings`);
 
   // Extract Creator / Showrunner / Executive Producers

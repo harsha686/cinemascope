@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Trophy, Star, Check, Bookmark, Heart, Eye, ArrowUpRight, Flame } from 'lucide-react';
 import { toggleWatchlist, toggleFavorite, toggleWatched, getMovieStatusSync } from '../../services/movieLibraryService';
+import { formatMediaDetailUrl } from '../../services/weekendPickService';
 import { useApp } from '../../AppContext';
 
 export default function CandidateVoteCard({
@@ -74,9 +75,7 @@ export default function CandidateVoteCard({
     }
   };
 
-  const formattedUrl = candidate.titleId?.startsWith('tmdb-') || candidate.titleId?.startsWith('tt')
-    ? candidate.titleId
-    : `tmdb-${candidate.titleId}`;
+  const formattedUrl = formatMediaDetailUrl(candidate);
 
   return (
     <div style={{
