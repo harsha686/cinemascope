@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { MapPin, Monitor, ChevronRight, GitCompare, Edit3, Star, MessageSquare, Sliders, PenSquare, Trash2 } from 'lucide-react';
+import { MapPin, Monitor, ChevronRight, GitCompare, Edit3, Star, MessageSquare, Sliders, PenSquare, Trash2, Plus } from 'lucide-react';
 import { useApp } from '../AppContext';
 import TheaterMap from '../components/city/TheaterMap';
 import AdminTheaterFormModal from '../components/admin/AdminTheaterFormModal';
+import AddTheaterModal from '../components/theaters/AddTheaterModal';
 import { getFormat } from '../data/formats';
 import RatingBreakdown from '../components/reviews/RatingBreakdown';
 import ReviewCard from '../components/reviews/ReviewCard';
@@ -113,6 +114,7 @@ export default function TheaterPage() {
 
   const [activeTab, setActiveTab] = useState('screens');
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // Review states
   const [showComposer, setShowComposer] = useState(false);
@@ -170,7 +172,33 @@ export default function TheaterPage() {
     return (
       <div style={{ padding: '80px 24px', textAlign: 'center' }}>
         <h1 style={{ fontFamily: 'var(--font-serif)', color: 'var(--gold)' }}>Theater Not Found</h1>
-        <button onClick={() => navigate('/')} className="btn btn-outline" style={{ marginTop: 24 }}>← Back Home</button>
+        <p style={{ color: 'var(--text-secondary)', marginTop: 12, marginBottom: 24, fontSize: 14 }}>
+          Theater not found ? Click here to add ur fav theater
+        </p>
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button onClick={() => navigate('/')} className="btn btn-outline">← Back Home</button>
+          <button
+            type="button"
+            onClick={() => setShowAddModal(true)}
+            className="btn btn-primary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <Plus size={16} /> Click here to add ur fav theater
+          </button>
+        </div>
+
+        <AddTheaterModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onSave={(newTheater) => {
+            dispatch({ type: 'ADD_THEATER', payload: newTheater });
+            setShowAddModal(false);
+            navigate(`/theater/${newTheater.id}`);
+          }}
+          allCities={allCities}
+          defaultCityId="visakhapatnam"
+          currentUser={currentUser}
+        />
       </div>
     );
   }
@@ -558,7 +586,89 @@ export default function TheaterPage() {
             </div>
           </div>
         )}
+
+        {/* Theater not found ? Click here to add ur fav theater banner at the end of the page */}
+        <div style={{
+          marginTop: 64,
+          padding: '30px 24px',
+          background: 'linear-gradient(135deg, rgba(201, 168, 76, 0.08) 0%, rgba(20, 16, 12, 0.7) 100%)',
+          border: '1px dashed rgba(201, 168, 76, 0.4)',
+          borderRadius: 12,
+          textAlign: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 12,
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
+        }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 42,
+            height: 42,
+            borderRadius: '50%',
+            background: 'rgba(201, 168, 76, 0.15)',
+            border: '1px solid var(--gold-dim)',
+            color: 'var(--gold)',
+            marginBottom: 2,
+          }}>
+            <Plus size={20} />
+          </div>
+          <h3 style={{
+            fontFamily: 'var(--font-serif)',
+            fontSize: 'clamp(18px, 2.5vw, 22px)',
+            color: 'var(--text-primary)',
+            margin: 0,
+            letterSpacing: '0.02em',
+          }}>
+            Theater not found ? Click here to add ur fav theater
+          </h3>
+          <p style={{
+            fontSize: 13,
+            color: 'var(--text-secondary)',
+            margin: 0,
+            maxWidth: 520,
+            lineHeight: 1.5,
+          }}>
+            Know another beloved cinema or neighborhood screen? Add it to CinemaScope so movie buffs can explore its formats, projection, and sound!
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowAddModal(true)}
+            className="btn btn-primary"
+            style={{
+              marginTop: 4,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '10px 24px',
+              fontSize: 13,
+              fontWeight: 600,
+              borderRadius: 8,
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-gold)',
+            }}
+          >
+            <Plus size={16} /> Click here to add ur fav theater
+          </button>
+        </div>
       </div>
+
+      {/* Community / User Add Theater Modal */}
+      <AddTheaterModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSave={(newTheater) => {
+          dispatch({ type: 'ADD_THEATER', payload: newTheater });
+          setShowAddModal(false);
+          navigate(`/theater/${newTheater.id}`);
+        }}
+        allCities={allCities}
+        defaultCityId={theater?.cityId || 'visakhapatnam'}
+        currentUser={currentUser}
+      />
 
       {/* Admin Theater Form Modal */}
       {isAdmin && (

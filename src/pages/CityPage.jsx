@@ -5,6 +5,7 @@ import { useApp } from '../AppContext';
 import TheaterCard from '../components/city/TheaterCard';
 import TheaterMap from '../components/city/TheaterMap';
 import AdminTheaterFormModal from '../components/admin/AdminTheaterFormModal';
+import AddTheaterModal from '../components/theaters/AddTheaterModal';
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -33,7 +34,9 @@ export default function CityPage() {
   const [view, setView] = useState('grid'); // grid | list | map
   const [selectedTheaterId, setSelectedTheaterId] = useState(null);
 
-  // Admin Theater Form State
+  // User & Admin Theater Form State
+  const [showAddTheaterModal, setShowAddTheaterModal] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
   const [showTheaterModal, setShowTheaterModal] = useState(false);
   const [theaterToEdit, setTheaterToEdit] = useState(null);
 
@@ -61,6 +64,15 @@ export default function CityPage() {
     }
     setTheaterToEdit(null);
     setShowTheaterModal(false);
+  };
+
+  const handleUserAddTheater = (newTheater) => {
+    dispatch({ type: 'ADD_THEATER', payload: newTheater });
+    setShowAddTheaterModal(false);
+    setSearch('');
+    setActiveFilter('all');
+    setNotificationMessage(`"${newTheater.name}" has been added to ${city?.name || 'the city'}!`);
+    setTimeout(() => setNotificationMessage(''), 6000);
   };
 
   const filtered = useMemo(() => {
@@ -273,13 +285,35 @@ export default function CityPage() {
         {/* Grid / List view */}
         {(view === 'grid' || view === 'list' || (view === 'map' && selectedTheaterId)) && (
           filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '80px 0' }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>🎬</div>
-              <h3 style={{ color: 'var(--text-secondary)', marginBottom: 8 }}>No theaters found</h3>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Try a different search or filter</p>
-              <button onClick={() => { setSearch(''); setActiveFilter('all'); }} className="btn btn-outline btn-sm" style={{ marginTop: 16 }}>
-                Clear Filters
-              </button>
+            <div style={{
+              textAlign: 'center',
+              padding: '60px 24px',
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+            }}>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>🎬</div>
+              <h3 style={{ color: 'var(--text-primary)', marginBottom: 8, fontFamily: 'var(--font-serif)', fontSize: 20 }}>
+                No theaters found
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20, maxWidth: 460, margin: '0 auto 20px' }}>
+                {search ? `We couldn't find any theater matching "${search}" in ${city.name}.` : `No theaters found for this filter in ${city.name}.`}
+              </p>
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
+                {(search || activeFilter !== 'all') && (
+                  <button onClick={() => { setSearch(''); setActiveFilter('all'); }} className="btn btn-outline btn-sm">
+                    Clear Filters
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowAddTheaterModal(true)}
+                  className="btn btn-primary btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Plus size={14} /> Theater not found ? Click here to add ur fav theater
+                </button>
+              </div>
             </div>
           ) : (
             <div style={{
@@ -300,7 +334,85 @@ export default function CityPage() {
             </div>
           )
         )}
+
+        {/* Theater not found ? Click here to add ur fav theater banner at the end of the page */}
+        <div style={{
+          marginTop: 48,
+          padding: '32px 24px',
+          background: 'linear-gradient(135deg, rgba(201, 168, 76, 0.08) 0%, rgba(20, 16, 12, 0.7) 100%)',
+          border: '1px dashed rgba(201, 168, 76, 0.4)',
+          borderRadius: 12,
+          textAlign: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 12,
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
+        }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 44,
+            height: 44,
+            borderRadius: '50%',
+            background: 'rgba(201, 168, 76, 0.15)',
+            border: '1px solid var(--gold-dim)',
+            color: 'var(--gold)',
+            marginBottom: 2,
+          }}>
+            <Plus size={22} />
+          </div>
+          <h3 style={{
+            fontFamily: 'var(--font-serif)',
+            fontSize: 'clamp(18px, 2.5vw, 22px)',
+            color: 'var(--text-primary)',
+            margin: 0,
+            letterSpacing: '0.02em',
+          }}>
+            Theater not found ? Click here to add ur fav theater
+          </h3>
+          <p style={{
+            fontSize: 13,
+            color: 'var(--text-secondary)',
+            margin: 0,
+            maxWidth: 520,
+            lineHeight: 1.5,
+          }}>
+            Can't find your local cinema, single-screen gem, or favorite multiplex in {city.name}? Add it to CinemaScope so fellow moviegoers can explore its screens, projection, and sound systems!
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowAddTheaterModal(true)}
+            className="btn btn-primary"
+            style={{
+              marginTop: 6,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '11px 24px',
+              fontSize: 13,
+              fontWeight: 600,
+              borderRadius: 8,
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-gold)',
+            }}
+          >
+            <Plus size={16} /> Click here to add ur fav theater
+          </button>
+        </div>
       </div>
+
+      {/* Community / User Add Theater Modal */}
+      <AddTheaterModal
+        isOpen={showAddTheaterModal}
+        onClose={() => setShowAddTheaterModal(false)}
+        onSave={handleUserAddTheater}
+        allCities={allCities}
+        defaultCityId={city.id}
+        currentUser={currentUser}
+      />
 
       {/* Admin Theater Form Modal */}
       {isAdmin && (
@@ -316,6 +428,34 @@ export default function CityPage() {
           allCities={allCities}
           defaultCityId={city.id}
         />
+      )}
+
+      {/* Success Notification Toast */}
+      {notificationMessage && (
+        <div style={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          zIndex: 3000,
+          background: '#1a1612',
+          border: '1px solid var(--gold)',
+          borderRadius: 8,
+          padding: '14px 20px',
+          color: 'var(--text-primary)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+        }}>
+          <span style={{ fontSize: 18 }}>🎉</span>
+          <span style={{ fontSize: 13, fontWeight: 500 }}>{notificationMessage}</span>
+          <button
+            onClick={() => setNotificationMessage('')}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', marginLeft: 8, fontSize: 14 }}
+          >
+            ✕
+          </button>
+        </div>
       )}
     </div>
   );
