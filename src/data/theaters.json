@@ -27,7 +27,7 @@
       "longitude": 83.3015,
       "description": "One of Visakhapatnam's premier multiplexes, Varun INOX on Beach Road offers a modern multiplex experience with multiple premium screens. Known for its Scope and Flat presentations and solid projection quality.",
       "features": ["4K Laser", "Barco Flagship", "Dolby Atmos", "Recliners", "Premium Screens"],
-      "dataSource": "TheatreBabu YouTube Reviews",
+      "dataSource": "Community Reported",
       "sourceConfidence": "reported",
       "verified": false,
       "screens": [
@@ -53,7 +53,7 @@
           "dolbyAtmosProcessor": "Dolby CP950",
           "screenMaterial": "Silver Screen",
           "seatingType": ["Standard", "Recliners"],
-          "dataSource": "TheatreBabu YouTube",
+          "dataSource": "Community Reported",
           "sourceConfidence": "reported",
           "notes": "The largest and most premium screen at Varun INOX. Barco 4K laser with Dolby Atmos. Scope presentations look excellent here."
         },
@@ -79,7 +79,7 @@
           "dolbyAtmosProcessor": "Dolby CP950",
           "screenMaterial": "Not publicly verified",
           "seatingType": ["Standard", "Recliners"],
-          "dataSource": "TheatreBabu YouTube",
+          "dataSource": "Community Reported",
           "sourceConfidence": "reported",
           "notes": "Flat format screen — wider relative height makes this ideal for non-scope presentations like Marvel films."
         },
@@ -105,7 +105,7 @@
           "dolbyAtmosProcessor": null,
           "screenMaterial": "Not publicly verified",
           "seatingType": ["Standard"],
-          "dataSource": "TheatreBabu YouTube",
+          "dataSource": "Community Reported",
           "sourceConfidence": "estimated",
           "notes": null
         },
@@ -175,7 +175,7 @@
       "longitude": 83.3032,
       "description": "A classic twin cinema complex in central Visakhapatnam. Kameswari and Kinnera are two independent screens under one roof, offering traditional single-screen-style cinema experience.",
       "features": ["Christie Projector", "JBL Sound", "Classic Single Screen Feel"],
-      "dataSource": "TheatreBabu YouTube Reviews",
+      "dataSource": "Community Reported",
       "sourceConfidence": "reported",
       "verified": false,
       "screens": [
@@ -200,7 +200,7 @@
           "dolbyAtmos": false,
           "screenMaterial": "Not publicly verified",
           "seatingType": ["Standard (3-tier)"],
-          "dataSource": "TheatreBabu YouTube",
+          "dataSource": "Community Reported",
           "sourceConfidence": "reported",
           "notes": "One of the largest physical screen widths in Vizag. The traditional single-screen proportions make scope films look truly grand. Christie Xenon 2K projection."
         },
@@ -225,7 +225,7 @@
           "dolbyAtmos": false,
           "screenMaterial": "Not publicly verified",
           "seatingType": ["Standard (3-tier)"],
-          "dataSource": "TheatreBabu YouTube",
+          "dataSource": "Community Reported",
           "sourceConfidence": "reported",
           "notes": "Classic single-screen experience with a wide canvas. Ideal for Telugu and regional language films with big productions."
         }
@@ -245,7 +245,7 @@
       "longitude": 83.3108,
       "description": "A beloved single-screen theater in the Seethammadhara area. Known for its loyal audience, particularly for Telugu blockbusters. Sangam Sarat is a heritage cinema destination for Vizag moviegoers.",
       "features": ["Large Format Screen", "Classic Single Screen", "JBL Sound"],
-      "dataSource": "TheatreBabu YouTube Reviews",
+      "dataSource": "Community Reported",
       "sourceConfidence": "reported",
       "verified": false,
       "screens": [
@@ -270,7 +270,7 @@
           "dolbyAtmos": false,
           "screenMaterial": "Not publicly verified",
           "seatingType": ["Standard", "Balcony"],
-          "dataSource": "TheatreBabu YouTube",
+          "dataSource": "Community Reported",
           "sourceConfidence": "reported",
           "notes": "One of the widest screens in Visakhapatnam. The scope canvas is massive, giving a true single-screen epic cinema experience. Popular for Telugu first-day-first-show celebrations."
         }
@@ -290,7 +290,7 @@
       "longitude": 83.3085,
       "description": "A classic neighborhood single-screen theater. Melody Theatre has been serving moviegoers in the Dwaraka Nagar area for decades, maintaining the character of traditional Indian cinema halls.",
       "features": ["Flat Screen", "Classic Single Screen", "Affordable Tickets"],
-      "dataSource": "TheatreBabu YouTube Reviews",
+      "dataSource": "Community Reported",
       "sourceConfidence": "reported",
       "verified": false,
       "screens": [
@@ -315,7 +315,7 @@
           "dolbyAtmos": false,
           "screenMaterial": "Not publicly verified",
           "seatingType": ["Standard"],
-          "dataSource": "TheatreBabu YouTube",
+          "dataSource": "Community Reported",
           "sourceConfidence": "reported",
           "notes": "Flat format screen (1.85:1 ratio). Classic single-screen setup in Dwaraka Nagar."
         }
@@ -335,7 +335,7 @@
       "longitude": 83.2132,
       "description": "A single-screen theater serving the Gajuwaka industrial area of Visakhapatnam. Known for popular Telugu and Hindi releases.",
       "features": ["Classic Single Screen"],
-      "dataSource": "TheatreBabu YouTube Reviews",
+      "dataSource": "Community Reported",
       "sourceConfidence": "estimated",
       "verified": false,
       "screens": [
@@ -380,7 +380,7 @@
       "longitude": 83.2949,
       "description": "An old-guard single-screen theater in the MVP Colony residential area. Serves Telugu-speaking audiences with local and regional releases.",
       "features": ["Classic Single Screen", "Affordable Tickets"],
-      "dataSource": "TheatreBabu YouTube Reviews",
+      "dataSource": "Community Reported",
       "sourceConfidence": "estimated",
       "verified": false,
       "screens": [
@@ -425,7 +425,7 @@
       "longitude": 83.3042,
       "description": "PVR Cinemas' presence in Visakhapatnam. Located within CMR Central Mall, offering a modern multiplex experience with 4 screens and high quality projection. Popular for first-run Hollywood and Bollywood releases.",
       "features": ["Barco HDR", "Dolby Atmos", "4K", "Recliners", "Premium Screens"],
-      "dataSource": "TheatreBabu YouTube Reviews",
+      "dataSource": "Community Reported",
       "sourceConfidence": "reported",
       "verified": false,
       "screens": [
@@ -451,7 +451,7 @@
           "dolbyAtmosProcessor": "Dolby CP950A",
           "screenMaterial": "Not publicly verified",
           "seatingType": ["Luxury Recliners"],
-          "dataSource": "TheatreBabu YouTube",
+          "dataSource": "Community Reported",
           "sourceConfidence": "reported",
           "notes": "The premium Gold Class screen — recliner seating with full Dolby Atmos sound and Barco 4K laser."
         },
@@ -476,7 +476,7 @@
           "dolbyAtmos": true,
           "screenMaterial": "Not publicly verified",
           "seatingType": ["Standard"],
-          "dataSource": "TheatreBabu YouTube",
+          "dataSource": "Community Reported",
           "sourceConfidence": "reported",
           "notes": "Flat format 4K screen with Dolby Atmos. Good for superhero films and flat-presented blockbusters."
         },
@@ -546,7 +546,7 @@
       "longitude": 83.2650,
       "description": "Lepakshi is a historic single-screen theatre in the Kancharapalem area. Known for Telugu regional releases and special screenings.",
       "features": ["Classic Single Screen", "Heritage Theater"],
-      "dataSource": "TheatreBabu YouTube Reviews",
+      "dataSource": "Community Reported",
       "sourceConfidence": "estimated",
       "verified": false,
       "screens": [
