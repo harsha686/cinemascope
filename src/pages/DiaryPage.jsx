@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Star, Trash2, Calendar, Film } from 'lucide-react';
+import { BookOpen, Star, Trash2, Calendar, Film, RefreshCw } from 'lucide-react';
 import { useApp } from '../AppContext';
 import * as LibService from '../services/movieLibraryService';
 import { fetchFullTmdbMovieDetails } from '../services/tmdbService';

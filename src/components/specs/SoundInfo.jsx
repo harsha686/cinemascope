@@ -127,7 +127,7 @@ export default function SoundInfo({ screen }) {
         <div style={{ display: 'flex', gap: 8, padding: '12px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-subtle)' }}>
           <AlertCircle size={14} color="var(--text-muted)" style={{ flexShrink: 0, marginTop: 1 }} />
           <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-            Detailed audio specifications for this auditorium are not publicly verified. Visit the TheatreBabu YouTube channel for reviews.
+            Detailed audio specifications for this auditorium are not publicly verified.
           </p>
         </div>
       )}

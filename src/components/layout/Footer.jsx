@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Film, ExternalLink } from 'lucide-react';
-import YoutubeIcon from '../shared/YoutubeIcon';
+import { Film } from 'lucide-react';
 import { useApp } from '../../AppContext';
 
 export default function Footer() {
@@ -50,18 +49,6 @@ export default function Footer() {
             <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.8, maxWidth: 260 }}>
               An independent cinema-format visualization platform. Compare screens, aspect ratios, and projection systems across theaters.
             </p>
-            <a
-              href="https://youtube.com/@theatrebabu9796"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--gold)', letterSpacing: '0.1em', transition: 'opacity var(--transition-fast)' }}
-              onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
-              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-            >
-              <YoutubeIcon size={14} />
-              Data: TheatreBabu
-              <ExternalLink size={10} />
-            </a>
           </div>
 
           {/* Navigation */}
@@ -84,7 +71,7 @@ export default function Footer() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <p style={{ fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600 }}>Data Notice</p>
             <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.8 }}>
-              Theater specifications sourced from TheatreBabu YouTube reviews. Data marked as <span style={{ color: '#60a5fa' }}>Reported</span> or <span style={{ color: '#fbbf24' }}>Estimated</span> is not officially verified.
+              Theater specifications are compiled from public and community sources. Data marked as <span style={{ color: '#60a5fa' }}>Reported</span> or <span style={{ color: '#fbbf24' }}>Estimated</span> is not officially verified.
             </p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
               <span className="badge badge-reported">Reported</span>

@@ -1,6 +1,5 @@
 import React from 'react';
 import { ExternalLink, Database, AlertCircle, CheckCircle2 } from 'lucide-react';
-import YoutubeIcon from '../components/shared/YoutubeIcon';
 
 export default function AboutPage() {
   return (
@@ -31,13 +30,6 @@ export default function AboutPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, background: 'var(--border-subtle)', border: '1px solid var(--border-subtle)' }}>
             {[
               {
-                icon: YoutubeIcon,
-                title: 'TheatreBabu YouTube Channel',
-                url: 'https://youtube.com/@theatrebabu9796',
-                desc: 'Primary source for Visakhapatnam theater reviews. The channel covers technical specifications including projectors, sound systems, screen quality, and seating. Data labeled as "Reported".',
-                confidence: 'reported',
-              },
-              {
                 icon: Database,
                 title: 'OpenStreetMap / Nominatim',
                 url: 'https://openstreetmap.org',
@@ -46,8 +38,8 @@ export default function AboutPage() {
               },
               {
                 icon: Database,
-                title: 'Demo & Estimated Data',
-                desc: 'Some theaters have specifications estimated from publicly available information or constructed for demonstration. These are labeled as "Estimated".',
+                title: 'Community & Estimated Specifications',
+                desc: 'Theater screen dimensions and specifications compiled from community contributions, verified venue visits, and manufacturer documentation.',
                 confidence: 'estimated',
               },
             ].map((s, i) => {
@@ -83,7 +75,7 @@ export default function AboutPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[
               { badge: 'badge-verified', label: 'Verified', desc: 'Data confirmed from official theater sources, manufacturer specifications, or direct verification.' },
-              { badge: 'badge-reported', label: 'Reported', desc: 'Data reported by reviewers, content creators (such as TheatreBabu), or credible third-party sources. May not be officially confirmed.' },
+              { badge: 'badge-reported', label: 'Reported', desc: 'Data reported by cinema enthusiasts, community contributors, or verified public sources. May not be officially confirmed.' },
               { badge: 'badge-estimated', label: 'Estimated', desc: 'Data estimated based on typical specifications for similar theater types, chains, or configurations. Use as a guide only.' },
             ].map(c => (
               <div key={c.label} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '14px 16px', border: '1px solid var(--border-subtle)' }}>
@@ -103,24 +95,9 @@ export default function AboutPage() {
           <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: 8 }}>
             CinemaScope is an <strong>independent, unofficial platform</strong>. We are not affiliated with PVR INOX, Cinepolis, AMB Cinemas, or any other cinema chain or manufacturer.
           </p>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: 8 }}>
-            Theater specifications listed on this website are sourced from publicly available information, YouTube reviews, and community-reported data. They have <strong>not been officially verified</strong> by the theaters themselves unless explicitly stated.
-          </p>
           <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.8 }}>
-            The video simulation uses <strong>Big Buck Bunny</strong>, a Creative Commons–licensed public domain short film. We do not distribute or use any copyrighted movie footage.
+            Theater specifications listed on this website are compiled from publicly available venue information and community contributions. They have <strong>not been officially verified</strong> by the theaters themselves unless explicitly stated.
           </p>
-        </div>
-
-        {/* Tech stack */}
-        <div>
-          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 13, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: 16 }}>
-            Built With Open-Source Tools
-          </h2>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {['React', 'Vite', 'React Router', 'Leaflet.js', 'OpenStreetMap', 'Lucide Icons', 'Inter Font', 'Cinzel Font', 'Big Buck Bunny (CC)'].map(t => (
-              <span key={t} className="badge badge-dim">{t}</span>
-            ))}
-          </div>
         </div>
       </div>
     </div>

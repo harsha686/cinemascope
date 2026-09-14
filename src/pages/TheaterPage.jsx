@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { MapPin, Monitor, ChevronRight, GitCompare, Edit3, Star, MessageSquare, Sliders, PenSquare, Trash2 } from 'lucide-react';
-import YoutubeIcon from '../components/shared/YoutubeIcon';
 import { useApp } from '../AppContext';
 import TheaterMap from '../components/city/TheaterMap';
 import AdminTheaterFormModal from '../components/admin/AdminTheaterFormModal';
@@ -291,17 +290,6 @@ export default function TheaterPage() {
                 <GitCompare size={13} />
                 Compare
               </button>
-              {theater.dataSource?.includes('TheatreBabu') && (
-                <a
-                  href="https://youtube.com/@theatrebabu9796"
-                  target="_blank" rel="noopener noreferrer"
-                  className="btn btn-ghost btn-sm"
-                  style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-                >
-                  <YoutubeIcon size={13} />
-                  Source
-                </a>
-              )}
             </div>
           </div>
 

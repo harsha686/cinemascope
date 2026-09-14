@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Search, Filter, Map, Grid, LayoutList, Plus, Star } from 'lucide-react';
-import YoutubeIcon from '../components/shared/YoutubeIcon';
 import { useApp } from '../AppContext';
 import TheaterCard from '../components/city/TheaterCard';
 import TheaterMap from '../components/city/TheaterMap';
@@ -170,15 +169,6 @@ export default function CityPage() {
                 <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 2 }}>Screens</div>
               </div>
             </div>
-          </div>
-
-          {/* Data notice */}
-          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <a href="https://youtube.com/@theatrebabu9796" target="_blank" rel="noopener noreferrer"
-              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-secondary)', textDecoration: 'none' }}>
-              <YoutubeIcon size={12} color="var(--accent)" /> TheatreBabu
-            </a>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>· Theater data sourced from community reviews</span>
           </div>
         </div>
       </div>
