@@ -2,7 +2,7 @@ import React from 'react';
 
 /**
  * SectionHeader — Unified eyebrow label + heading pattern used across all sections.
- * Replaces the repeated inline `gold uppercase span + h2` pattern throughout the app.
+ * Clean neutral typography with clear visual hierarchy.
  */
 export default function SectionHeader({
   eyebrow,
@@ -13,7 +13,7 @@ export default function SectionHeader({
   action,            // { label, to, onClick } — optional right-aligned CTA
   style = {},
 }) {
-  const titleSize = size === 'lg' ? 'clamp(28px, 4vw, 42px)' : size === 'sm' ? '18px' : 'clamp(22px, 3.5vw, 32px)';
+  const titleSize = size === 'lg' ? 'clamp(26px, 4vw, 36px)' : size === 'sm' ? '18px' : '22px';
 
   return (
     <div
@@ -23,7 +23,7 @@ export default function SectionHeader({
         justifyContent: action ? 'space-between' : (align === 'center' ? 'center' : 'flex-start'),
         gap: 16,
         flexWrap: 'wrap',
-        marginBottom: size === 'sm' ? 20 : 32,
+        marginBottom: size === 'sm' ? 16 : 24,
         ...style,
       }}
     >
@@ -32,33 +32,27 @@ export default function SectionHeader({
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 10,
+            gap: 8,
             justifyContent: align === 'center' ? 'center' : 'flex-start',
             marginBottom: 6,
           }}>
-            {align === 'center' && (
-              <div style={{ height: 1, width: 24, background: 'var(--gold-dim)', flexShrink: 0 }} />
-            )}
             <span style={{
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 600,
-              letterSpacing: '0.22em',
+              letterSpacing: '0.12em',
               textTransform: 'uppercase',
-              color: 'var(--gold)',
+              color: 'var(--text-muted)',
             }}>
               {eyebrow}
             </span>
-            {align === 'center' && (
-              <div style={{ height: 1, width: 24, background: 'var(--gold-dim)', flexShrink: 0 }} />
-            )}
           </div>
         )}
         <h2 style={{
           fontSize: titleSize,
           fontWeight: 700,
           color: 'var(--text-primary)',
-          letterSpacing: '0.02em',
-          lineHeight: 1.2,
+          letterSpacing: '-0.01em',
+          lineHeight: 1.25,
           margin: 0,
         }}>
           {title}
@@ -67,8 +61,9 @@ export default function SectionHeader({
           <p style={{
             fontSize: 13,
             color: 'var(--text-muted)',
-            marginTop: 6,
-            lineHeight: 1.6,
+            marginTop: 4,
+            marginBottom: 0,
+            lineHeight: 1.5,
           }}>
             {subtitle}
           </p>
@@ -76,26 +71,20 @@ export default function SectionHeader({
       </div>
 
       {action && (
-        action.to ? (
-          // Import-free anchor — caller can use Link if needed, or pass onClick
-          <a
-            href={action.to}
-            onClick={e => { e.preventDefault(); if (action.onClick) action.onClick(); }}
-            className="btn btn-ghost btn-sm"
-            style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-          >
-            {action.label}
-          </a>
-        ) : (
-          <button
-            type="button"
-            onClick={action.onClick}
-            className="btn btn-ghost btn-sm"
-            style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-          >
-            {action.label}
-          </button>
-        )
+        <button
+          type="button"
+          onClick={action.onClick}
+          className="btn btn-ghost btn-sm"
+          style={{
+            fontSize: 12,
+            padding: '5px 10px',
+            color: 'var(--text-secondary)',
+            fontWeight: 500,
+            textDecoration: 'none',
+          }}
+        >
+          {action.label}
+        </button>
       )}
     </div>
   );

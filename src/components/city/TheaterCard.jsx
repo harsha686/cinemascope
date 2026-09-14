@@ -1,44 +1,13 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Monitor, MapPin, Layers, ChevronRight, Star, Edit3, Trash2, Trophy } from 'lucide-react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Monitor, MapPin, ChevronRight, Star, Trophy, Layers } from 'lucide-react';
 import { useApp } from '../../AppContext';
 
-
-function FeatureBadge({ label }) {
-  const colors = {
-    '4K Laser': { bg: 'rgba(201,168,76,0.12)', color: '#c9a84c' },
-    'Dolby Atmos': { bg: 'rgba(96,165,250,0.12)', color: '#60a5fa' },
-    'IMAX': { bg: 'rgba(134,239,172,0.12)', color: '#4ade80' },
-    'Recliners': { bg: 'rgba(251,191,36,0.12)', color: '#fbbf24' },
-    'Large Format': { bg: 'rgba(251,146,60,0.12)', color: '#fb923c' },
-    'Barco HDR': { bg: 'rgba(192,132,252,0.12)', color: '#c084fc' },
-    'Christie Projector': { bg: 'rgba(201,168,76,0.12)', color: '#c9a84c' },
-    'JBL Sound': { bg: 'rgba(96,165,250,0.12)', color: '#60a5fa' },
-    'Barco Flagship': { bg: 'rgba(201,168,76,0.12)', color: '#c9a84c' },
-    '4K': { bg: 'rgba(201,168,76,0.12)', color: '#c9a84c' },
-    'Premium Screens': { bg: 'rgba(251,191,36,0.12)', color: '#fbbf24' },
-  };
-  const style = colors[label] || { bg: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' };
-  return (
-    <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      padding: '2px 8px',
-      background: style.bg,
-      color: style.color,
-      fontSize: 9,
-      fontFamily: 'var(--font-serif)',
-      letterSpacing: '0.1em',
-      textTransform: 'uppercase',
-      borderRadius: 2,
-      border: `1px solid ${style.color}30`,
-    }}>{label}</span>
-  );
-}
-
-export default function TheaterCard({ theater, compact = false, onEdit, onDelete, isAdmin = false, isTopRated = false }) {
+export default function TheaterCard({ theater, compact = false, isTopRated = false }) {
   const navigate = useNavigate();
   const { getTheaterRating } = useApp();
+  const [showAllFeatures, setShowAllFeatures] = useState(false);
+
   if (!theater) return null;
 
   const ratingInfo = getTheaterRating ? getTheaterRating(theater.id) : { average: 0, count: 0 };
@@ -49,187 +18,175 @@ export default function TheaterCard({ theater, compact = false, onEdit, onDelete
     twin: 'Twin Cinema',
   }[theater.type] || theater.type;
 
-  const hasIMAX = theater.features?.includes('IMAX');
-  const hasAtmos = theater.features?.some(f => f.includes('Atmos'));
-  const has4K = theater.features?.some(f => f.includes('4K'));
+  // Prioritize top distinguishing specs for the 2-badge cap
+  const allFeatures = theater.features || [];
+  const priorityOrder = ['IMAX', '4K Laser', 'Dolby Atmos', 'Barco Flagship', 'Barco HDR', 'Christie Projector', 'Large Format', 'Recliners'];
+  const sortedFeatures = [...allFeatures].sort((a, b) => {
+    const idxA = priorityOrder.indexOf(a);
+    const idxB = priorityOrder.indexOf(b);
+    return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
+  });
+
+  const visibleBadges = sortedFeatures.slice(0, 2);
+  const remainingCount = sortedFeatures.length - 2;
+
+  const handleCardClick = () => {
+    navigate(`/theater/${theater.id}`);
+  };
 
   return (
     <div
-      className={`card ${isTopRated ? 'top-rated-theater-card' : ''}`}
-      onClick={() => navigate(`/theater/${theater.id}`)}
+      role="article"
+      tabIndex={0}
+      className={`card interactive-card ${isTopRated ? 'top-rated-theater-card' : ''}`}
+      onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleCardClick();
+        }
+      }}
       style={{
         cursor: 'pointer',
-        padding: compact ? 16 : 24,
+        padding: compact ? 16 : 20,
         display: 'flex',
         flexDirection: 'column',
-        gap: compact ? 10 : 16,
-        borderRadius: 4,
+        gap: 14,
+        borderRadius: 'var(--radius-sm)',
+        background: 'var(--bg-card)',
+        border: isTopRated ? '1px solid var(--accent-border)' : '1px solid var(--border-subtle)',
+        outline: 'none',
         position: 'relative',
-        transition: 'all 0.25s ease',
-        ...(isTopRated ? {
-          border: '1px solid rgba(201, 168, 76, 0.65)',
-          background: 'linear-gradient(160deg, rgba(201, 168, 76, 0.1) 0%, rgba(24, 21, 16, 0.98) 45%, rgba(12, 10, 8, 0.98) 100%)',
-          boxShadow: '0 8px 30px rgba(201, 168, 76, 0.15), inset 0 1px 0 rgba(201, 168, 76, 0.35)',
-        } : {}),
+        transition: 'all var(--transition-fast)',
       }}
     >
-      {/* Top Rated Highlight Badge */}
+      {/* Top Rated Highlight Badge (Single Featured Item Highlight) */}
       {isTopRated && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: -4 }}>
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 5,
-            padding: '3px 10px',
-            background: 'linear-gradient(135deg, #f3d47a 0%, #c9a84c 50%, #997424 100%)',
-            color: '#080705',
-            fontSize: 9.5,
-            fontWeight: 800,
-            fontFamily: 'var(--font-serif)',
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            borderRadius: 2,
-            boxShadow: '0 2px 10px rgba(201, 168, 76, 0.35)',
-          }}>
-            <Trophy size={11} strokeWidth={2.5} color="#080705" /> #1 Top Rated Theater
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: -4 }}>
+          <span
+            className="badge badge-featured"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+            }}
+          >
+            <Trophy size={11} /> #1 Top Rated Theater
           </span>
         </div>
       )}
+
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-            <span style={{ fontSize: 9, fontFamily: 'var(--font-serif)', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', fontWeight: 600 }}>
               {typeLabel}
             </span>
             {theater.chain && theater.chain !== 'Independent' && (
               <>
-                <span style={{ color: 'var(--border)', fontSize: 10 }}>·</span>
-                <span style={{ fontSize: 9, fontFamily: 'var(--font-serif)', letterSpacing: '0.1em', color: 'var(--gold)', opacity: 0.7 }}>
+                <span style={{ color: 'var(--border-subtle)', fontSize: 10 }}>·</span>
+                <span style={{ fontSize: 10, letterSpacing: '0.04em', color: 'var(--text-secondary)' }}>
                   {theater.chain}
                 </span>
               </>
             )}
           </div>
-          <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: compact ? 14 : 17, color: 'var(--text-primary)', letterSpacing: '0.03em', lineHeight: 1.2 }}>
+          <h3 style={{
+            fontSize: compact ? 14 : 16,
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            lineHeight: 1.25,
+            margin: 0,
+          }}>
             {theater.name}
           </h3>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text-muted)' }}>
-            <Monitor size={11} />
-            <span>{theater.totalScreens} screen{theater.totalScreens > 1 ? 's' : ''}</span>
-          </div>
 
-          {/* Admin Quick Action Buttons */}
-          {isAdmin && (
-            <div
-              style={{ display: 'flex', gap: 4, marginTop: 2 }}
-              onClick={e => e.stopPropagation()}
-            >
-              {onEdit && (
-                <button
-                  type="button"
-                  title="Edit Theater Specifications"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEdit(theater);
-                  }}
-                  style={{
-                    padding: '3px 7px',
-                    fontSize: 10,
-                    background: 'rgba(201,168,76,0.12)',
-                    border: '1px solid var(--gold-dim)',
-                    color: 'var(--gold)',
-                    borderRadius: 3,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 3,
-                  }}
-                >
-                  <Edit3 size={10} /> Edit
-                </button>
-              )}
-              {onDelete && (
-                <button
-                  type="button"
-                  title="Delete Theater"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(theater);
-                  }}
-                  style={{
-                    padding: '3px 7px',
-                    fontSize: 10,
-                    background: 'rgba(239, 68, 68, 0.1)',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    color: '#f87171',
-                    borderRadius: 3,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 3,
-                  }}
-                >
-                  <Trash2 size={10} />
-                </button>
-              )}
-            </div>
-          )}
+        {/* Screen Count */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>
+          <Monitor size={12} />
+          <span>{theater.totalScreens} screen{theater.totalScreens > 1 ? 's' : ''}</span>
         </div>
       </div>
 
       {/* Location */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-        <MapPin size={11} color="var(--text-muted)" />
-        <span style={{ fontSize: 11, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <MapPin size={12} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+        <span style={{ fontSize: 12, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {theater.area || theater.address?.split(',')[0]}
         </span>
       </div>
 
-      {/* Feature badges */}
-      {theater.features && theater.features.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-          {theater.features.slice(0, compact ? 3 : 6).map(f => <FeatureBadge key={f} label={f} />)}
-          {compact && theater.features.length > 3 && (
-            <span style={{ fontSize: 9, color: 'var(--text-muted)', alignSelf: 'center' }}>+{theater.features.length - 3}</span>
+      {/* Feature Badges — Strict 2-Badge Cap + Overflow Toggle */}
+      {visibleBadges.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+          {(showAllFeatures ? sortedFeatures : visibleBadges).map((f) => (
+            <span
+              key={f}
+              className="badge"
+              style={{ fontSize: 10, padding: '2px 8px' }}
+            >
+              {f}
+            </span>
+          ))}
+          {remainingCount > 0 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAllFeatures(!showAllFeatures);
+              }}
+              className="badge"
+              style={{
+                fontSize: 10,
+                padding: '2px 8px',
+                cursor: 'pointer',
+                background: showAllFeatures ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
+                borderColor: 'var(--border-neutral)',
+                color: 'var(--text-secondary)',
+              }}
+              title={showAllFeatures ? 'Show less' : 'View all specs'}
+            >
+              {showAllFeatures ? 'Show less' : `+${remainingCount} more`}
+            </button>
           )}
         </div>
       )}
 
-      {/* CTA */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+      {/* Footer / CTA Area — Single Primary Accent Action */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 6 }}>
+        {/* Rating */}
         {ratingInfo.count > 0 ? (
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 5,
-            ...(isTopRated ? {
-              background: 'rgba(201, 168, 76, 0.15)',
-              border: '1px solid rgba(201, 168, 76, 0.35)',
-              padding: '2px 8px',
-              borderRadius: 3,
-            } : {})
-          }}>
-            <Star size={11} fill="var(--gold)" color="var(--gold)" />
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-serif)' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <Star size={12} fill="var(--accent)" color="var(--accent)" />
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
               {ratingInfo.average}
             </span>
-            <span style={{ fontSize: 10, color: isTopRated ? 'var(--gold)' : 'var(--text-muted)', opacity: isTopRated ? 0.9 : 1 }}>
-              ({ratingInfo.count} {ratingInfo.count === 1 ? 'review' : 'reviews'})
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              ({ratingInfo.count})
             </span>
           </div>
         ) : (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text-muted)' }}>
-            <Star size={10} color="var(--text-muted)" />
-            <span>No reviews yet</span>
-          </div>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No reviews yet</span>
         )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--gold)', fontSize: 11, fontFamily: 'var(--font-serif)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+
+        {/* Primary CTA Button — Exactly ONE Accent Action */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleCardClick();
+          }}
+          className="btn btn-primary btn-sm"
+          style={{ padding: '5px 12px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+        >
           View Screens
-          <ChevronRight size={13} />
-        </div>
+          <ChevronRight size={12} />
+        </button>
       </div>
     </div>
   );

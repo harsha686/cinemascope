@@ -152,45 +152,33 @@ export default function CityPage() {
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
             <div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 8 }}>
+              <div style={{ fontSize: 'var(--font-size-xs)', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6, fontWeight: 600 }}>
                 {city.state} · {city.country}
               </div>
-              <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(28px, 5vw, 48px)', color: 'var(--text-primary)', letterSpacing: '0.05em', lineHeight: 1 }}>
-                {city.name.toUpperCase()}
+              <h1 style={{ fontSize: 'clamp(28px, 4.5vw, 36px)', color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.15, fontWeight: 700, margin: 0 }}>
+                {city.name}
               </h1>
             </div>
-            <div style={{ display: 'flex', gap: 24 }}>
+            <div style={{ display: 'flex', gap: 28, alignItems: 'center' }}>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: 'var(--font-serif)', fontSize: 32, color: 'var(--gold)' }}>{theaters.length}</div>
-                <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Theaters</div>
+                <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.1 }}>{theaters.length}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 2 }}>Theaters</div>
               </div>
+              <div style={{ width: 1, height: 28, background: 'var(--border-subtle)' }} />
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: 'var(--font-serif)', fontSize: 32, color: 'var(--gold)' }}>{totalScreens}</div>
-                <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Screens</div>
+                <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.1 }}>{totalScreens}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 2 }}>Screens</div>
               </div>
             </div>
           </div>
 
-          {/* Data notice & Admin Action */}
-          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <a href="https://youtube.com/@theatrebabu9796" target="_blank" rel="noopener noreferrer"
-                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--gold)', textDecoration: 'none', fontFamily: 'var(--font-serif)', letterSpacing: '0.08em' }}>
-                <YoutubeIcon size={12} /> TheatreBabu
-              </a>
-              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>· Theater data sourced from YouTube reviews · Not officially verified</span>
-            </div>
-
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={handleOpenAddTheater}
-                className="btn btn-primary btn-sm"
-                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, padding: '6px 14px' }}
-              >
-                <Plus size={14} /> Add Theater in {city.name}
-              </button>
-            )}
+          {/* Data notice */}
+          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <a href="https://youtube.com/@theatrebabu9796" target="_blank" rel="noopener noreferrer"
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-secondary)', textDecoration: 'none' }}>
+              <YoutubeIcon size={12} color="var(--accent)" /> TheatreBabu
+            </a>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>· Theater data sourced from community reviews</span>
           </div>
         </div>
       </div>
@@ -211,7 +199,7 @@ export default function CityPage() {
                 aria-label="Search theaters"
               />
             </div>
-            <div style={{ display: 'flex', gap: 2, border: '1px solid var(--border-subtle)', padding: 2 }}>
+            <div style={{ display: 'flex', gap: 2, border: '1px solid var(--border-subtle)', padding: 2, borderRadius: 'var(--radius-sm)' }}>
               {[
                 { id: 'grid', icon: Grid },
                 { id: 'list', icon: LayoutList },
@@ -222,11 +210,12 @@ export default function CityPage() {
                   onClick={() => setView(id)}
                   style={{
                     padding: '6px 8px',
-                    background: view === id ? 'var(--gold-faint)' : 'none',
+                    background: view === id ? 'rgba(255,255,255,0.12)' : 'none',
                     border: 'none',
                     cursor: 'pointer',
-                    color: view === id ? 'var(--gold)' : 'var(--text-muted)',
+                    color: view === id ? '#ffffff' : 'var(--text-muted)',
                     display: 'flex',
+                    borderRadius: 2,
                     transition: 'all var(--transition-fast)',
                   }}
                   aria-label={id}
@@ -255,26 +244,17 @@ export default function CityPage() {
 
       {/* Content */}
       <div className="container" style={{ padding: '32px 24px' }}>
-        {/* Results count & sort indicator */}
+        {/* Results filter summary & sort indicator (Single Canonical Stat) */}
         <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-serif)', letterSpacing: '0.1em' }}>
-            {filtered.length} theater{filtered.length !== 1 ? 's' : ''} found
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
+            {activeFilter !== 'all' ? (
+              <span>Filter: <strong>{FILTERS.find(f => f.id === activeFilter)?.label || activeFilter}</strong> ({filtered.length})</span>
+            ) : (
+              <span>All Listings ({filtered.length})</span>
+            )}
           </span>
-          <span style={{
-            fontSize: 10,
-            color: 'var(--gold)',
-            fontFamily: 'var(--font-serif)',
-            letterSpacing: '0.1em',
-            textTransform: 'uppercase',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 5,
-            background: 'rgba(201,168,76,0.08)',
-            border: '1px solid rgba(201,168,76,0.2)',
-            padding: '3px 9px',
-            borderRadius: 3,
-          }}>
-            <Star size={10} fill="var(--gold)" color="var(--gold)" /> Ordered by Top Rating
+          <span className="badge" style={{ fontSize: 10, color: 'var(--text-secondary)', gap: 5, padding: '3px 9px' }}>
+            <Star size={10} fill="var(--accent)" color="var(--accent)" /> Ranked by Top Rating
           </span>
         </div>
 
@@ -296,9 +276,9 @@ export default function CityPage() {
           filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '80px 0' }}>
               <div style={{ fontSize: 32, marginBottom: 12 }}>🎬</div>
-              <h3 style={{ fontFamily: 'var(--font-serif)', color: 'var(--text-secondary)', marginBottom: 8 }}>No theaters found</h3>
+              <h3 style={{ color: 'var(--text-secondary)', marginBottom: 8 }}>No theaters found</h3>
               <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Try a different search or filter</p>
-              <button onClick={() => { setSearch(''); setActiveFilter('all'); }} className="btn btn-ghost" style={{ marginTop: 16 }}>
+              <button onClick={() => { setSearch(''); setActiveFilter('all'); }} className="btn btn-outline btn-sm" style={{ marginTop: 16 }}>
                 Clear Filters
               </button>
             </div>
@@ -316,9 +296,6 @@ export default function CityPage() {
                   theater={t}
                   compact={view === 'list'}
                   isTopRated={t.id === topTheaterId}
-                  isAdmin={isAdmin}
-                  onEdit={handleOpenEditTheater}
-                  onDelete={handleDeleteTheater}
                 />
               ))}
             </div>

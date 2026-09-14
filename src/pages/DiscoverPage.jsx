@@ -21,7 +21,6 @@ import {
   fetchTopRatedTv,
   fetchPopularTv,
   discoverRecentIndianTv,
-  fetchTeluguTv,
   fetchCrimeSuspenseTv,
   fetchSciFiFantasyTv,
   discoverTv,
@@ -29,7 +28,6 @@ import {
 } from '../services/tmdbService';
 import GlobalMovieCard from '../components/discovery/GlobalMovieCard';
 import SearchAutocomplete from '../components/discovery/SearchAutocomplete';
-import DecadeShelf from '../components/discovery/DecadeShelf';
 import WeekendRecommendationHero from '../components/weekend/WeekendRecommendationHero';
 import FilterDrawerModal from '../components/discovery/FilterDrawerModal';
 import { MovieShelfSkeleton, MovieCardSkeleton } from '../components/common/SkeletonLoader';
@@ -59,7 +57,6 @@ export default function DiscoverPage() {
   const [trendingTv, setTrendingTv] = useState([]);
   const [topRatedTv, setTopRatedTv] = useState([]);
   const [indianTv, setIndianTv] = useState([]);
-  const [teluguTv, setTeluguTv] = useState([]);
   const [crimeTv, setCrimeTv] = useState([]);
   const [sciFiTv, setSciFiTv] = useState([]);
 
@@ -110,7 +107,6 @@ export default function DiscoverPage() {
         promises.push(fetchTrendingTv().then(res => setTrendingTv(res.results.slice(0, 15))).catch(console.error));
         promises.push(fetchTopRatedTv().then(res => setTopRatedTv(res.results.slice(0, 15))).catch(console.error));
         promises.push(discoverRecentIndianTv().then(res => setIndianTv(res.results.slice(0, 15))).catch(console.error));
-        promises.push(fetchTeluguTv().then(res => setTeluguTv(res.results.slice(0, 15))).catch(console.error));
         promises.push(fetchCrimeSuspenseTv().then(res => setCrimeTv(res.results.slice(0, 15))).catch(console.error));
         promises.push(fetchSciFiFantasyTv().then(res => setSciFiTv(res.results.slice(0, 15))).catch(console.error));
       }
@@ -280,30 +276,33 @@ export default function DiscoverPage() {
   };
 
   return (
-    <div className="page-enter" style={{ minHeight: '100vh', paddingBottom: '2rem' }}>
-      {/* Hero Section */}
+    <div className="page-enter" style={{ minHeight: '100vh', paddingBottom: '2.5rem' }}>
+      {/* Hero Section — with generous top padding to prevent fixed navbar clipping */}
       <div style={{
-        background: 'linear-gradient(to bottom, var(--bg-card), var(--bg))',
-        padding: '3.5rem 1rem 2rem',
+        background: 'linear-gradient(to bottom, var(--bg-card), var(--bg-primary))',
+        padding: 'clamp(56px, 7vw, 76px) 1.5rem 36px',
         textAlign: 'center',
         borderBottom: '1px solid var(--border-subtle)'
       }}>
         <div className="container" style={{ maxWidth: '800px', margin: '0 auto' }}>
           <h1 style={{ 
-            fontSize: 'clamp(1.8rem, 4.5vw, 2.8rem)', 
+            fontSize: 'clamp(28px, 4.5vw, 40px)', 
             fontFamily: 'var(--font-sans)', 
-            fontWeight: '800',
-            color: 'var(--gold)',
-            marginBottom: '0.8rem'
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            letterSpacing: '-0.01em',
+            marginBottom: '0.75rem',
+            lineHeight: 1.15,
           }}>
-            Discover every movie, TV show & web series.
+            Discover Movies, TV Shows & Series
           </h1>
           <p style={{ 
             color: 'var(--text-secondary)', 
-            fontSize: '1.05rem',
-            marginBottom: '1.75rem'
+            fontSize: 'var(--font-size-base)',
+            marginBottom: '1.75rem',
+            lineHeight: 1.6,
           }}>
-            Explore Indian Cinema, Web Series, Telugu Shows, Horror, Crime Thrillers, and worldwide releases.
+            Explore Indian Cinema, Worldwide Releases, Web Series, and Telugu Shows with screen specifications.
           </p>
           
           <div style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'left' }}>
@@ -330,8 +329,8 @@ export default function DiscoverPage() {
           alignItems: 'center',
           justifyContent: 'space-between'
         }}>
-          {/* Media Type Switcher */}
-          <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.05)', padding: '3px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', gap: '3px' }}>
+          {/* Media Type Switcher — Clean Neutral Toggle */}
+          <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.04)', padding: '3px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', gap: '3px' }}>
             {[
               { id: 'all', label: 'All', icon: Compass },
               { id: 'movie', label: 'Movies', icon: Film },
@@ -347,12 +346,12 @@ export default function DiscoverPage() {
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '5px',
-                    padding: '5px 10px',
+                    padding: '5px 12px',
                     borderRadius: 'var(--radius-sm)',
                     fontSize: '12px',
-                    fontWeight: isActive ? 600 : 500,
-                    background: isActive ? 'var(--gold)' : 'transparent',
-                    color: isActive ? 'var(--bg-primary)' : 'var(--text-secondary)',
+                    fontWeight: isActive ? 600 : 400,
+                    background: isActive ? 'rgba(255,255,255,0.14)' : 'transparent',
+                    color: isActive ? '#ffffff' : 'var(--text-secondary)',
                     transition: 'all var(--transition-fast)',
                     border: 'none',
                     cursor: 'pointer',
@@ -538,7 +537,6 @@ export default function DiscoverPage() {
               <>
                 {renderMovieShelf("Trending Web Series & TV Shows", "🔥", trendingTv)}
                 {renderMovieShelf("Indian Web Series (Pan-India & Regional)", "🇮🇳", indianTv, () => updateFilter('language', 'hi'))}
-                {renderMovieShelf("Telugu Web Series & Shows", "⚡", teluguTv, () => updateFilter('language', 'te'))}
                 {renderMovieShelf("Crime, Suspense & Mystery Series", "🔍", crimeTv, () => updateFilter('genre', '80'))}
                 {renderMovieShelf("Sci-Fi, Fantasy & Supernatural Series", "🛸", sciFiTv, () => updateFilter('genre', '10765'))}
                 {renderMovieShelf("Top Rated Series of All Time", "⭐", topRatedTv)}
@@ -555,10 +553,6 @@ export default function DiscoverPage() {
                 {renderMovieShelf("Crime & Suspense Thrillers", "🔍", crimeSuspense, () => updateFilter('genre', '80'))}
                 {renderMovieShelf("Action Movies", "💥", actionMovies, () => updateFilter('genre', '28'))}
                 {renderMovieShelf("Top Rated Movies All Time", "⭐", topRated)}
-                <DecadeShelf decade={2010} />
-                <DecadeShelf decade={2000} />
-                <DecadeShelf decade={1990} />
-                <DecadeShelf decade={1980} />
               </>
             )}
 
@@ -570,16 +564,11 @@ export default function DiscoverPage() {
                 {renderMovieShelf("Indian Cinema Releases", "🎬", indian, () => updateFilter('language', 'te'))}
                 {renderMovieShelf("Indian Web Series (Hindi, Telugu & Tamil)", "🇮🇳", indianTv, () => updateFilter('language', 'hi'))}
                 {renderMovieShelf("Telugu Cinema Hits", "🔥", telugu, () => updateFilter('language', 'te'))}
-                {renderMovieShelf("Telugu Web Series & Shows", "⚡", teluguTv, () => updateFilter('language', 'te'))}
                 {renderMovieShelf("Crime & Suspense Thrillers & Series", "🔍", crimeTv.length > 0 ? crimeTv : crimeSuspense, () => updateFilter('genre', '80'))}
                 {renderMovieShelf("Sci-Fi & Fantasy Series", "🛸", sciFiTv, () => updateFilter('genre', '10765'))}
                 {renderMovieShelf("Horror & Dark Thrillers", "👻", horror, () => updateFilter('genre', '27'))}
                 {renderMovieShelf("Top Rated Series All-Time", "⭐", topRatedTv)}
                 {renderMovieShelf("Top Rated Movies All Time", "🏆", topRated)}
-                <DecadeShelf decade={2010} />
-                <DecadeShelf decade={2000} />
-                <DecadeShelf decade={1990} />
-                <DecadeShelf decade={1980} />
               </>
             )}
 

@@ -316,30 +316,30 @@ export default function WeekendPickPage() {
                 type="button"
                 onClick={() => setSelectedGenre(g.id)}
                 style={{
-                  padding: '10px 18px',
-                  borderRadius: 24,
+                  padding: '8px 16px',
+                  borderRadius: 20,
                   fontSize: 12,
-                  fontFamily: 'var(--font-serif)',
-                  letterSpacing: '0.04em',
-                  background: isSelected ? 'var(--gold-faint)' : 'var(--bg-card)',
-                  border: `1px solid ${isSelected ? 'var(--gold)' : 'var(--border-subtle)'}`,
-                  color: isSelected ? 'var(--gold)' : 'var(--text-secondary)',
+                  fontFamily: 'var(--font-sans)',
+                  letterSpacing: '0.03em',
+                  background: isSelected ? 'rgba(255,255,255,0.14)' : 'var(--bg-card)',
+                  border: `1px solid ${isSelected ? 'rgba(255,255,255,0.3)' : 'var(--border-subtle)'}`,
+                  color: isSelected ? '#ffffff' : 'var(--text-secondary)',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
                   whiteSpace: 'nowrap',
-                  boxShadow: isSelected ? '0 2px 10px rgba(201,168,76,0.15)' : 'none',
                   transition: 'all 150ms ease',
                 }}
               >
                 <span>{g.emoji}</span>
-                <span style={{ fontWeight: isSelected ? 700 : 500 }}>{g.name}</span>
+                <span style={{ fontWeight: isSelected ? 600 : 400 }}>{g.name}</span>
                 {hasVoted && (
                   <span style={{
                     fontSize: 9,
-                    background: 'rgba(74,222,128,0.2)',
-                    color: '#4ade80',
+                    background: 'var(--color-success-bg)',
+                    color: 'var(--color-success)',
+                    border: '1px solid var(--color-success-border)',
                     padding: '2px 6px',
                     borderRadius: 10,
                     fontWeight: 700,

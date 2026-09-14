@@ -24,8 +24,8 @@ function ScreenPicker({ label, selectedTheater, selectedScreen, onSelect, theate
   }, [theaterOpen, screenOpen]);
 
   return (
-    <div ref={pickerRef} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)' }}>
+    <div ref={pickerRef} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
         {label}
       </div>
 
@@ -198,19 +198,17 @@ export default function ComparePage() {
   return (
     <div className="page-enter">
       {/* Hero */}
-      <div style={{ padding: '60px 24px 40px', borderBottom: '1px solid var(--border-subtle)' }}>
+      <div style={{ padding: 'clamp(48px, 6vw, 64px) 24px 32px', borderBottom: '1px solid var(--border-subtle)', background: 'linear-gradient(to bottom, var(--bg-card), var(--bg-primary))' }}>
         <div className="container">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, justifyContent: 'center', flexDirection: 'column', textAlign: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ height: 1, width: 30, background: 'var(--gold-dim)' }} />
-              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: 'var(--gold)' }}>Screen Comparison</span>
-              <div style={{ height: 1, width: 30, background: 'var(--gold-dim)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', textAlign: 'center' }}>
+            <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 8 }}>
+              Technical Screen Comparison
             </div>
-            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(24px, 4vw, 40px)', color: 'var(--text-primary)', letterSpacing: '0.05em' }}>
+            <h1 style={{ fontSize: 'clamp(26px, 4vw, 36px)', color: 'var(--text-primary)', letterSpacing: '-0.01em', fontWeight: 700, margin: 0, lineHeight: 1.2 }}>
               Compare Screens
             </h1>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 480, lineHeight: 1.8 }}>
-              See exactly how the same movie will appear on two different cinema screens. Select theaters and screens below.
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', maxWidth: 540, lineHeight: 1.6, marginTop: 8 }}>
+              See side-by-side visual simulations of how theatrical content renders across different screen aspect ratios, projection formats, and auditorium sizes.
             </p>
           </div>
         </div>

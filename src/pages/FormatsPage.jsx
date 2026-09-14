@@ -11,18 +11,16 @@ export default function FormatsPage() {
   return (
     <div className="page-enter">
       {/* Hero */}
-      <div style={{ padding: '60px 24px 40px', borderBottom: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+      <div style={{ padding: 'clamp(48px, 6vw, 64px) 24px 36px', borderBottom: '1px solid var(--border-subtle)', textAlign: 'center', background: 'linear-gradient(to bottom, var(--bg-card), var(--bg-primary))' }}>
         <div className="container" style={{ maxWidth: 700 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'center', marginBottom: 16 }}>
-            <div style={{ height: 1, width: 30, background: 'var(--gold-dim)' }} />
-            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: 'var(--gold)' }}>Cinema Formats</span>
-            <div style={{ height: 1, width: 30, background: 'var(--gold-dim)' }} />
+          <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 8 }}>
+            Cinema Formats Guide
           </div>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(26px, 4vw, 42px)', color: 'var(--text-primary)', letterSpacing: '0.05em', marginBottom: 12 }}>
+          <h1 style={{ fontSize: 'clamp(26px, 4vw, 36px)', color: 'var(--text-primary)', letterSpacing: '-0.01em', fontWeight: 700, marginBottom: 12, lineHeight: 1.2 }}>
             Why Aspect Ratios Matter
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.9, fontFamily: 'var(--font-italic)' }}>
-            When you watch a movie in different theaters, the same film can look dramatically different depending on the screen's aspect ratio. A 2.39:1 scope screen presents a wider image, while a 1.43:1 IMAX screen reveals more of the top and bottom of the frame.
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+            When you watch a movie in different theaters, the presentation can look dramatically different depending on the screen's aspect ratio. A 2.39:1 scope screen presents a wider image, while a 1.43:1 IMAX screen reveals expanded top and bottom framing.
           </p>
         </div>
       </div>

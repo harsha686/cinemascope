@@ -42,26 +42,22 @@ export default function MoviesPage() {
   return (
     <div className="page-enter">
       {/* Header */}
-      <div style={{ padding: '60px 24px 40px', borderBottom: '1px solid var(--border-subtle)', background: 'linear-gradient(to bottom, rgba(220,182,91,0.03), transparent)' }}>
+      <div style={{ padding: 'clamp(48px, 6vw, 64px) 24px 32px', borderBottom: '1px solid var(--border-subtle)', background: 'linear-gradient(to bottom, var(--bg-card), var(--bg-primary))' }}>
         <div className="container">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <div style={{ height: 1, width: 30, background: 'var(--gold-dim)' }} />
-            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: 'var(--gold)' }}>
-              Movie Discovery
-            </span>
-            <div style={{ height: 1, width: 30, background: 'var(--gold-dim)' }} />
+          <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 8 }}>
+            Now Showing & Catalog
           </div>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(28px, 4vw, 44px)', color: 'var(--text-primary)', letterSpacing: '0.04em' }}>
+          <h1 style={{ fontSize: 'clamp(26px, 4vw, 36px)', color: 'var(--text-primary)', letterSpacing: '-0.01em', fontWeight: 700, margin: 0, lineHeight: 1.2 }}>
             Browse Movies
           </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8 }}>
-            Discover current movies, technical specs, user reviews, and recommended screens in your city.
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 8, maxWidth: 600, lineHeight: 1.6 }}>
+            Explore theatrical releases, technical specifications, community reviews, and screen recommendations.
           </p>
         </div>
       </div>
 
       {/* Controls Bar */}
-      <div style={{ position: 'sticky', top: 'var(--nav-height)', zIndex: 20, background: 'rgba(10,8,6,0.95)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border-subtle)', padding: '16px 24px' }}>
+      <div style={{ position: 'sticky', top: 'var(--nav-height)', zIndex: 20, background: 'rgba(10,8,6,0.95)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border-subtle)', padding: '14px 24px' }}>
         <div className="container" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             {/* Search */}
@@ -122,31 +118,31 @@ export default function MoviesPage() {
       </div>
 
       {/* Grid */}
-      <div className="container" style={{ padding: '36px 24px 80px' }}>
+      <div className="container" style={{ padding: '32px 24px 80px' }}>
         <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-serif)', letterSpacing: '0.1em' }}>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             Showing {filteredMovies.length} movie{filteredMovies.length !== 1 ? 's' : ''}
           </span>
         </div>
 
         {filteredMovies.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '80px 0' }}>
-            <Film size={36} color="var(--gold-dim)" style={{ marginBottom: 12 }} />
-            <h3 style={{ fontFamily: 'var(--font-serif)', color: 'var(--text-secondary)', marginBottom: 8 }}>
+          <div style={{ textAlign: 'center', padding: '60px 0' }}>
+            <Film size={36} color="var(--text-muted)" style={{ marginBottom: 12, opacity: 0.6 }} />
+            <h3 style={{ color: 'var(--text-secondary)', marginBottom: 8 }}>
               No movies found matching your filters
             </h3>
             <button
               onClick={() => { setSearch(''); setSelectedCity('all'); setSelectedStatus('all'); setSelectedLang('all'); }}
-              className="btn btn-ghost"
+              className="btn btn-outline btn-sm"
               style={{ marginTop: 12 }}
             >
-              Clear All Filters
+              Reset Filters
             </button>
           </div>
         ) : (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 200px), 1fr))',
             gap: 20,
           }}>
             {filteredMovies.map(movie => (

@@ -221,16 +221,25 @@ export default function HomePage() {
 
           {/* City Chips */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 8 }}>
-            {allCities.map(city => (
-              <button
-                key={city.id}
-                onClick={() => handleCitySelect(city)}
-                className={`btn btn-sm ${activeCity?.id === city.id ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ fontSize: 11 }}
-              >
-                {city.name}
-              </button>
-            ))}
+            {allCities.map(city => {
+              const isSelected = activeCity?.id === city.id;
+              return (
+                <button
+                  key={city.id}
+                  onClick={() => handleCitySelect(city)}
+                  className="btn btn-sm"
+                  style={{
+                    fontSize: 12,
+                    background: isSelected ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.04)',
+                    color: isSelected ? '#ffffff' : 'var(--text-muted)',
+                    borderColor: isSelected ? 'rgba(255, 255, 255, 0.3)' : 'var(--border-subtle)',
+                    fontWeight: isSelected ? 600 : 400
+                  }}
+                >
+                  {city.name}
+                </button>
+              );
+            })}
           </div>
         </section>
 
