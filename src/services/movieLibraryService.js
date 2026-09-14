@@ -242,6 +242,48 @@ export async function toggleFavorite(tmdbId, userIdOrMeta, maybeMeta) {
   };
 }
 
+/**
+ * Persists discovered metadata (title, poster, year, language) directly onto library records
+ * so movies load instantly from localStorage on subsequent visits.
+ */
+export async function updateLibraryMetadataBatch(updatesMap, userId) {
+  if (!updatesMap || Object.keys(updatesMap).length === 0) return;
+  const uid = getActiveUserId(userId);
+  const lib = await getLibrary(uid);
+  let changed = false;
+
+  Object.entries(updatesMap).forEach(([id, meta]) => {
+    const cleanId = String(id).replace(/^tmdb-/, '').replace(/^tv-/, '');
+    const targetKey = lib[cleanId] ? cleanId : (lib[id] ? id : null);
+    if (targetKey && meta) {
+      if (meta.title && lib[targetKey].title !== meta.title) {
+        lib[targetKey].title = meta.title;
+        changed = true;
+      }
+      if (meta.posterUrl && lib[targetKey].posterUrl !== meta.posterUrl) {
+        lib[targetKey].posterUrl = meta.posterUrl;
+        changed = true;
+      }
+      if (meta.releaseYear && lib[targetKey].releaseYear !== meta.releaseYear) {
+        lib[targetKey].releaseYear = meta.releaseYear;
+        changed = true;
+      }
+      if (meta.language && lib[targetKey].language !== meta.language) {
+        lib[targetKey].language = meta.language;
+        changed = true;
+      }
+      if ((meta.type || meta.mediaType) && !lib[targetKey].type) {
+        lib[targetKey].type = meta.type || meta.mediaType;
+        changed = true;
+      }
+    }
+  });
+
+  if (changed) {
+    await saveLibrary(lib, uid);
+  }
+}
+
 export async function setPersonalRating(tmdbId, userIdOrMeta, rating) {
   const cleanId = String(tmdbId || '').replace('tmdb-', '');
   const userId = getActiveUserId(userIdOrMeta);

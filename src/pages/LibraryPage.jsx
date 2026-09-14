@@ -47,6 +47,27 @@ export default function LibraryPage() {
     setStats(s);
     setCollections(cols);
     setDiaryStats(ds);
+
+    // Pre-populate moviesData with any metadata already cached in library records
+    const prefilled = {};
+    Object.entries(lib).forEach(([id, item]) => {
+      if (item.title || item.posterUrl) {
+        prefilled[id] = {
+          tmdbId: id,
+          id: `tmdb-${id}`,
+          title: item.title,
+          posterUrl: item.posterUrl || '',
+          releaseYear: item.releaseYear || '',
+          language: item.language || 'English',
+          isTv: item.type === 'SERIES' || String(id).includes('-series'),
+          mediaType: item.type === 'SERIES' || String(id).includes('-series') ? 'tv' : 'movie',
+          voteAverage: item.rating || 0,
+        };
+      }
+    });
+    if (Object.keys(prefilled).length > 0) {
+      setMoviesData(prev => ({ ...prefilled, ...prev }));
+    }
   }, [currentUser]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -74,7 +95,7 @@ export default function LibraryPage() {
       items = items.filter(item => {
         const m = moviesData[item.tmdbId];
         const title = m?.title || item.title || item.movieMeta?.title || item.tmdbId;
-        return title.toLowerCase().includes(q);
+        return String(title).toLowerCase().includes(q);
       });
     }
     items.sort((a, b) => {
@@ -83,7 +104,7 @@ export default function LibraryPage() {
       if (sort === 'title') {
         const titleA = mA?.title || a.title || a.tmdbId;
         const titleB = mB?.title || b.title || b.tmdbId;
-        return titleA.localeCompare(titleB);
+        return String(titleA).localeCompare(String(titleB));
       }
       if (sort === 'year') {
         const yearA = parseInt(mA?.releaseYear || a.releaseYear || 0, 10) || 0;
@@ -97,59 +118,122 @@ export default function LibraryPage() {
   }, [sectionItems, searchQuery, sort, moviesData]);
 
   const attemptedIdsRef = useRef(new Set());
+  const isFetchingRef = useRef(false);
 
-  // Fetch TMDB data for items not yet loaded (without cyclic re-fetch loops)
+  // Progressive batch loader for ALL items in library (without arbitrary 30-item cap)
   useEffect(() => {
     const rawIds = sectionItems.map(i => i.tmdbId).filter(Boolean);
-    const unattempted = rawIds.filter(id => !attemptedIdsRef.current.has(id) && !moviesData[id]);
-    if (unattempted.length === 0) return;
-
-    const batch = [...new Set(unattempted)].slice(0, 30);
-    batch.forEach(id => attemptedIdsRef.current.add(id));
-
-    setLoadingMovies(true);
-    Promise.all(batch.map(async (id) => {
-      try {
-        const details = await fetchFullTmdbMovieDetails(id);
-        return { id, details };
-      } catch {
-        return { id, details: null };
-      }
-    })).then(results => {
-      const map = {};
-      results.forEach(({ id, details }) => {
-        const item = library[id] || {};
-        if (details) {
-          map[id] = details;
-          if (details.tmdbId) {
-            map[details.tmdbId] = details;
-            map[String(details.tmdbId)] = details;
-          }
-          if (details.id) map[details.id] = details;
-          if (details.cleanId) map[details.cleanId] = details;
-          if (details.requestedId) map[details.requestedId] = details;
-        } else {
-          // Robust fallback so item always displays nicely and is never re-fetched
-          const fallbackTitle = item.title || item.movieMeta?.title || id.replace(/-series$/i, '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-          map[id] = {
-            tmdbId: id,
-            id: `tmdb-${id}`,
-            title: fallbackTitle,
-            posterUrl: item.posterUrl || item.movieMeta?.posterUrl || '',
-            releaseYear: item.releaseYear || item.movieMeta?.releaseYear || '',
-            voteAverage: item.rating || 0,
-            language: item.language || 'English',
-            isTv: item.type === 'SERIES' || id.includes('-series'),
-            mediaType: item.type === 'SERIES' || id.includes('-series') ? 'tv' : 'movie',
-            isFallback: true,
-          };
-        }
-      });
-      setMoviesData(prev => ({ ...prev, ...map }));
-    }).finally(() => {
-      setLoadingMovies(false);
+    const unattempted = [...new Set(rawIds)].filter(id => {
+      if (attemptedIdsRef.current.has(id)) return false;
+      const m = moviesData[id];
+      // Needs fetching if not in moviesData or if it's a bare fallback with no poster
+      return !m || m.isFallback || !m.posterUrl;
     });
-  }, [sectionItems, library]);
+
+    if (unattempted.length === 0 || isFetchingRef.current) return;
+
+    let isCancelled = false;
+    isFetchingRef.current = true;
+    setLoadingMovies(true);
+
+    const runBatchLoader = async () => {
+      const CHUNK_SIZE = 8;
+      const idsToFetch = [...unattempted];
+
+      for (let i = 0; i < idsToFetch.length; i += CHUNK_SIZE) {
+        if (isCancelled) break;
+        const chunk = idsToFetch.slice(i, i + CHUNK_SIZE);
+        chunk.forEach(id => attemptedIdsRef.current.add(id));
+
+        const results = await Promise.all(
+          chunk.map(async (id) => {
+            try {
+              const details = await fetchFullTmdbMovieDetails(id);
+              return { id, details };
+            } catch (err) {
+              return { id, details: null };
+            }
+          })
+        );
+
+        if (isCancelled) break;
+
+        const newMap = {};
+        const metadataToSave = {};
+
+        results.forEach(({ id, details }) => {
+          const item = library[id] || {};
+          if (details) {
+            newMap[id] = details;
+            if (details.tmdbId) {
+              newMap[details.tmdbId] = details;
+              newMap[String(details.tmdbId)] = details;
+            }
+            if (details.id) newMap[details.id] = details;
+            if (details.cleanId) newMap[details.cleanId] = details;
+            if (details.requestedId) newMap[details.requestedId] = details;
+
+            metadataToSave[id] = {
+              title: details.title || details.originalTitle,
+              posterUrl: details.posterUrl,
+              releaseYear: details.releaseYear,
+              language: details.language,
+              type: details.isTv ? 'SERIES' : 'MOVIE',
+            };
+          } else {
+            const existing = moviesData[id];
+            if (existing && existing.title && !/^\d+$/.test(existing.title)) {
+              newMap[id] = existing;
+            } else {
+              const rawTitle = item.title || item.movieMeta?.title;
+              const fallbackTitle = rawTitle || (/^\d+$/.test(String(id)) ? 'Movie' : id.replace(/-series$/i, '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
+              newMap[id] = {
+                tmdbId: id,
+                id: `tmdb-${id}`,
+                title: fallbackTitle,
+                posterUrl: item.posterUrl || item.movieMeta?.posterUrl || '',
+                releaseYear: item.releaseYear || item.movieMeta?.releaseYear || '',
+                voteAverage: item.rating || 0,
+                language: item.language || 'English',
+                isTv: item.type === 'SERIES' || String(id).includes('-series'),
+                mediaType: item.type === 'SERIES' || String(id).includes('-series') ? 'tv' : 'movie',
+                isFallback: true,
+              };
+            }
+          }
+        });
+
+        setMoviesData(prev => ({ ...prev, ...newMap }));
+
+        // Save metadata into library records so it's stored locally
+        if (currentUser?.id && Object.keys(metadataToSave).length > 0) {
+          LibService.updateLibraryMetadataBatch(metadataToSave, currentUser.id).catch(console.warn);
+        }
+
+        // Graceful pacing to avoid flooding TMDB API
+        if (i + CHUNK_SIZE < idsToFetch.length) {
+          await new Promise(r => setTimeout(r, 120));
+        }
+      }
+
+      if (!isCancelled) {
+        setLoadingMovies(false);
+        isFetchingRef.current = false;
+      }
+    };
+
+    runBatchLoader().catch(() => {
+      if (!isCancelled) {
+        setLoadingMovies(false);
+        isFetchingRef.current = false;
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+      isFetchingRef.current = false;
+    };
+  }, [sectionItems, library, moviesData, currentUser?.id]);
 
   const handleCreateCollection = async (e) => {
     e.preventDefault();
@@ -325,12 +409,37 @@ export default function LibraryPage() {
                 <option value="rating" style={{ background: '#18140e', color: '#ffffff' }}>My Rating</option>
               </select>
             )}
-            {loadingMovies && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--gold)', fontSize: 11, padding: '5px 10px', background: 'rgba(201,168,76,0.08)', borderRadius: 4, border: '1px solid var(--gold-dim)' }}>
-                <RefreshCw size={12} className="animate-spin" style={{ animation: 'spin 1.2s linear infinite' }} />
-                <span>Syncing details…</span>
-              </div>
-            )}
+            <button
+              onClick={() => {
+                attemptedIdsRef.current.clear();
+                isFetchingRef.current = false;
+                setMoviesData(prev => {
+                  const cleaned = { ...prev };
+                  Object.keys(cleaned).forEach(k => {
+                    if (cleaned[k]?.isFallback || !cleaned[k]?.posterUrl || /^\d+$/.test(cleaned[k]?.title || '')) {
+                      delete cleaned[k];
+                    }
+                  });
+                  return cleaned;
+                });
+              }}
+              className="btn btn-ghost btn-sm"
+              title="Sync movie posters and details from TMDB"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 12,
+                color: 'var(--gold)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 4,
+                padding: '6px 12px',
+                background: loadingMovies ? 'rgba(201,168,76,0.1)' : 'transparent',
+              }}
+            >
+              <RefreshCw size={12} className={loadingMovies ? 'animate-spin' : ''} style={{ animation: loadingMovies ? 'spin 1.2s linear infinite' : 'none' }} />
+              <span>{loadingMovies ? 'Syncing…' : 'Sync Posters'}</span>
+            </button>
             <div style={{ display: 'flex', border: '1px solid var(--border-subtle)', borderRadius: 4, overflow: 'hidden' }}>
               <button onClick={() => setViewMode('grid')} style={{ padding: '6px 10px', background: viewMode === 'grid' ? 'var(--gold-faint)' : 'transparent', border: 'none', cursor: 'pointer', color: viewMode === 'grid' ? 'var(--gold)' : 'var(--text-muted)' }}>
                 <LayoutGrid size={14} />
@@ -431,10 +540,13 @@ export default function LibraryPage() {
               {viewMode === 'grid' ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 16 }}>
                   {displayedItems.map(item => {
+                    const fallbackTitle = item.title || item.movieMeta?.title || (
+                      /^\d+$/.test(String(item.tmdbId)) ? 'Loading movie…' : item.tmdbId.replace(/-series$/i, '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+                    );
                     const movie = moviesData[item.tmdbId] || {
                       tmdbId: item.tmdbId,
                       id: `tmdb-${item.tmdbId}`,
-                      title: item.title || item.movieMeta?.title || item.tmdbId.replace(/-series$/i, '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+                      title: fallbackTitle,
                       posterUrl: item.posterUrl || item.movieMeta?.posterUrl || '',
                       releaseYear: item.releaseYear || item.movieMeta?.releaseYear || '',
                       voteAverage: item.rating || 0,
@@ -448,9 +560,12 @@ export default function LibraryPage() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {displayedItems.map(item => {
+                    const fallbackTitle = item.title || item.movieMeta?.title || (
+                      /^\d+$/.test(String(item.tmdbId)) ? 'Loading movie…' : item.tmdbId.replace(/-series$/i, '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+                    );
                     const movie = moviesData[item.tmdbId] || {
                       tmdbId: item.tmdbId,
-                      title: item.title || item.movieMeta?.title || item.tmdbId.replace(/-series$/i, '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+                      title: fallbackTitle,
                       posterUrl: item.posterUrl || item.movieMeta?.posterUrl || '',
                       releaseYear: item.releaseYear || item.movieMeta?.releaseYear || '',
                       language: item.language || 'English',

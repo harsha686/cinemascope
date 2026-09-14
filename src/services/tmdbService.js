@@ -86,8 +86,35 @@ export function formatRuntime(minutes) {
   return `${hrs}h ${mins}m`;
 }
 
+// In-memory & session storage cache for movie & TV details
+const movieDetailsCache = new Map();
+
+export function getCachedMovieDetails(key) {
+  if (!key) return null;
+  const strKey = String(key);
+  if (movieDetailsCache.has(strKey)) return movieDetailsCache.get(strKey);
+  try {
+    const raw = sessionStorage.getItem(`tmdb_movie_${strKey}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      movieDetailsCache.set(strKey, parsed);
+      return parsed;
+    }
+  } catch (e) {}
+  return null;
+}
+
+export function setCachedMovieDetails(key, details) {
+  if (!key || !details) return;
+  const strKey = String(key);
+  movieDetailsCache.set(strKey, details);
+  try {
+    sessionStorage.setItem(`tmdb_movie_${strKey}`, JSON.stringify(details));
+  } catch (e) {}
+}
+
 /**
- * Helper to perform TMDB fetch with key rotation fallback
+ * Helper to perform TMDB fetch with key rotation fallback and 429 rate limit backoff
  */
 async function tmdbFetch(endpoint) {
   const apiKey = getTmdbApiKey();
@@ -96,11 +123,14 @@ async function tmdbFetch(endpoint) {
 
   let res = await fetch(url);
 
-  if (res.status === 401) {
-    // Attempt key rotation if default pool key failed
+  if (res.status === 401 || res.status === 429) {
+    // Attempt key rotation if default pool key failed or hit rate limit
     rotateApiKey();
     const fallbackKey = getTmdbApiKey();
     const fallbackUrl = `${TMDB_BASE_URL}${endpoint}${sep}api_key=${fallbackKey}`;
+    if (res.status === 429) {
+      await new Promise(r => setTimeout(r, 600));
+    }
     res = await fetch(fallbackUrl);
   }
 
@@ -194,6 +224,10 @@ export async function fetchFullTmdbMovieDetails(tmdbId) {
   }
 
   const cleanId = strId.replace(/^tmdb-/, '');
+
+  // Fast return from memory or session cache
+  const cached = getCachedMovieDetails(cleanId) || getCachedMovieDetails(strId);
+  if (cached) return cached;
 
   // If cleanId contains non-numeric slug characters (e.g. 'john-wick-4', 'oppenheimer', 'arcane-series')
   if (!/^\d+$/.test(cleanId)) {
@@ -355,15 +389,23 @@ export async function fetchFullTmdbMovieDetails(tmdbId) {
       ottRentProviders: rentProviders,
       ottBuyProviders: buyProviders,
     };
+
+    setCachedMovieDetails(cleanId, finalMovieDetails);
+    setCachedMovieDetails(strId, finalMovieDetails);
+    if (data.id) setCachedMovieDetails(data.id, finalMovieDetails);
+    return finalMovieDetails;
   } catch (err) {
     // Attempt fallback to TV show details if movie request fails
     try {
       const tvDetails = await fetchFullTmdbTvDetails(cleanId);
-      return {
+      const tvResult = {
         ...tvDetails,
         requestedId: strId,
         cleanId: cleanId,
       };
+      setCachedMovieDetails(cleanId, tvResult);
+      setCachedMovieDetails(strId, tvResult);
+      return tvResult;
     } catch (tvErr) {
       throw err;
     }
@@ -626,6 +668,9 @@ export function normalizeMultiResults(data) {
  */
 export async function fetchFullTmdbTvDetails(tmdbId) {
   const cleanId = String(tmdbId).replace(/^(tmdb-)?(tv-)?/, '');
+  const cached = getCachedMovieDetails(`tv-${cleanId}`) || getCachedMovieDetails(cleanId);
+  if (cached) return cached;
+
   if (!/^\d+$/.test(cleanId)) {
     try {
       const searchQuery = cleanId
@@ -763,6 +808,11 @@ export async function fetchFullTmdbTvDetails(tmdbId) {
     ottRentProviders: rentProviders,
     ottBuyProviders: buyProviders,
   };
+
+  setCachedMovieDetails(`tv-${cleanId}`, tvDetails);
+  setCachedMovieDetails(cleanId, tvDetails);
+  if (data.id) setCachedMovieDetails(`tv-${data.id}`, tvDetails);
+  return tvDetails;
 }
 
 /**
