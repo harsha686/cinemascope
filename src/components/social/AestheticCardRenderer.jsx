@@ -613,10 +613,10 @@ export default function AestheticCardRenderer({
                 overflow: 'hidden',
                 width: '100%',
               }}>
-                {content.title}
+                {customTitle || content.title}
               </h2>
 
-              {showMeta && content.subtitle && (
+              {showMeta && (customSubtitle || content.subtitle) && (
                 <div style={{
                   fontSize: 10.5,
                   color: template.accentColor,
@@ -627,7 +627,7 @@ export default function AestheticCardRenderer({
                   textOverflow: 'ellipsis',
                   maxWidth: '100%',
                 }}>
-                  {content.subtitle}
+                  {customSubtitle || content.subtitle}
                 </div>
               )}
 
@@ -645,13 +645,13 @@ export default function AestheticCardRenderer({
                       <Star
                         key={idx}
                         size={14}
-                        fill={idx < fullStars ? template.accentColor : 'none'}
+                        fill={idx < Math.floor(Number(effectiveRating) || 0) ? template.accentColor : 'none'}
                         color={template.accentColor}
                       />
                     ))}
                   </div>
                   <span style={{ fontSize: 12, fontWeight: 700, color: template.textColor }}>
-                    {ratingNum} <span style={{ fontSize: 10, opacity: 0.6 }}>/ 5</span>
+                    {effectiveRating} <span style={{ fontSize: 10, opacity: 0.6 }}>/ 5</span>
                   </span>
                 </div>
               )}

@@ -345,16 +345,30 @@ export default function AestheticImageModal({
             <button
               type="button"
               onClick={() => {
-                const nextState = !showControls;
-                setShowControls(nextState);
-                if (nextState) {
-                  setTimeout(() => {
-                    document.querySelector('.modal-studio-sidebar')?.scrollIntoView({ behavior: 'smooth' });
-                  }, 50);
-                }
+                setShowControls(true);
+                setTimeout(() => {
+                  const target = document.querySelector('#customization-controls-section') || document.querySelector('.modal-studio-sidebar');
+                  if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    // Focus the first input inside for immediate typing
+                    const firstInput = target.querySelector('input, textarea');
+                    if (firstInput) firstInput.focus();
+                  }
+                }, 60);
               }}
               className="btn btn-ghost btn-sm"
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--gold)' }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 12,
+                color: 'var(--gold)',
+                background: 'rgba(201,168,76,0.12)',
+                border: '1px solid rgba(201,168,76,0.3)',
+                padding: '6px 12px',
+                borderRadius: 4,
+                cursor: 'pointer',
+              }}
             >
               <Sliders size={14} /> Customize Content
             </button>
@@ -527,36 +541,107 @@ export default function AestheticImageModal({
               </div>
 
               {/* ---- Text Customization Controls ---- */}
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 6 }}>
-                  Headline / Accolade
-                </label>
-                <input
-                  type="text"
-                  className="input"
-                  style={{ width: '100%', fontSize: 12, marginBottom: 10 }}
-                  value={customHeadline}
-                  onChange={e => setCustomHeadline(e.target.value)}
-                  placeholder="e.g. FEATURE FILM OF THE YEAR"
-                />
+              <div id="customization-controls-section" style={{
+                marginBottom: 16,
+                padding: '14px',
+                background: showControls ? 'rgba(201,168,76,0.06)' : 'transparent',
+                border: showControls ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent',
+                borderRadius: 6,
+                transition: 'all 200ms ease',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--gold)', fontWeight: 700, margin: 0 }}>
+                    ✍️ Customize Content & Text
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomHeadline(normalized?.headline || '');
+                      setCustomQuote(normalized?.quote || '');
+                      setCustomTitle(normalized?.title || '');
+                      setCustomSubtitle(normalized?.subtitle || '');
+                      setCustomRating(normalized?.userRating != null ? String(normalized.userRating) : (normalized?.rating != null ? String(normalized.rating) : '5.0'));
+                      setCustomAppName('CINEMASCOPE');
+                      setCustomGenreBadge(normalized?.genres && normalized.genres.length > 0 ? normalized.genres.join(' · ') : 'CINEMASCOPE SELECTION');
+                      setCustomBottomLeft('CINEMASCOPE EXCLUSIVE');
+                      setCustomBottomRight('NOW STREAMING');
+                    }}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 10, cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    Reset
+                  </button>
+                </div>
 
-                <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 6 }}>
-                  Quote / Review Excerpt
-                </label>
-                <textarea
-                  className="input"
-                  rows={2}
-                  style={{ width: '100%', fontSize: 12, lineHeight: 1.5, resize: 'none', marginBottom: 10 }}
-                  value={customQuote}
-                  onChange={e => setCustomQuote(e.target.value)}
-                  placeholder="Add your thoughts or tagline..."
-                />
+                {/* Movie Title */}
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Movie / Item Title</label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', fontSize: 12 }}
+                    value={customTitle}
+                    onChange={e => setCustomTitle(e.target.value)}
+                    placeholder={normalized?.title || 'Movie Title'}
+                  />
+                </div>
+
+                {/* Subtitle */}
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Subtitle / Info (e.g. 2026 · HINDI · 2h 45m)</label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', fontSize: 12 }}
+                    value={customSubtitle}
+                    onChange={e => setCustomSubtitle(e.target.value)}
+                    placeholder={normalized?.subtitle || '2026 · ENGLISH'}
+                  />
+                </div>
+
+                {/* Rating score */}
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Score / Rating (0 to 5.0)</label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', fontSize: 12 }}
+                    value={customRating}
+                    onChange={e => setCustomRating(e.target.value)}
+                    placeholder={String(normalized?.userRating ?? normalized?.rating ?? '4.5')}
+                  />
+                </div>
+
+                {/* Headline / Accolade */}
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Headline / Badge Tag</label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', fontSize: 12 }}
+                    value={customHeadline}
+                    onChange={e => setCustomHeadline(e.target.value)}
+                    placeholder="e.g. FEATURE FILM OF THE YEAR"
+                  />
+                </div>
+
+                {/* Quote / Review */}
+                <div style={{ marginBottom: selectedTemplate.isKeyArt ? 10 : 0 }}>
+                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Quote / Review Excerpt</label>
+                  <textarea
+                    className="input"
+                    rows={2}
+                    style={{ width: '100%', fontSize: 12, lineHeight: 1.5, resize: 'none' }}
+                    value={customQuote}
+                    onChange={e => setCustomQuote(e.target.value)}
+                    placeholder="Add your thoughts or tagline..."
+                  />
+                </div>
 
                 {/* Studio Accolade extra fields */}
                 {selectedTemplate.isKeyArt && (
-                  <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ marginTop: 10, background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 6, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--gold)', marginBottom: 2 }}>
-                      🏆 Poster Text Fields
+                      🏆 Additional Poster Fields
                     </div>
 
                     <div>
@@ -567,31 +652,10 @@ export default function AestheticImageModal({
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Movie Title</label>
-                      <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
-                        value={customTitle} onChange={e => setCustomTitle(e.target.value)}
-                        placeholder={normalized?.title || 'Movie Title'} />
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Subtitle (year · language)</label>
-                      <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
-                        value={customSubtitle} onChange={e => setCustomSubtitle(e.target.value)}
-                        placeholder={normalized?.subtitle || '2026 · ENGLISH'} />
-                    </div>
-
-                    <div>
                       <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Genre Badge</label>
                       <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
                         value={customGenreBadge} onChange={e => setCustomGenreBadge(e.target.value)}
                         placeholder="ACTION · ADVENTURE" />
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Rating (your score)</label>
-                      <input type="text" className="input" style={{ width: '100%', fontSize: 11 }}
-                        value={customRating} onChange={e => setCustomRating(e.target.value)}
-                        placeholder={String(normalized?.userRating ?? normalized?.rating ?? '4.5')} />
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
