@@ -5,6 +5,7 @@ import { X, Sparkles, Dices, Star, ArrowRight, Bookmark, Heart, Film, Tv, Rotate
 import {
   getGenreOptions,
   getRandomTitleFromAll,
+  getRandomTitleFromAllAsync,
 } from '../../services/weekendPickService';
 import { toggleWatchlist, toggleFavorite, getMovieStatusSync } from '../../services/movieLibraryService';
 import { useApp } from '../../AppContext';
@@ -31,12 +32,14 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
   const [result, setResult] = useState(null);
   const [isSpinning, setIsSpinning] = useState(false);
   const [currentStatus, setCurrentStatus] = useState({});
+  const [noMatchNotice, setNoMatchNotice] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
       setGenres(getGenreOptions());
       setResult(null);
       setIsSpinning(false);
+      setNoMatchNotice(null);
     }
   }, [isOpen]);
 
@@ -69,25 +72,49 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     setIsSpinning(true);
+    setNoMatchNotice(null);
 
-    setTimeout(() => {
-      try {
-        const pick = getRandomTitleFromAll({
-          appMovies: state.movies,
-          genreId: selectedGenre,
-          mood: selectedMood,
+    try {
+      const pick = await getRandomTitleFromAllAsync({
+        appMovies: state.movies,
+        genreId: selectedGenre,
+        mood: selectedMood,
+        type: selectedType,
+      });
+
+      if (!pick) {
+        const gObj = genres.find(g => g.id === selectedGenre);
+        setNoMatchNotice({
+          genre: gObj?.name || selectedGenre,
+          type: selectedType === 'SERIES' ? 'TV Series' : (selectedType === 'MOVIE' ? 'Movies' : 'Titles'),
+        });
+        setResult(null);
+      } else {
+        setResult(pick);
+      }
+    } catch (err) {
+      console.error('Error picking random title:', err);
+      const syncPick = getRandomTitleFromAll({
+        appMovies: state.movies,
+        genreId: selectedGenre,
+        mood: selectedMood,
+        type: selectedType,
+      });
+      if (syncPick) {
+        setResult(syncPick);
+      } else {
+        setNoMatchNotice({
+          genre: selectedGenre,
           type: selectedType,
         });
-        setResult(pick);
-      } catch (err) {
-        console.error('Error picking random title from all movies:', err);
-      } finally {
-        setIsSpinning(false);
       }
-    }, 300);
+    } finally {
+      setIsSpinning(false);
+    }
   };
+
 
   const handleToggleWatchlist = async () => {
     if (!currentUser) return alert('Please log in to add to your watchlist');
@@ -301,6 +328,57 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
               </div>
             </div>
 
+            {noMatchNotice && (
+              <div style={{
+                padding: '12px 14px',
+                background: 'rgba(239,68,68,0.1)',
+                border: '1px solid rgba(239,68,68,0.3)',
+                borderRadius: 6,
+                fontSize: 12,
+                color: '#fca5a5',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}>
+                <div>
+                  No {noMatchNotice.type} found matching "{noMatchNotice.genre}".
+                  Try loosening your format to "Any Format" or choosing another genre.
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedType('ANY'); setNoMatchNotice(null); }}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: 11,
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: 4,
+                      color: '#fff',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🎬 Any Format
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedGenre('all'); setNoMatchNotice(null); }}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: 11,
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: 4,
+                      color: '#fff',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🎲 All Genres
+                  </button>
+                </div>
+              </div>
+            )}
+
             <button
               type="button"
               disabled={isSpinning}
@@ -317,7 +395,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
               }}
             >
               <Dices size={16} style={{ animation: isSpinning ? 'spin 1s linear infinite' : 'none' }} />
-              {isSpinning ? 'Finding Your Title...' : '🎲 Roll Random Title'}
+              {isSpinning ? 'Finding Your Title...' : (selectedType === 'SERIES' ? '🎲 Roll Random TV Series' : (selectedType === 'MOVIE' ? '🎲 Roll Random Movie' : '🎲 Roll Random Title'))}
             </button>
           </div>
         )}
@@ -412,7 +490,10 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                 onClick={() => {
                   onClose();
                   if (result?.titleId) {
-                    const formattedUrl = result.titleId.startsWith('tmdb-') ? result.titleId : `tmdb-${result.titleId}`;
+                    const raw = String(result.titleId).replace(/^tmdb-/, '');
+                    const isTv = result.type === 'SERIES' || raw.startsWith('tv-');
+                    const cleanId = raw.replace(/^tv-/, '');
+                    const formattedUrl = isTv ? `tmdb-tv-${cleanId}` : `tmdb-${cleanId}`;
                     navigate(`/movie/${formattedUrl}`);
                   }
                 }}
@@ -433,7 +514,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, padding: '8px 16px' }}
               >
                 <Dices size={14} style={{ animation: isSpinning ? 'spin 1s linear infinite' : 'none' }} />
-                {isSpinning ? 'Rolling...' : '🎲 Roll Another Movie'}
+                {isSpinning ? 'Rolling...' : (result.type === 'SERIES' ? '🎲 Roll Another Series' : '🎲 Roll Another Movie')}
               </button>
 
               <button

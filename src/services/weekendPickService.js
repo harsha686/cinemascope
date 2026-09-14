@@ -1,4 +1,5 @@
 import { isSupabaseConfigured, supabaseService } from './supabase';
+import { discoverMovies, discoverTv, fetchTeluguTv } from './tmdbService';
 
 const ROUNDS_KEY = 'cinemascope_weekend_rounds';
 const VOTES_KEY = 'cinemascope_weekend_votes';
@@ -1200,78 +1201,895 @@ export function setUserPreferredGenre(userId, genreId) {
 /**
  * Universal Catalog of Movies & Series for "Random Movie" Discovery (All Movies & Series)
  */
+/**
+ * Universal Catalog of Movies & Series for "Random Movie" Discovery (All Movies & Series)
+ */
 export const UNIVERSAL_TITLES = [
-  // --- ACTION MOVIES ---
-  { id: 'rrr', titleId: '579974', title: 'RRR', type: 'MOVIE', genreId: 'action', genreName: 'Action', releaseYear: 2022, rating: 4.9, language: 'Telugu', posterUrl: 'https://image.tmdb.org/t/p/w500/wE0noFUqdCzxik90wuoGpH8USes.jpg', overview: 'A fearless warrior on a perilous mission comes face to face with a steely cop serving the British forces in pre-independent India.' },
-  { id: 'salaar', titleId: '940551', title: 'Salaar: Part 1 - Ceasefire', type: 'MOVIE', genreId: 'action', genreName: 'Action', releaseYear: 2023, rating: 4.6, language: 'Telugu', posterUrl: 'https://image.tmdb.org/t/p/w500/mF33x1WvH9cW4t1vVw0U0mF33x1.jpg', overview: 'Set in the dystopian city-state of Khansaar, following the friendship between Deva and Varadha.' },
-  { id: 'kalki-2898-ad', titleId: '1022789', title: 'Kalki 2898 AD', type: 'MOVIE', genreId: 'scifi', genreName: 'Sci-Fi', releaseYear: 2024, rating: 4.8, language: 'Telugu', posterUrl: 'https://image.tmdb.org/t/p/w500/uY9HzY35e4d2J7jZfP6Q9n4z170.jpg', overview: 'A modern avatar of Vishnu descends to Earth to protect the world in a post-apocalyptic future.' },
-  { id: 'top-gun-maverick', titleId: '361743', title: 'Top Gun: Maverick', type: 'MOVIE', genreId: 'action', genreName: 'Action', releaseYear: 2022, rating: 4.8, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/62HCnUTziyWcpDaBO2i1DX17pmH.jpg', overview: 'After thirty years, Maverick is still pushing the envelope as a top naval aviator.' },
-  { id: 'john-wick-4', titleId: '603692', title: 'John Wick: Chapter 4', type: 'MOVIE', genreId: 'action', genreName: 'Action', releaseYear: 2023, rating: 4.8, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/vZloFAK7NKnMGKEslUsZeva9H2V.jpg', overview: 'John Wick uncovers a path to defeating The High Table.' },
-  { id: 'mad-max-fury-road', titleId: '76341', title: 'Mad Max: Fury Road', type: 'MOVIE', genreId: 'action', genreName: 'Action', releaseYear: 2015, rating: 4.9, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/hA2ple9q4qnwxp3hKVNhroipsir.jpg', overview: 'An apocalyptic story set in the furthest reaches of our planet.' },
-  { id: 'the-dark-knight', titleId: '155', title: 'The Dark Knight', type: 'MOVIE', genreId: 'action', genreName: 'Action', releaseYear: 2008, rating: 5.0, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg', overview: 'Batman raises the stakes in his war on crime against the Joker.' },
+  // --- TELUGU TV SERIES (WEB SERIES) ---
+  {
+    id: 'dhootha',
+    titleId: 'tv-200946',
+    title: 'Dhootha',
+    type: 'SERIES',
+    genreId: 'thriller',
+    genreName: 'Thriller / Mystery',
+    releaseYear: 2023,
+    rating: 4.9,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/jMegWqCj8z58na8RG8ytlPJ7gGm.jpg',
+    overview: "Journalist Sagar's life turns thrilling as he unravels dark secrets behind newspaper clippings predicting tragedies. He becomes a murder suspect, racing against time.",
+    tags: ['telugu', 'thriller', 'mystery', 'horror', 'hyped', 'edge', 'dark', 'adrenaline', 'suspense'],
+  },
+  {
+    id: 'rana-naidu',
+    titleId: 'tv-203202',
+    title: 'Rana Naidu',
+    type: 'SERIES',
+    genreId: 'action',
+    genreName: 'Action / Crime',
+    releaseYear: 2023,
+    rating: 4.7,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/4kUF7cO76W4vEx70KVfwmju6Vud.jpg',
+    overview: "Rana Naidu can solve any problem in the city. But when his father is suddenly released from prison, the one mess he cannot handle may be his own family feud.",
+    tags: ['telugu', 'action', 'crime', 'drama', 'hyped', 'adrenaline', 'edge'],
+  },
+  {
+    id: 'save-the-tigers',
+    titleId: 'tv-224744',
+    title: 'Save the Tigers',
+    type: 'SERIES',
+    genreId: 'comedy',
+    genreName: 'Comedy / Drama',
+    releaseYear: 2023,
+    rating: 4.8,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/5uyNd8UjItEU2M5W0YKULaxzWFm.jpg',
+    overview: "Revolves around three frustrated husbands who meet by chance and how their hilarious rants over their marital problems set off a chain of chaotic events.",
+    tags: ['telugu', 'comedy', 'drama', 'laugh', 'fun', 'lighthearted'],
+  },
+  {
+    id: 'kumari-srimathi',
+    titleId: 'tv-235819',
+    title: 'Kumari Srimathi',
+    type: 'SERIES',
+    genreId: 'comedy',
+    genreName: 'Comedy / Drama',
+    releaseYear: 2023,
+    rating: 4.8,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/2008kVjRqNpzeY9dsM9bEuoZ0o5.jpg',
+    overview: "Srimathi is a 30-year-old unmarried woman with a dead-end job, a quirky dysfunctional family, and a gritty dream to open a restaurant to reclaim her ancestral home.",
+    tags: ['telugu', 'comedy', 'drama', 'laugh', 'cozy', 'warm'],
+  },
+  {
+    id: 'parampara',
+    titleId: 'tv-153637',
+    title: 'Parampara',
+    type: 'SERIES',
+    genreId: 'thriller',
+    genreName: 'Crime / Drama',
+    releaseYear: 2021,
+    rating: 4.8,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/po8pqEdyWdJwzMnWsYJ10kuS4jC.jpg',
+    overview: "When powerful, wily Naidu's ruthlessness becomes too much, his nephew, Gopi, steps up to challenge the family empire and avenge the injustice met to his father.",
+    tags: ['telugu', 'crime', 'drama', 'thriller', 'action', 'hyped', 'edge'],
+  },
+  {
+    id: 'recce',
+    titleId: 'tv-203290',
+    title: 'Recce',
+    type: 'SERIES',
+    genreId: 'thriller',
+    genreName: 'Crime / Thriller',
+    releaseYear: 2022,
+    rating: 4.7,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/hJ1FzK3wyAz7XUgBghFtkIEArqI.jpg',
+    overview: "Set in the backdrop of Anantapur in 1993, a dual murder takes place, setting off a series of unforeseen twists and investigations by a sharp young sub-inspector.",
+    tags: ['telugu', 'thriller', 'crime', 'suspense', 'edge', 'dark', 'investigation'],
+  },
+  {
+    id: 'gaalivaana',
+    titleId: 'tv-195485',
+    title: 'Gaalivaana',
+    type: 'SERIES',
+    genreId: 'thriller',
+    genreName: 'Suspense / Thriller',
+    releaseYear: 2022,
+    rating: 4.7,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/5VPrBr7bH4Rb4h0piAc3QKiH0HU.jpg',
+    overview: "After newlyweds Ajay and Geetha are brutally murdered, their families come together in grief. But shock strikes when the injured killer seeks shelter in their farmhouse.",
+    tags: ['telugu', 'thriller', 'mystery', 'suspense', 'edge', 'dark'],
+  },
+  {
+    id: 'kudi-yedamaithe',
+    titleId: 'tv-129043',
+    title: 'Kudi Yedamaithe',
+    type: 'SERIES',
+    genreId: 'scifi',
+    genreName: 'Sci-Fi / Mind-Bending',
+    releaseYear: 2021,
+    rating: 4.8,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/uDZcipvkoyXV0AevyuJ6CUdgt3x.jpg',
+    overview: "A food delivery guy and a female police inspector find themselves caught in a terrifying time loop involving a fatal accident and a crime they must unravel.",
+    tags: ['telugu', 'scifi', 'mind-bending', 'mindblown', 'thriller', 'mystery', 'time loop', 'edge'],
+  },
+  {
+    id: 'nine-hours',
+    titleId: 'tv-202748',
+    title: '9 Hours',
+    type: 'SERIES',
+    genreId: 'thriller',
+    genreName: 'Action / Heist',
+    releaseYear: 2022,
+    rating: 4.6,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/4lqTfrlQWakAHbPbF5c84pl07Us.jpg',
+    overview: "Three prisoners on the run attempt to rob three banks simultaneously in Hyderabad, sparking a high-stakes 9-hour countdown hostage thriller.",
+    tags: ['telugu', 'thriller', 'action', 'heist', 'hyped', 'adrenaline', 'edge'],
+  },
+  {
+    id: 'modern-love-hyderabad',
+    titleId: 'tv-200882',
+    title: 'Modern Love Hyderabad',
+    type: 'SERIES',
+    genreId: 'romance',
+    genreName: 'Romance / Drama',
+    releaseYear: 2022,
+    rating: 4.7,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/t92IeHAebFvYzzw089lemtrqEio.jpg',
+    overview: "A rich compilation of heartwarming love stories exploring varied relationships, family bonds, and the unique cultural pulse of Hyderabad.",
+    tags: ['telugu', 'romance', 'drama', 'cozy', 'warm'],
+  },
+  {
+    id: 'oka-chinna-family-story',
+    titleId: 'tv-138179',
+    title: 'Oka Chinna Family Story',
+    type: 'SERIES',
+    genreId: 'comedy',
+    genreName: 'Comedy / Family',
+    releaseYear: 2021,
+    rating: 4.8,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/u1Tq2Qqb1oUJ6WSzVJqWk03LzEl.jpg',
+    overview: "Mahesh and his mother embark on a comical journey to settle a hefty loan left by his late father, encountering oddball relatives along the way.",
+    tags: ['telugu', 'comedy', 'laugh', 'family', 'fun'],
+  },
 
-  // --- ACTION & ADVENTURE TV SERIES ---
-  { id: 'the-boys', titleId: 'tv-76479', title: 'The Boys', type: 'SERIES', genreId: 'action', genreName: 'Action', releaseYear: 2019, rating: 4.8, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/7Ns6tO3aYjppI5LoNOFvj2q199.jpg', overview: 'A fun and irreverent take on what happens when superheroes abuse their superpowers.' },
-  { id: 'shogun', titleId: 'tv-126308', title: 'Shōgun', type: 'SERIES', genreId: 'action', genreName: 'Action', releaseYear: 2024, rating: 4.9, language: 'Japanese', posterUrl: 'https://image.tmdb.org/t/p/w500/7O4iVfOMQmdCSxhOg1WNzG1AgYT.jpg', overview: 'When a mysterious European ship is found marooned in a fishing village, lord Toranaga discovers secrets that could tip the scales of power.' },
-  { id: 'fallout', titleId: 'tv-106379', title: 'Fallout', type: 'SERIES', genreId: 'action', genreName: 'Action', releaseYear: 2024, rating: 4.7, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/AnsSKR9LuK0T9bAILezUVjl3ZJ7.jpg', overview: 'In a future post-apocalyptic Los Angeles, citizens must live in underground bunkers to protect themselves from radiation and mutants.' },
+  // --- TELUGU MOVIES (THRILLERS, MIND-BENDING, ACTION, COMEDY) ---
+  {
+    id: 'one-nenokkadine',
+    titleId: '249772',
+    title: '1: Nenokkadine',
+    type: 'MOVIE',
+    genreId: 'thriller',
+    genreName: 'Psychological / Mind-Bending',
+    releaseYear: 2014,
+    rating: 4.9,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/dYpqpA7BsDHeyAGs9AAEPhZmbck.jpg',
+    overview: "A rock musician suffering from schizophrenia and hallucinations sets out to avenge his parents' murder, struggling to discern illusion from reality.",
+    tags: ['telugu', 'thriller', 'mind-bending', 'mindblown', 'psychological', 'action', 'hyped', 'edge'],
+  },
+  {
+    id: 'hit-first-case',
+    titleId: '887109',
+    title: 'HIT: The First Case',
+    type: 'MOVIE',
+    genreId: 'thriller',
+    genreName: 'Crime / Investigation',
+    releaseYear: 2020,
+    rating: 4.8,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/sKcbVK6QgxUjiHOE2xooRXTH0mz.jpg',
+    overview: "Vikram, a cop haunted by severe PTSD and panic attacks, must put his trauma aside to crack the mysterious disappearance of a young woman.",
+    tags: ['telugu', 'thriller', 'crime', 'suspense', 'edge', 'investigation', 'dark'],
+  },
+  {
+    id: 'evaru',
+    titleId: '607310',
+    title: 'Evaru',
+    type: 'MOVIE',
+    genreId: 'thriller',
+    genreName: 'Mystery / Thriller',
+    releaseYear: 2019,
+    rating: 4.8,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/kRxKI0ZuKTIp3BZJPHF9YoDYkaR.jpg',
+    overview: "A corrupt sub-inspector is tasked with investigating a high-profile rape and murder case, uncovering dark secrets behind every fabricated confession.",
+    tags: ['telugu', 'thriller', 'mystery', 'suspense', 'mind-bending', 'edge'],
+  },
+  {
+    id: 'awe',
+    titleId: '500723',
+    title: 'Awe!',
+    type: 'MOVIE',
+    genreId: 'scifi',
+    genreName: 'Mind-Bending / Psychological',
+    releaseYear: 2018,
+    rating: 4.8,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/98Dn1D22PWmgwkEx7UEVLtpAPmk.jpg',
+    overview: "Multiple eccentric characters gather inside a restaurant, confronting complex issues like child abuse, mental trauma, and sexual identity with mind-bending revelations.",
+    tags: ['telugu', 'scifi', 'mind-bending', 'mindblown', 'psychological', 'disturbing', 'mystery'],
+  },
+  {
+    id: 'virupaksha',
+    titleId: '1034590',
+    title: 'Virupaksha',
+    type: 'MOVIE',
+    genreId: 'horror',
+    genreName: 'Horror / Occult Thriller',
+    releaseYear: 2023,
+    rating: 4.8,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/fqMn4h9ctOyumII2nXDnm5mRTxQ.jpg',
+    overview: "Mysterious, gruesome deaths terrorize a secluded village bound by an occult curse. A determined outsider races to unmask the supernatural puppet master.",
+    tags: ['telugu', 'horror', 'mystery', 'thriller', 'spooky', 'edge', 'dark'],
+  },
+  {
+    id: 'masooda',
+    titleId: '1047902',
+    title: 'Masooda',
+    type: 'MOVIE',
+    genreId: 'horror',
+    genreName: 'Supernatural Horror',
+    releaseYear: 2022,
+    rating: 4.7,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/8tteFyJbPxvVr57K1CjGhKbqEjY.jpg',
+    overview: "A cowardly software engineer steps up to save his single-mother neighbor when her teenage daughter gets possessed by a bloodthirsty demonic spirit.",
+    tags: ['telugu', 'horror', 'spooky', 'dark', 'disturbing', 'supernatural', 'edge'],
+  },
+  {
+    id: 'agent-sai',
+    titleId: '610482',
+    title: 'Agent Sai Srinivasa Athreya',
+    type: 'MOVIE',
+    genreId: 'comedy',
+    genreName: 'Comedy / Detective',
+    releaseYear: 2019,
+    rating: 4.9,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/jMVfhhWfHLawVp3kd55KBy3VBsW.jpg',
+    overview: "A witty, fast-talking private detective in Nellore investigates an abandoned corpse by the railway tracks, uncovering a sinister nationwide conspiracy.",
+    tags: ['telugu', 'comedy', 'thriller', 'mystery', 'laugh', 'edge', 'investigation'],
+  },
+  {
+    id: 'mathu-vadalara',
+    titleId: '657853',
+    title: 'Mathu Vadalara',
+    type: 'MOVIE',
+    genreId: 'comedy',
+    genreName: 'Comedy / Crime Thriller',
+    releaseYear: 2019,
+    rating: 4.8,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/lo0ALsfiSv5sxNBhCNh35AD1p0x.jpg',
+    overview: "An underpaid delivery boy attempts a petty scam to make quick cash, only to wake up inside an apartment alongside an elderly woman's corpse.",
+    tags: ['telugu', 'comedy', 'thriller', 'crime', 'laugh', 'edge', 'adrenaline'],
+  },
+  {
+    id: 'dj-tillu',
+    titleId: '937036',
+    title: 'DJ Tillu',
+    type: 'MOVIE',
+    genreId: 'comedy',
+    genreName: 'Comedy / Romance',
+    releaseYear: 2022,
+    rating: 4.7,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/2XKg3VhpFDXdAktwKvFMSuIneE3.jpg',
+    overview: "A flamboyant local DJ who dreams big gets entangled in an eccentric murder cover-up after falling head over heels for a woman named Radhika.",
+    tags: ['telugu', 'comedy', 'laugh', 'hyped', 'romance'],
+  },
+  {
+    id: 'rrr',
+    titleId: '579974',
+    title: 'RRR',
+    type: 'MOVIE',
+    genreId: 'action',
+    genreName: 'Action / Epic',
+    releaseYear: 2022,
+    rating: 4.9,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/wE0noFUqdCzxik90wuoGpH8USes.jpg',
+    overview: 'A fearless revolutionary and an ambitious British police officer forge an unbreakable brotherhood before discovering their conflicting missions.',
+    tags: ['telugu', 'action', 'hyped', 'adrenaline', 'epic', 'drama'],
+  },
+  {
+    id: 'salaar',
+    titleId: '940551',
+    title: 'Salaar: Part 1 - Ceasefire',
+    type: 'MOVIE',
+    genreId: 'action',
+    genreName: 'Action / Crime',
+    releaseYear: 2023,
+    rating: 4.7,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/mHQOO0K06c0Q1b9c7wV3gU6Z5M.jpg',
+    overview: 'Set in the dystopian city-state of Khansaar, a hardened warrior unleashes pure mayhem to fulfill a promise to his royal childhood friend.',
+    tags: ['telugu', 'action', 'hyped', 'adrenaline', 'dark', 'edge'],
+  },
+  {
+    id: 'kalki-2898-ad',
+    titleId: '1022789',
+    title: 'Kalki 2898 AD',
+    type: 'MOVIE',
+    genreId: 'scifi',
+    genreName: 'Sci-Fi / Epic',
+    releaseYear: 2024,
+    rating: 4.8,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/uY9HzY35e4d2J7jZfP6Q9n4z170.jpg',
+    overview: 'In the dystopian future city of Kasi, an immortal warrior, a cynical bounty hunter, and rebels collide to protect the unborn savior of the world.',
+    tags: ['telugu', 'scifi', 'mindblown', 'action', 'epic', 'hyped'],
+  },
+  {
+    id: 'hi-nanna',
+    titleId: '1072790',
+    title: 'Hi Nanna',
+    type: 'MOVIE',
+    genreId: 'drama',
+    genreName: 'Drama / Romance',
+    releaseYear: 2023,
+    rating: 4.8,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/5s1R5NnO3sU6Y3w0yP5s1R5NnO3.jpg',
+    overview: 'A doting single father and his terminally ill 6-year-old daughter find their lives forever transformed when a mysterious, warm woman enters their world.',
+    tags: ['telugu', 'drama', 'romance', 'cozy', 'warm', 'emotional'],
+  },
+  {
+    id: 'jathi-ratnalu',
+    titleId: '791373',
+    title: 'Jathi Ratnalu',
+    type: 'MOVIE',
+    genreId: 'comedy',
+    genreName: 'Comedy',
+    releaseYear: 2021,
+    rating: 4.7,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg',
+    overview: 'Three naive friends travel from Jogipet to Hyderabad looking for prestige, only to end up hilariously framed for an assassination attempt.',
+    tags: ['telugu', 'comedy', 'laugh', 'fun'],
+  },
+  {
+    id: 'mad',
+    titleId: '1169707',
+    title: 'Mad',
+    type: 'MOVIE',
+    genreId: 'comedy',
+    genreName: 'Comedy / Youth',
+    releaseYear: 2023,
+    rating: 4.6,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/7aE0N6kR1YdK3P6v0P9x5M0Q.jpg',
+    overview: 'Three engineering college freshers navigate campus hostel life, bitter rivalries, and hilariously chaotic romances.',
+    tags: ['telugu', 'comedy', 'laugh', 'fun', 'youth'],
+  },
+  {
+    id: 'sita-ramam',
+    titleId: '956101',
+    title: 'Sita Ramam',
+    type: 'MOVIE',
+    genreId: 'romance',
+    genreName: 'Romance / Drama',
+    releaseYear: 2022,
+    rating: 4.9,
+    language: 'Telugu',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg',
+    overview: 'An orphaned soldier serving in the snow-clad mountains of Kashmir receives letters from a mysterious girl claiming to be his wife, kindling a timeless love.',
+    tags: ['telugu', 'romance', 'drama', 'cozy', 'warm', 'emotional'],
+  },
 
-  // --- DRAMA MOVIES ---
-  { id: 'oppenheimer', titleId: '872585', title: 'Oppenheimer', type: 'MOVIE', genreId: 'drama', genreName: 'Drama', releaseYear: 2023, rating: 4.9, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg', overview: 'The story of J. Robert Oppenheimer and his role in the development of the atomic bomb.' },
-  { id: 'hi-nanna', titleId: '1072790', title: 'Hi Nanna', type: 'MOVIE', genreId: 'drama', genreName: 'Drama', releaseYear: 2023, rating: 4.8, language: 'Telugu', posterUrl: 'https://image.tmdb.org/t/p/w500/5s1R5NnO3sU6Y3w0yP5s1R5NnO3.jpg', overview: 'A doting father and his precocious daughter find their lives transformed when a mysterious woman enters their world.' },
-  { id: '12th-fail', titleId: '1181548', title: '12th Fail', type: 'MOVIE', genreId: 'drama', genreName: 'Drama', releaseYear: 2023, rating: 4.9, language: 'Hindi', posterUrl: 'https://image.tmdb.org/t/p/w500/zFpdz5j9a2yP2oE6V6a5K8f9.jpg', overview: 'Based on the true story of Manoj Kumar Sharma who overcame extreme poverty to become an IPS officer.' },
-  { id: 'the-shawshank-redemption', titleId: '278', title: 'The Shawshank Redemption', type: 'MOVIE', genreId: 'drama', genreName: 'Drama', releaseYear: 1994, rating: 5.0, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg', overview: 'Over the course of several years, two convicts form a friendship, seeking consolation and redemption.' },
+  // --- PSYCHOLOGICAL, DISTURBING, & MIND-BENDING GEMS ---
+  {
+    id: 'dark-series',
+    titleId: 'tv-70523',
+    title: 'Dark',
+    type: 'SERIES',
+    genreId: 'scifi',
+    genreName: 'Sci-Fi / Mind-Bending',
+    releaseYear: 2017,
+    rating: 5.0,
+    language: 'German',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/apbrbWs8M9lyOpJYU5WXrpFbk1Z.jpg',
+    overview: 'A missing child sets four families on a frantic hunt for answers as they unearth a mind-bending mystery spanning four interconnected generations.',
+    tags: ['scifi', 'mind-bending', 'mindblown', 'mystery', 'dark', 'edge', 'time travel', 'puzzle'],
+  },
+  {
+    id: 'severance-series',
+    titleId: 'tv-95396',
+    title: 'Severance',
+    type: 'SERIES',
+    genreId: 'scifi',
+    genreName: 'Sci-Fi / Psychological',
+    releaseYear: 2022,
+    rating: 4.9,
+    language: 'English',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/jtACkF0x7a3wzU0c7a3wzU0c7a3.jpg',
+    overview: 'Mark leads a team of office workers whose memories have been surgically partitioned between their work and personal lives, slowly discovering horrifying conspiracies.',
+    tags: ['scifi', 'mind-bending', 'mindblown', 'thriller', 'mystery', 'psychological', 'dark', 'edge'],
+  },
+  {
+    id: 'mindhunter-series',
+    titleId: 'tv-67744',
+    title: 'Mindhunter',
+    type: 'SERIES',
+    genreId: 'thriller',
+    genreName: 'Psychological / Disturbing',
+    releaseYear: 2017,
+    rating: 4.9,
+    language: 'English',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/fbKE87mojpIETWepSbD5Qt741fp.jpg',
+    overview: 'In the late 1970s, two FBI agents revolutionize criminal psychology by interviewing incarcerated serial killers to solve active murder investigations.',
+    tags: ['thriller', 'crime', 'disturbing', 'psychological', 'edge', 'dark', 'investigation'],
+  },
+  {
+    id: 'true-detective-series',
+    titleId: 'tv-46648',
+    title: 'True Detective',
+    type: 'SERIES',
+    genreId: 'thriller',
+    genreName: 'Crime / Dark Thriller',
+    releaseYear: 2014,
+    rating: 5.0,
+    language: 'English',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/cuV2O5ZyDLHSOWzg3nLVljp1ubw.jpg',
+    overview: 'Louisiana detectives Rust Cohle and Martin Hart become consumed by a sinister ritual murder that reopens decades of personal obsession and dread.',
+    tags: ['thriller', 'crime', 'disturbing', 'edge', 'dark', 'mystery', 'investigation'],
+  },
+  {
+    id: 'black-mirror-series',
+    titleId: 'tv-42009',
+    title: 'Black Mirror',
+    type: 'SERIES',
+    genreId: 'scifi',
+    genreName: 'Dystopian / Mind-Bending',
+    releaseYear: 2011,
+    rating: 4.9,
+    language: 'English',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/seN6rRfN0I6n8iDXjlSMk1QjNcq.jpg',
+    overview: 'An anthology series exploring a twisted, high-tech multiverse where humanity’s greatest innovations and darkest instincts collide.',
+    tags: ['scifi', 'mind-bending', 'mindblown', 'disturbing', 'dark', 'dystopian'],
+  },
+  {
+    id: 'oldboy',
+    titleId: '670',
+    title: 'Oldboy',
+    type: 'MOVIE',
+    genreId: 'thriller',
+    genreName: 'Disturbing / Psychological',
+    releaseYear: 2003,
+    rating: 5.0,
+    language: 'Korean',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/pWDtjs568ZfOTMbURQBYuT4Qxka.jpg',
+    overview: 'After being mysteriously kidnapped and imprisoned for 15 years, a man is suddenly released with five days to identify his captor and learn the horrifying reason.',
+    tags: ['thriller', 'disturbing', 'psychological', 'mind-bending', 'dark', 'korean', 'edge'],
+  },
+  {
+    id: 'memories-of-murder',
+    titleId: '11423',
+    title: 'Memories of Murder',
+    type: 'MOVIE',
+    genreId: 'thriller',
+    genreName: 'Crime / Investigation',
+    releaseYear: 2003,
+    rating: 4.9,
+    language: 'Korean',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/jcgUjx1QcupGzjntTVlnQ15lHqy.jpg',
+    overview: "In 1986 rural South Korea, two local detectives and a Seoul specialist struggle with brutal incompetence while trying to catch the nation's first recorded serial killer.",
+    tags: ['thriller', 'crime', 'mystery', 'disturbing', 'investigation', 'korean', 'edge'],
+  },
+  {
+    id: 'i-saw-the-devil',
+    titleId: '49797',
+    title: 'I Saw the Devil',
+    type: 'MOVIE',
+    genreId: 'thriller',
+    genreName: 'Horror / Disturbing',
+    releaseYear: 2010,
+    rating: 4.8,
+    language: 'Korean',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/zp5NrmYp80axIGiEiYPmm1CW6uH.jpg',
+    overview: 'When his pregnant fiancée is savagely murdered by a psychopathic killer, a secret agent embarks on a relentless cat-and-mouse revenge vendetta.',
+    tags: ['thriller', 'horror', 'disturbing', 'brutal', 'korean', 'edge', 'spooky', 'dark'],
+  },
+  {
+    id: 'shutter-island',
+    titleId: '11324',
+    title: 'Shutter Island',
+    type: 'MOVIE',
+    genreId: 'thriller',
+    genreName: 'Mystery / Mind-Bending',
+    releaseYear: 2010,
+    rating: 4.9,
+    language: 'English',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/nrmXQ0zcZUL8jFLrakWc90IR8z9.jpg',
+    overview: 'A US Marshal investigates the inexplicable disappearance of a patient from a fortress-like psychiatric asylum on a storm-swept island.',
+    tags: ['thriller', 'mystery', 'mind-bending', 'mindblown', 'psychological', 'edge'],
+  },
+  {
+    id: 'memento',
+    titleId: '77',
+    title: 'Memento',
+    type: 'MOVIE',
+    genreId: 'thriller',
+    genreName: 'Mystery / Mind-Bending',
+    releaseYear: 2000,
+    rating: 4.9,
+    language: 'English',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/nzlv62aC0octS5AklAiWpXLX9Z0.jpg',
+    overview: "A man who sustains severe short-term memory loss uses tattoos, handwritten notes, and polaroids to track down the man who murdered his wife.",
+    tags: ['thriller', 'mystery', 'mind-bending', 'mindblown', 'puzzle', 'edge'],
+  },
 
-  // --- DRAMA TV SERIES ---
-  { id: 'succession', titleId: 'tv-76331', title: 'Succession', type: 'SERIES', genreId: 'drama', genreName: 'Drama', releaseYear: 2018, rating: 4.9, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/7F8e89Ue5Esm2a5x0z2x89ew.jpg', overview: 'The Roy family is known for controlling the biggest media and entertainment company in the world.' },
-  { id: 'the-bear', titleId: 'tv-136315', title: 'The Bear', type: 'SERIES', genreId: 'drama', genreName: 'Drama', releaseYear: 2022, rating: 4.8, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/sHk5X1N1p6aJj3k5sHk5X1N1p6a.jpg', overview: 'A young chef from the fine dining world comes home to Chicago to run his family sandwich shop.' },
-  { id: 'better-call-saul', titleId: 'tv-60059', title: 'Better Call Saul', type: 'SERIES', genreId: 'drama', genreName: 'Drama', releaseYear: 2015, rating: 4.9, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/fC2HDm5t0kHVR79vis7GIjO9ZUb.jpg', overview: 'The trials and tribulations of criminal lawyer Jimmy McGill before his fateful run-in with Walter White.' },
+  // --- POPULAR INDIAN & GLOBAL TV SERIES ---
+  {
+    id: 'panchayat-series',
+    titleId: 'tv-101188',
+    title: 'Panchayat',
+    type: 'SERIES',
+    genreId: 'comedy',
+    genreName: 'Comedy / Drama',
+    releaseYear: 2020,
+    rating: 4.9,
+    language: 'Hindi',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/q9n8J2a6V5l4K8f9.jpg',
+    overview: 'An engineering graduate takes up a job as a secretary of a Gram Panchayat in a remote village in Uttar Pradesh, sparking wholesome daily laughs.',
+    tags: ['hindi', 'comedy', 'drama', 'laugh', 'cozy', 'warm'],
+  },
+  {
+    id: 'the-family-man',
+    titleId: 'tv-93333',
+    title: 'The Family Man',
+    type: 'SERIES',
+    genreId: 'action',
+    genreName: 'Action / Thriller / Comedy',
+    releaseYear: 2019,
+    rating: 4.9,
+    language: 'Hindi',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/4kUF7cO76W4vEx70KVfwmju6Vud.jpg',
+    overview: 'A middle-class man secretly working as an intelligence officer for T.A.S.C. struggles to juggle high-stakes national security crises with family life.',
+    tags: ['hindi', 'action', 'thriller', 'comedy', 'hyped', 'adrenaline', 'edge'],
+  },
+  {
+    id: 'breaking-bad-series',
+    titleId: 'tv-1396',
+    title: 'Breaking Bad',
+    type: 'SERIES',
+    genreId: 'thriller',
+    genreName: 'Crime / Drama',
+    releaseYear: 2008,
+    rating: 5.0,
+    language: 'English',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/ggFHVNu6YYI5L9pCfOacjizRGt.jpg',
+    overview: 'A high school chemistry teacher diagnosed with inoperable lung cancer turns to manufacturing and selling crystal meth with a former student.',
+    tags: ['thriller', 'crime', 'drama', 'hyped', 'edge', 'adrenaline'],
+  },
+  {
+    id: 'the-boys-series',
+    titleId: 'tv-76479',
+    title: 'The Boys',
+    type: 'SERIES',
+    genreId: 'action',
+    genreName: 'Action / Dark Comedy',
+    releaseYear: 2019,
+    rating: 4.8,
+    language: 'English',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/7Ns6tO3aYjppI5LoNOFvj2q199.jpg',
+    overview: 'A group of vigilantes set out to take down corrupt superheroes who abuse their superpowers and corporate backing.',
+    tags: ['action', 'scifi', 'hyped', 'adrenaline', 'disturbing', 'edge'],
+  },
+  {
+    id: 'shogun-series',
+    titleId: 'tv-126308',
+    title: 'Shōgun',
+    type: 'SERIES',
+    genreId: 'action',
+    genreName: 'Action / Historical Drama',
+    releaseYear: 2024,
+    rating: 4.9,
+    language: 'Japanese',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/7O4iVfOMQmdCSxhOg1WNzG1AgYT.jpg',
+    overview: 'When a mysterious European ship is found shipwrecked in a fishing village, lord Toranaga discovers secrets that could tip the balance of civil war in feudal Japan.',
+    tags: ['action', 'drama', 'hyped', 'epic', 'edge'],
+  },
+  {
+    id: 'attack-on-titan-series',
+    titleId: 'tv-1429',
+    title: 'Attack on Titan',
+    type: 'SERIES',
+    genreId: 'anime',
+    genreName: 'Anime / Dark Fantasy',
+    releaseYear: 2013,
+    rating: 5.0,
+    language: 'Japanese',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/hTP1DtLGFamjfu8WqjnuQdP1n4i.jpg',
+    overview: 'After his hometown is devastated and his mother killed, Eren Jaeger vows to cleanse the earth of the giant humanoid Titans that have brought humanity to the brink of extinction.',
+    tags: ['anime', 'action', 'dark', 'hyped', 'adrenaline', 'mindblown', 'disturbing'],
+  },
+  {
+    id: 'death-note-series',
+    titleId: 'tv-13916',
+    title: 'Death Note',
+    type: 'SERIES',
+    genreId: 'anime',
+    genreName: 'Anime / Psychological Thriller',
+    releaseYear: 2006,
+    rating: 4.9,
+    language: 'Japanese',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/iigTJJskR1vbhjj09lZ9.jpg',
+    overview: 'An intelligent high school student discovers a supernatural notebook that grants him the lethal power to kill anyone whose name and face he knows.',
+    tags: ['anime', 'thriller', 'mind-bending', 'mindblown', 'psychological', 'edge'],
+  },
+  {
+    id: 'arcane-series',
+    titleId: 'tv-94605',
+    title: 'Arcane',
+    type: 'SERIES',
+    genreId: 'anime',
+    genreName: 'Animation / Sci-Fi',
+    releaseYear: 2021,
+    rating: 5.0,
+    language: 'English',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/fqldf2t8ztc9aiwn397mlOhG8w1.jpg',
+    overview: 'Set in the utopian region of Piltover and the oppressed underground of Zaun, the story follows the origins of two iconic champions and the power that tears them apart.',
+    tags: ['animation', 'anime', 'scifi', 'action', 'hyped', 'adrenaline'],
+  },
 
-  // --- SCI-FI MOVIES ---
-  { id: 'interstellar', titleId: '157336', title: 'Interstellar', type: 'MOVIE', genreId: 'scifi', genreName: 'Sci-Fi', releaseYear: 2014, rating: 4.9, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg', overview: 'A team of explorers travel through a wormhole in space in an attempt to ensure humanity survival.' },
-  { id: 'dune-part-two', titleId: '693134', title: 'Dune: Part Two', type: 'MOVIE', genreId: 'scifi', genreName: 'Sci-Fi', releaseYear: 2024, rating: 4.9, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg', overview: 'Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.' },
-  { id: 'inception', titleId: '27205', title: 'Inception', type: 'MOVIE', genreId: 'scifi', genreName: 'Sci-Fi', releaseYear: 2010, rating: 4.9, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg', overview: 'A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea.' },
-
-  // --- SCI-FI TV SERIES ---
-  { id: 'dark', titleId: 'tv-70523', title: 'Dark', type: 'SERIES', genreId: 'scifi', genreName: 'Sci-Fi', releaseYear: 2017, rating: 4.9, language: 'German', posterUrl: 'https://image.tmdb.org/t/p/w500/apbrbWs8M9lyOpJYU5WXrpFbk1Z.jpg', overview: 'A missing child sets four families on a frantic hunt for answers as they unearth a mind-bending mystery that spans three generations.' },
-  { id: 'severance', titleId: 'tv-95396', title: 'Severance', type: 'SERIES', genreId: 'scifi', genreName: 'Sci-Fi', releaseYear: 2022, rating: 4.8, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/jtACkF0x7a3wzU0c7a3wzU0c7a3.jpg', overview: 'Mark leads a team of office workers whose memories have been surgically divided between their work and personal lives.' },
-  { id: 'stranger-things', titleId: 'tv-66732', title: 'Stranger Things', type: 'SERIES', genreId: 'scifi', genreName: 'Sci-Fi', releaseYear: 2016, rating: 4.8, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/49WJfeN0moxb9IPfGn8AIqMGskD.jpg', overview: 'When a young boy vanishes, a small town uncovers a mystery involving secret experiments and terrifying supernatural forces.' },
-
-  // --- COMEDY MOVIES ---
-  { id: 'stree-2', titleId: '1029955', title: 'Stree 2', type: 'MOVIE', genreId: 'comedy', genreName: 'Comedy', releaseYear: 2024, rating: 4.7, language: 'Hindi', posterUrl: 'https://image.tmdb.org/t/p/w500/vGv9vGv9vGv9vGv9vGv9vGv9vGv.jpg', overview: 'The town of Chanderi is haunted once again, this time by a headless entity known as Sarkata.' },
-  { id: 'jathi-ratnalu', titleId: '791373', title: 'Jathi Ratnalu', type: 'MOVIE', genreId: 'comedy', genreName: 'Comedy', releaseYear: 2021, rating: 4.7, language: 'Telugu', posterUrl: 'https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg', overview: 'Three naive friends travel from Jogipet to Hyderabad and end up framed for an assassination attempt.' },
-  { id: 'mad', titleId: '1169707', title: 'Mad', type: 'MOVIE', genreId: 'comedy', genreName: 'Comedy', releaseYear: 2023, rating: 4.6, language: 'Telugu', posterUrl: 'https://image.tmdb.org/t/p/w500/7aE0N6kR1YdK3P6v0P9x5M0Q.jpg', overview: 'Three engineering college freshers navigate campus life, rivalries, and hilariously chaotic romances.' },
-
-  // --- COMEDY TV SERIES ---
-  { id: 'panchayat', titleId: 'tv-101188', title: 'Panchayat', type: 'SERIES', genreId: 'comedy', genreName: 'Comedy', releaseYear: 2020, rating: 4.9, language: 'Hindi', posterUrl: 'https://image.tmdb.org/t/p/w500/q9n8J2a6V5l4K8f9.jpg', overview: 'An engineering graduate takes up a job as a secretary of a Gram Panchayat in a remote village in Uttar Pradesh.' },
-  { id: 'ted-lasso', titleId: 'tv-97546', title: 'Ted Lasso', type: 'SERIES', genreId: 'comedy', genreName: 'Comedy', releaseYear: 2020, rating: 4.9, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/5kAG7r1Gg8e5L6p8.jpg', overview: 'An American college football coach is hired to manage a struggling British soccer team.' },
-
-  // --- HORROR MOVIES ---
-  { id: 'bramayugam', titleId: '1160164', title: 'Bramayugam', type: 'MOVIE', genreId: 'horror', genreName: 'Horror', releaseYear: 2024, rating: 4.8, language: 'Malayalam', posterUrl: 'https://image.tmdb.org/t/p/w500/9k8f9k8f9k8f9k8f9k8f9k8f9.jpg', overview: 'A folk horror tale set in medieval Kerala following a court singer who stumbles into a sinister decaying mansion.' },
-  { id: 'tumbbad', titleId: '538858', title: 'Tumbbad', type: 'MOVIE', genreId: 'horror', genreName: 'Horror', releaseYear: 2018, rating: 4.9, language: 'Hindi', posterUrl: 'https://image.tmdb.org/t/p/w500/yrpPYK2z98gSFCU0XGDykEGv7zR.jpg', overview: 'A mythological horror story about a family who builds a shrine for Hastar, an entity never to be worshipped.' },
-  { id: 'a-quiet-place', titleId: '447332', title: 'A Quiet Place', type: 'MOVIE', genreId: 'horror', genreName: 'Horror', releaseYear: 2018, rating: 4.7, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/nAU74GmpUk7t5iklEp3bufwDq4n.jpg', overview: 'A family is forced to live in silence while hiding from monsters with ultra-sensitive hearing.' },
-
-  // --- HORROR TV SERIES ---
-  { id: 'haunting-of-hill-house', titleId: 'tv-72844', title: 'The Haunting of Hill House', type: 'SERIES', genreId: 'horror', genreName: 'Horror', releaseYear: 2018, rating: 4.9, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/7aE0N6kR1YdK3P6v0P9x5M0Q.jpg', overview: 'Flashing between past and present, a fractured family confronts haunting memories of their old home.' },
-
-  // --- ANIME MOVIES & SERIES ---
-  { id: 'demon-slayer-mugen-train', titleId: '635302', title: 'Demon Slayer: Mugen Train', type: 'MOVIE', genreId: 'anime', genreName: 'Anime', releaseYear: 2020, rating: 4.9, language: 'Japanese', posterUrl: 'https://image.tmdb.org/t/p/w500/h8Rb9gBr48ODigDrngZeqrTMr91.jpg', overview: 'Tanjiro and the Demon Slayer Corps board the infinity train to face a powerful demon.' },
-  { id: 'spirited-away', titleId: '129', title: 'Spirited Away', type: 'MOVIE', genreId: 'anime', genreName: 'Anime', releaseYear: 2001, rating: 5.0, language: 'Japanese', posterUrl: 'https://image.tmdb.org/t/p/w500/393rIHkrAnptSoJa3yJ0fD08d51.jpg', overview: 'A young girl wanders into a world ruled by gods, witches, and spirits where humans are changed into beasts.' },
-  { id: 'attack-on-titan', titleId: 'tv-1429', title: 'Attack on Titan', type: 'SERIES', genreId: 'anime', genreName: 'Anime', releaseYear: 2013, rating: 5.0, language: 'Japanese', posterUrl: 'https://image.tmdb.org/t/p/w500/hTP1DtLGFamjfu8WqjnuQdP1n4i.jpg', overview: 'After his hometown is destroyed, Eren Jaeger vows to cleanse the earth of the giant humanoid Titans.' },
-  { id: 'arcane', titleId: 'tv-94605', title: 'Arcane', type: 'SERIES', genreId: 'anime', genreName: 'Anime', releaseYear: 2021, rating: 5.0, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/fqldf2t8ztc9aiwn397mlOhG8w1.jpg', overview: 'Set in the utopian region of Piltover and the oppressed underground of Zaun, the story follows two iconic champions.' },
-  { id: 'death-note', titleId: 'tv-13916', title: 'Death Note', type: 'SERIES', genreId: 'anime', genreName: 'Anime', releaseYear: 2006, rating: 4.9, language: 'Japanese', posterUrl: 'https://image.tmdb.org/t/p/w500/iigTJJskR1vbhjj09lZ9.jpg', overview: 'A high school student discovers a supernatural notebook that grants him the ability to kill anyone by writing their name.' },
-
-  // --- THRILLER & CRIME ---
-  { id: 'maharaja', titleId: '1114513', title: 'Maharaja', type: 'MOVIE', genreId: 'thriller', genreName: 'Thriller', releaseYear: 2024, rating: 4.9, language: 'Tamil', posterUrl: 'https://image.tmdb.org/t/p/w500/7aE0N6kR1YdK3P6v0P9x5M0Q.jpg', overview: 'A barber seeks vengeance after his home is burglarized, cryptically telling police his lakshmi has been taken.' },
-  { id: 'drishyam', titleId: '360814', title: 'Drishyam', type: 'MOVIE', genreId: 'thriller', genreName: 'Thriller', releaseYear: 2015, rating: 4.9, language: 'Hindi', posterUrl: 'https://image.tmdb.org/t/p/w500/5kAG7r1Gg8e5L6p8.jpg', overview: 'Desperate measures are taken by a man who tries to save his family from the dark side of the law.' },
-  { id: 'breaking-bad', titleId: 'tv-1396', title: 'Breaking Bad', type: 'SERIES', genreId: 'thriller', genreName: 'Thriller', releaseYear: 2008, rating: 5.0, language: 'English', posterUrl: 'https://image.tmdb.org/t/p/w500/ggFHVNu6YYI5L9pCfOacjizRGt.jpg', overview: 'A chemistry teacher diagnosed with terminal lung cancer teams up with a former student to manufacture crystal meth.' },
-
-  // --- ROMANCE ---
-  { id: 'sita-ramam', titleId: '956101', title: 'Sita Ramam', type: 'MOVIE', genreId: 'romance', genreName: 'Romance', releaseYear: 2022, rating: 4.9, language: 'Telugu', posterUrl: 'https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg', overview: 'An orphaned soldier receives a letter from a girl named Sita claiming to be his wife.' },
-  { id: 'past-lives', titleId: '666277', title: 'Past Lives', type: 'MOVIE', genreId: 'romance', genreName: 'Romance', releaseYear: 2023, rating: 4.8, language: 'Korean', posterUrl: 'https://image.tmdb.org/t/p/w500/k3waqVXSnvCZWfJYNtdamTgTtTA.jpg', overview: 'Nora and Hae Sung, two deeply connected childhood friends, are wrest apart after Nora family emigrates from South Korea.' }
+  // --- ACCLAIMED GLOBAL MOVIES ---
+  {
+    id: 'interstellar',
+    titleId: '157336',
+    title: 'Interstellar',
+    type: 'MOVIE',
+    genreId: 'scifi',
+    genreName: 'Sci-Fi / Epic',
+    releaseYear: 2014,
+    rating: 4.9,
+    language: 'English',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg',
+    overview: 'A team of explorers travel through a wormhole in space in an attempt to ensure humanity’s survival as Earth faces agricultural collapse.',
+    tags: ['scifi', 'mind-bending', 'mindblown', 'epic', 'emotional', 'cozy'],
+  },
+  {
+    id: 'inception',
+    titleId: '27205',
+    title: 'Inception',
+    type: 'MOVIE',
+    genreId: 'scifi',
+    genreName: 'Sci-Fi / Mind-Bending',
+    releaseYear: 2010,
+    rating: 4.9,
+    language: 'English',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg',
+    overview: 'A thief who steals corporate secrets through dream-sharing technology is given the inverse task of planting an idea into the mind of a CEO.',
+    tags: ['scifi', 'mind-bending', 'mindblown', 'thriller', 'action', 'hyped', 'edge'],
+  },
+  {
+    id: 'oppenheimer',
+    titleId: '872585',
+    title: 'Oppenheimer',
+    type: 'MOVIE',
+    genreId: 'drama',
+    genreName: 'Historical Drama / Thriller',
+    releaseYear: 2023,
+    rating: 4.9,
+    language: 'English',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg',
+    overview: 'The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb during World War II.',
+    tags: ['drama', 'thriller', 'mindblown', 'edge'],
+  },
+  {
+    id: 'bramayugam',
+    titleId: '1160164',
+    title: 'Bramayugam',
+    type: 'MOVIE',
+    genreId: 'horror',
+    genreName: 'Folk Horror',
+    releaseYear: 2024,
+    rating: 4.8,
+    language: 'Malayalam',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/9k8f9k8f9k8f9k8f9k8f9k8f9.jpg',
+    overview: 'A folk horror tale set in medieval Kerala following a court singer who stumbles into a sinister, decaying mansion ruled by a manipulative lord.',
+    tags: ['horror', 'spooky', 'dark', 'disturbing', 'edge', 'malayalam'],
+  },
+  {
+    id: 'tumbbad',
+    titleId: '538858',
+    title: 'Tumbbad',
+    type: 'MOVIE',
+    genreId: 'horror',
+    genreName: 'Mythological Horror',
+    releaseYear: 2018,
+    rating: 4.9,
+    language: 'Hindi',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/yrpPYK2z98gSFCU0XGDykEGv7zR.jpg',
+    overview: 'A mythological horror story about a family who builds a shrine for Hastar, a greedy monster entity never to be worshipped.',
+    tags: ['horror', 'spooky', 'dark', 'disturbing', 'edge', 'hindi'],
+  },
+  {
+    id: 'maharaja',
+    titleId: '1114513',
+    title: 'Maharaja',
+    type: 'MOVIE',
+    genreId: 'thriller',
+    genreName: 'Crime / Thriller',
+    releaseYear: 2024,
+    rating: 4.9,
+    language: 'Tamil',
+    posterUrl: 'https://image.tmdb.org/t/p/w500/7aE0N6kR1YdK3P6v0P9x5M0Q.jpg',
+    overview: 'A quiet barber seeks vengeance after his home is burglarized, cryptically insisting to police that his beloved Lakshmi was stolen.',
+    tags: ['tamil', 'thriller', 'crime', 'disturbing', 'edge', 'hyped'],
+  },
 ];
 
 /**
- * Pick a random title from ALL movies & series according to user specifications
+ * Helper: Smart genre matching across ID, name, language, anime, and tags
+ */
+export function matchesGenreHelper(item, targetGenre, genreOptions = []) {
+  if (!targetGenre || targetGenre === 'all') return true;
+
+  const gId = String(targetGenre).toLowerCase().trim();
+  const genreObj = genreOptions.find(g => g.id?.toLowerCase() === gId || g.name?.toLowerCase() === gId);
+  const gName = (genreObj?.name || gId).toLowerCase().trim();
+
+  const itemGenreId = String(item.genreId || '').toLowerCase().trim();
+  const itemGenreName = String(item.genreName || '').toLowerCase().trim();
+  const itemLang = String(item.language || '').toLowerCase().trim();
+  const itemTitle = String(item.title || '').toLowerCase();
+  const itemOverview = String(item.overview || '').toLowerCase();
+  const itemTags = Array.isArray(item.tags) ? item.tags.map(t => String(t).toLowerCase()) : [];
+
+  // 1. Direct ID or Name match
+  if (itemGenreId === gId || itemGenreName === gName) return true;
+  if (itemGenreName.includes(gName) || gName.includes(itemGenreName)) return true;
+  if (itemTags.includes(gId) || itemTags.includes(gName)) return true;
+
+  // 2. Language-based genre (e.g. 'telugu', 'hindi', 'tamil', 'malayalam', 'korean', 'japanese', 'english')
+  if (itemLang === gId || itemLang === gName) return true;
+  if (gId === 'telugu' || gName.includes('telugu')) {
+    if (itemLang.includes('telugu')) return true;
+    if (itemGenreId === 'telugu' || itemGenreName.includes('telugu')) return true;
+    if (itemTags.includes('telugu')) return true;
+  }
+  if (gId === 'hindi' || gName.includes('hindi')) {
+    if (itemLang.includes('hindi')) return true;
+    if (itemGenreId === 'hindi' || itemGenreName.includes('hindi')) return true;
+    if (itemTags.includes('hindi')) return true;
+  }
+  if (gId === 'tamil' || gName.includes('tamil')) {
+    if (itemLang.includes('tamil')) return true;
+    if (itemGenreId === 'tamil' || itemGenreName.includes('tamil')) return true;
+    if (itemTags.includes('tamil')) return true;
+  }
+  if (gId === 'korean' || gName.includes('korean')) {
+    if (itemLang.includes('korean') || itemTags.includes('korean')) return true;
+  }
+  if (gId === 'japanese' || gName.includes('japanese')) {
+    if (itemLang.includes('japanese') || itemTags.includes('japanese')) return true;
+  }
+
+  // 3. Anime
+  if (gId === 'anime' || gName.includes('anime')) {
+    if (itemGenreId === 'anime' || itemGenreName.includes('anime')) return true;
+    if (itemTags.includes('anime')) return true;
+    if ((itemGenreId === 'animation' || itemGenreName.includes('anim')) && itemLang.includes('japan')) return true;
+  }
+
+  // 4. Disturbing / Psychological
+  if (gId.includes('disturb') || gName.includes('disturb')) {
+    if (itemTags.some(t => t.includes('disturb') || t.includes('psychological') || t.includes('brutal'))) return true;
+    if (itemOverview.includes('disturbing') || itemOverview.includes('chilling') || itemOverview.includes('brutal') || itemOverview.includes('sinister') || itemOverview.includes('serial killer')) return true;
+    if (itemGenreName.includes('disturb') || itemGenreName.includes('psychological')) return true;
+  }
+
+  // 5. Mind-Bending / Sci-Fi
+  if (gId.includes('mind') || gName.includes('mind')) {
+    if (itemTags.some(t => t.includes('mind') || t.includes('twist') || t.includes('puzzle') || t.includes('reality'))) return true;
+    if (itemOverview.includes('mind-bending') || itemOverview.includes('reality') || itemOverview.includes('twist') || itemOverview.includes('time loop') || itemOverview.includes('multiverse') || itemOverview.includes('timeline')) return true;
+    if (itemGenreId === 'scifi' || itemGenreName.includes('sci')) return true;
+  }
+
+  // 6. Thriller / Suspense / Crime
+  if (gId.includes('thrill') || gId.includes('suspense') || gId.includes('crime')) {
+    if (itemGenreId === 'thriller' || itemGenreName.includes('thrill') || itemGenreName.includes('suspense') || itemGenreName.includes('crime') || itemGenreName.includes('mystery')) return true;
+    if (itemTags.some(t => t.includes('thrill') || t.includes('suspense') || t.includes('crime') || t.includes('investigation'))) return true;
+  }
+
+  // 7. Action
+  if (gId.includes('action')) {
+    if (itemGenreId === 'action' || itemGenreName.includes('action') || itemGenreName.includes('adventure')) return true;
+    if (itemTags.some(t => t.includes('action') || t.includes('adventure') || t.includes('heist'))) return true;
+  }
+
+  // 8. Comedy
+  if (gId.includes('comedy')) {
+    if (itemGenreId === 'comedy' || itemGenreName.includes('comedy')) return true;
+    if (itemTags.includes('comedy')) return true;
+  }
+
+  // 9. Horror
+  if (gId.includes('horror')) {
+    if (itemGenreId === 'horror' || itemGenreName.includes('horror')) return true;
+    if (itemTags.includes('horror')) return true;
+  }
+
+  // 10. Sci-Fi
+  if (gId.includes('sci')) {
+    if (itemGenreId === 'scifi' || itemGenreName.includes('sci')) return true;
+    if (itemTags.includes('scifi')) return true;
+  }
+
+  // 11. Romance
+  if (gId.includes('romance') || gId.includes('love')) {
+    if (itemGenreId === 'romance' || itemGenreName.includes('romance') || itemGenreName.includes('love')) return true;
+    if (itemTags.includes('romance')) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Helper: Smart mood affinity matching
+ */
+export function matchesMoodHelper(item, mood) {
+  if (!mood || mood === 'any') return true;
+
+  const itemGenreId = String(item.genreId || '').toLowerCase();
+  const itemGenreName = String(item.genreName || '').toLowerCase();
+  const itemOverview = String(item.overview || '').toLowerCase();
+  const itemTags = Array.isArray(item.tags) ? item.tags.map(t => String(t).toLowerCase()) : [];
+
+  switch (mood) {
+    case 'hyped': // Adrenaline / High Energy
+      return itemGenreId === 'action' ||
+        itemGenreName.includes('action') ||
+        itemTags.some(t => ['action', 'hyped', 'adrenaline', 'thriller', 'heist'].includes(t)) ||
+        itemOverview.includes('action') || itemOverview.includes('warrior') || itemOverview.includes('heist') || itemOverview.includes('thrilling');
+    case 'laugh': // Need a Good Laugh
+      return itemGenreId === 'comedy' ||
+        itemGenreName.includes('comedy') ||
+        itemTags.some(t => ['comedy', 'laugh', 'fun', 'hilarious'].includes(t)) ||
+        itemOverview.includes('hilarious') || itemOverview.includes('comedy') || itemOverview.includes('funny');
+    case 'spooky': // Dark & Chilling
+      return itemGenreId === 'horror' ||
+        itemGenreName.includes('horror') ||
+        itemTags.some(t => ['horror', 'spooky', 'dark', 'supernatural', 'creepy'].includes(t)) ||
+        itemOverview.includes('horror') || itemOverview.includes('possession') || itemOverview.includes('curse') || itemOverview.includes('haunting');
+    case 'mindblown': // Mind-Bending & Epic
+      return itemGenreId === 'scifi' ||
+        itemGenreName.includes('sci') ||
+        itemGenreName.includes('mind') ||
+        itemTags.some(t => ['scifi', 'mind-bending', 'mindblown', 'puzzle', 'reality', 'twist'].includes(t)) ||
+        itemOverview.includes('mind-bending') || itemOverview.includes('timeline') || itemOverview.includes('reality') || itemOverview.includes('wormhole');
+    case 'edge': // Edge of My Seat
+      return itemGenreId === 'thriller' ||
+        itemGenreName.includes('thrill') ||
+        itemGenreName.includes('crime') ||
+        itemGenreName.includes('mystery') ||
+        itemTags.some(t => ['thriller', 'crime', 'mystery', 'edge', 'suspense', 'investigation'].includes(t)) ||
+        itemOverview.includes('murder') || itemOverview.includes('investigate') || itemOverview.includes('twist') || itemOverview.includes('conspiracy');
+    case 'cozy': // Warm & Emotional
+      return itemGenreId === 'romance' ||
+        itemGenreId === 'drama' ||
+        itemGenreName.includes('romance') ||
+        itemGenreName.includes('drama') ||
+        itemTags.some(t => ['romance', 'drama', 'cozy', 'warm', 'emotional'].includes(t)) ||
+        itemOverview.includes('love') || itemOverview.includes('family') || itemOverview.includes('relationship') || itemOverview.includes('friendship');
+    default:
+      return true;
+  }
+}
+
+/**
+ * Pick a random title from ALL movies & series according to user specifications (Synchronous)
  */
 export function getRandomTitleFromAll({
   appMovies = [],
@@ -1279,15 +2097,54 @@ export function getRandomTitleFromAll({
   type = 'ANY', // 'ANY' | 'MOVIE' | 'SERIES'
   mood = 'any',
 } = {}) {
-  // Start with the universal catalog
+  // 1. Assemble pool from UNIVERSAL_TITLES
   let pool = [...UNIVERSAL_TITLES];
+  const existingIds = new Set(pool.map(p => String(p.titleId || p.id).toLowerCase()));
 
-  // Merge in app movies (from state.movies or database)
+  // 2. Incorporate candidates from all active and archived rounds
+  try {
+    const rounds = getAllRounds();
+    if (Array.isArray(rounds)) {
+      rounds.forEach(r => {
+        if (r.genreRounds && typeof r.genreRounds === 'object') {
+          Object.entries(r.genreRounds).forEach(([gKey, gr]) => {
+            if (gr.candidates && Array.isArray(gr.candidates)) {
+              gr.candidates.forEach(c => {
+                const cId = String(c.titleId || c.id || '').toLowerCase();
+                if (cId && !existingIds.has(cId)) {
+                  existingIds.add(cId);
+                  pool.push({
+                    id: c.id || c.titleId,
+                    titleId: c.titleId || c.id,
+                    title: c.title,
+                    type: String(c.type || 'MOVIE').toUpperCase() === 'SERIES' ? 'SERIES' : 'MOVIE',
+                    genreId: gKey,
+                    genreName: gr.genreName || gKey,
+                    releaseYear: c.releaseYear || 2024,
+                    rating: c.rating || 4.8,
+                    language: c.language || 'Telugu',
+                    posterUrl: c.posterUrl,
+                    backdropUrl: c.backdropUrl,
+                    overview: c.overview || '',
+                    tags: [gKey, String(c.language || '').toLowerCase()],
+                  });
+                }
+              });
+            }
+          });
+        }
+      });
+    }
+  } catch (err) {
+    console.warn('Could not incorporate round candidates into discovery pool:', err);
+  }
+
+  // 3. Merge in app movies (from state.movies or database)
   if (Array.isArray(appMovies) && appMovies.length > 0) {
-    const existingIds = new Set(pool.map(p => String(p.titleId || p.id)));
     appMovies.forEach(m => {
-      const idKey = String(m.id || m.tmdbId);
-      if (!existingIds.has(idKey)) {
+      const idKey = String(m.id || m.tmdbId || '').toLowerCase();
+      if (idKey && !existingIds.has(idKey)) {
+        existingIds.add(idKey);
         const rawGenre = Array.isArray(m.genres) ? m.genres[0] : (m.genre || 'Action');
         const gLower = String(rawGenre).toLowerCase();
         let gId = 'action';
@@ -1312,44 +2169,162 @@ export function getRandomTitleFromAll({
           posterUrl: m.posterUrl,
           backdropUrl: m.backdropUrl,
           overview: m.overview || '',
+          tags: [gId, String(m.language || '').toLowerCase()],
         });
       }
     });
   }
 
-  // Resolve target genre from mood if genre is 'all'
-  let targetGenre = genreId;
-  if ((!targetGenre || targetGenre === 'all') && mood !== 'any') {
-    const moodMap = {
-      hyped: 'action',
-      laugh: 'comedy',
-      spooky: 'horror',
-      mindblown: 'scifi',
-      edge: 'thriller',
-      cozy: 'romance',
-    };
-    if (moodMap[mood]) targetGenre = moodMap[mood];
-  }
-
-  // Filter by Type (MOVIE vs SERIES vs ANY)
+  // 4. Strict Type Filtering (NEVER return a Movie if user wants TV Series, and vice versa)
   if (type && type !== 'ANY') {
-    const typeFiltered = pool.filter(p => p.type === type);
-    if (typeFiltered.length > 0) pool = typeFiltered;
-  }
-
-  // Filter by Genre
-  if (targetGenre && targetGenre !== 'all') {
-    const genreFiltered = pool.filter(p => p.genreId === targetGenre);
-    if (genreFiltered.length > 0) pool = genreFiltered;
+    const normalizedType = String(type).toUpperCase();
+    pool = pool.filter(p => String(p.type).toUpperCase() === normalizedType);
   }
 
   if (pool.length === 0) {
-    pool = [...UNIVERSAL_TITLES];
+    return null;
   }
 
-  const randomIndex = Math.floor(Math.random() * pool.length);
-  return pool[randomIndex];
+  const genreOptions = getGenreOptions();
+
+  // 5. Genre & Mood Filtering
+  let targetPool = [...pool];
+
+  // If specific genre selected:
+  if (genreId && genreId !== 'all') {
+    const genreFiltered = targetPool.filter(p => matchesGenreHelper(p, genreId, genreOptions));
+    if (genreFiltered.length > 0) {
+      targetPool = genreFiltered;
+    } else {
+      // No local match for this genre and type combination
+      return null;
+    }
+  }
+
+  // If mood selected:
+  if (mood && mood !== 'any') {
+    const moodFiltered = targetPool.filter(p => matchesMoodHelper(p, mood));
+    // If some titles match both genre AND mood, prioritize them!
+    if (moodFiltered.length > 0) {
+      targetPool = moodFiltered;
+    }
+    // If none match mood, retain targetPool (which matches user's chosen genre)
+  }
+
+  if (targetPool.length === 0) {
+    return null;
+  }
+
+  const randomIndex = Math.floor(Math.random() * targetPool.length);
+  return targetPool[randomIndex];
 }
+
+/**
+ * Async title discovery with real-time TMDB fallback for rare filter combinations
+ */
+export async function getRandomTitleFromAllAsync({
+  appMovies = [],
+  genreId = 'all',
+  type = 'ANY', // 'ANY' | 'MOVIE' | 'SERIES'
+  mood = 'any',
+} = {}) {
+  // First attempt: local enriched pool
+  const localPick = getRandomTitleFromAll({ appMovies, genreId, type, mood });
+  if (localPick) {
+    return localPick;
+  }
+
+  // If no local match, query live TMDB discover to guarantee accurate results!
+  try {
+    const targetType = String(type || 'ANY').toUpperCase();
+    const gLower = String(genreId || 'all').toLowerCase();
+
+    // Map genre to TMDB parameters
+    let language = null;
+    if (gLower === 'telugu') language = 'te';
+    else if (gLower === 'hindi') language = 'hi';
+    else if (gLower === 'tamil') language = 'ta';
+    else if (gLower === 'korean') language = 'ko';
+    else if (gLower === 'japanese') language = 'ja';
+
+    const genreIdMap = {
+      action: targetType === 'SERIES' ? 10759 : 28,
+      comedy: 35,
+      horror: 27,
+      scifi: targetType === 'SERIES' ? 10765 : 878,
+      thriller: 53,
+      romance: 10749,
+      animation: 16,
+      drama: 18,
+    };
+    const withGenres = genreIdMap[gLower] || null;
+
+    if (targetType === 'SERIES') {
+      let tvData;
+      if (language === 'te') {
+        tvData = await fetchTeluguTv(1);
+      } else {
+        tvData = await discoverTv({
+          language,
+          with_genres: withGenres,
+          sortBy: 'popularity.desc',
+          page: 1,
+        });
+      }
+
+      if (tvData && tvData.results && tvData.results.length > 0) {
+        const rand = tvData.results[Math.floor(Math.random() * Math.min(tvData.results.length, 12))];
+        return {
+          id: `tv-${rand.tmdbId || rand.id}`,
+          titleId: `tv-${rand.tmdbId || rand.id}`,
+          title: rand.title,
+          type: 'SERIES',
+          genreId: gLower,
+          genreName: genreId !== 'all' ? genreId.toUpperCase() : 'TV Series',
+          releaseYear: rand.releaseYear || (rand.firstAirDate ? parseInt(rand.firstAirDate.split('-')[0], 10) : 2024),
+          rating: rand.voteAverage ? Math.round(rand.voteAverage * 10) / 10 : 4.8,
+          language: rand.language === 'TE' ? 'Telugu' : (rand.language === 'HI' ? 'Hindi' : 'English'),
+          posterUrl: rand.posterUrl,
+          backdropUrl: rand.backdropUrl,
+          overview: rand.overview || 'Featured TV series discovered matching your format and genre preferences.',
+          tags: [gLower, 'series'],
+        };
+      }
+    } else {
+      // MOVIE or ANY
+      const movieData = await discoverMovies({
+        language,
+        genreId: withGenres,
+        sortBy: 'popularity.desc',
+        page: 1,
+      });
+
+      if (movieData && movieData.results && movieData.results.length > 0) {
+        const rand = movieData.results[Math.floor(Math.random() * Math.min(movieData.results.length, 15))];
+        return {
+          id: `tmdb-${rand.tmdbId || rand.id}`,
+          titleId: `tmdb-${rand.tmdbId || rand.id}`,
+          title: rand.title,
+          type: 'MOVIE',
+          genreId: gLower,
+          genreName: genreId !== 'all' ? genreId.toUpperCase() : 'Movie',
+          releaseYear: rand.releaseYear || (rand.releaseDate ? parseInt(rand.releaseDate.split('-')[0], 10) : 2024),
+          rating: rand.voteAverage ? Math.round(rand.voteAverage * 10) / 10 : 4.8,
+          language: rand.language === 'TE' ? 'Telugu' : (rand.language === 'HI' ? 'Hindi' : 'English'),
+          posterUrl: rand.posterUrl,
+          backdropUrl: rand.backdropUrl,
+          overview: rand.overview || 'Featured movie discovered matching your format and genre preferences.',
+          tags: [gLower, 'movie'],
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('TMDB discovery fallback failed:', err);
+  }
+
+  return null;
+}
+
 
 /**
  * Legacy wrapper
