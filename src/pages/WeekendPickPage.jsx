@@ -192,39 +192,80 @@ export default function WeekendPickPage() {
             </div>
 
             {/* Quick Actions */}
-            <div className="weekend-page-quick-actions" style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowPickModal(true)}
+            <div className="weekend-page-quick-actions" style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => setShowPickModal(true)}
+                title="Roll Random Pick"
+                style={{
+                  width: '5cm',
+                  height: '5cm',
+                  minWidth: '5cm',
+                  minHeight: '5cm',
+                  maxWidth: '100%',
+                  aspectRatio: '1 / 1',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  padding: '14px',
+                  borderRadius: 16,
+                  background: 'linear-gradient(145deg, rgba(245, 158, 11, 0.22) 0%, rgba(20, 16, 12, 0.96) 100%)',
+                  border: '2px solid rgba(250, 204, 21, 0.85)',
+                  boxShadow: '0 0 25px rgba(245, 158, 11, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.2)',
+                  cursor: 'pointer',
+                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = 'translateY(-3px) scale(1.03)';
+                  e.currentTarget.style.boxShadow = '0 0 35px rgba(245, 158, 11, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.3)';
+                  e.currentTarget.style.borderColor = '#fbbf24';
+                  const dice = e.currentTarget.querySelector('.random-pick-dice');
+                  if (dice) dice.style.transform = 'rotate(-10deg) scale(1.12)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = '0 0 25px rgba(245, 158, 11, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.2)';
+                  e.currentTarget.style.borderColor = 'rgba(250, 204, 21, 0.85)';
+                  const dice = e.currentTarget.querySelector('.random-pick-dice');
+                  if (dice) dice.style.transform = 'none';
+                }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'radial-gradient(circle at 50% 35%, rgba(245, 158, 11, 0.25) 0%, transparent 70%)',
+                  pointerEvents: 'none',
+                }} />
+                <span
+                  className="random-pick-dice"
                   style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '8px 18px',
-                    fontSize: 14,
-                    fontWeight: 800,
-                    color: '#ffffff',
-                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(201, 168, 76, 0.18) 50%, rgba(139, 92, 246, 0.2) 100%)',
-                    border: '1.5px solid rgba(250, 204, 21, 0.85)',
-                    borderRadius: 8,
-                    boxShadow: '0 0 18px rgba(245, 158, 11, 0.3)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = '0 0 24px rgba(245, 158, 11, 0.5)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.transform = 'none';
-                    e.currentTarget.style.boxShadow = '0 0 18px rgba(245, 158, 11, 0.3)';
+                    fontSize: 64,
+                    lineHeight: 1,
+                    filter: 'drop-shadow(0 4px 14px rgba(245, 158, 11, 0.5))',
+                    transition: 'transform 0.3s ease',
+                    display: 'inline-block',
                   }}
                 >
-                  <span style={{ fontSize: 22, lineHeight: 1 }}>🎲</span>
-                  <span style={{ fontFamily: 'var(--font-serif)', letterSpacing: '0.02em' }}>Random Pick</span>
-                </button>
+                  🎲
+                </span>
+                <span style={{
+                  fontFamily: 'var(--font-serif)',
+                  fontSize: 16,
+                  fontWeight: 800,
+                  letterSpacing: '0.04em',
+                  color: '#ffffff',
+                  textAlign: 'center',
+                  textShadow: '0 2px 10px rgba(0,0,0,0.8)',
+                }}>
+                  Random Pick
+                </span>
+              </button>
 
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' }}>
                 <button
                   type="button"
                   onClick={() => navigate('/weekend-winners')}
@@ -233,7 +274,6 @@ export default function WeekendPickPage() {
                 >
                   <Archive size={14} /> Winner Archive →
                 </button>
-              </div>
 
               {/* User Voting Status & Progress */}
               {userVotingProgress && (
@@ -264,6 +304,7 @@ export default function WeekendPickPage() {
           </div>
         </div>
       </div>
+    </div>
 
       {/* Main Content Area */}
       <div className="container" style={{ marginTop: 32 }}>

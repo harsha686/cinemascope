@@ -829,6 +829,95 @@ export function deleteRound(roundId) {
 }
 
 /**
+ * Add a candidate movie or series to a specific genre in a round
+ */
+export function addCandidateToRound(roundId, genreId, movieData, user = null) {
+  const rounds = getAllRounds();
+  const round = rounds.find(r => r.id === roundId) || getActiveRound();
+  if (!round) throw new Error('No active voting round found');
+
+  const genres = getGenreOptions();
+  const currentGenreObj = genres.find(g => g.id === genreId);
+  const genreRound = round.genreRounds?.[genreId] || {
+    genreId: genreId,
+    genreName: currentGenreObj?.name || genreId,
+    candidates: [],
+  };
+
+  const isSeries = !!(
+    movieData.isTv ||
+    movieData.mediaType === 'tv' ||
+    movieData.type === 'SERIES'
+  );
+
+  const rawId = String(movieData.tmdbId || movieData.id || `custom-${Date.now()}`);
+  const titleId = isSeries
+    ? (rawId.startsWith('tv-') ? rawId : `tv-${rawId}`)
+    : (rawId.startsWith('tmdb-') ? rawId.replace('tmdb-', '') : rawId);
+
+  // Avoid duplicate candidates in the same genre
+  const existingCandidates = genreRound.candidates || [];
+  const candidateTitle = (movieData.title || movieData.name || '').trim();
+  const alreadyExists = existingCandidates.some(c => 
+    String(c.titleId).toLowerCase() === String(titleId).toLowerCase() ||
+    c.title?.toLowerCase() === candidateTitle.toLowerCase()
+  );
+
+  if (alreadyExists) {
+    throw new Error(`"${candidateTitle}" is already a candidate in this genre.`);
+  }
+
+  // Parse release year
+  let releaseYear = 2024;
+  if (movieData.releaseYear) {
+    releaseYear = parseInt(movieData.releaseYear, 10) || 2024;
+  } else if (movieData.releaseDate) {
+    releaseYear = parseInt(String(movieData.releaseDate).split('-')[0], 10) || 2024;
+  } else if (movieData.firstAirDate) {
+    releaseYear = parseInt(String(movieData.firstAirDate).split('-')[0], 10) || 2024;
+  }
+
+  // Format rating (convert 10-scale to 5-scale if needed)
+  let rating = 4.8;
+  if (movieData.rating) {
+    rating = movieData.rating;
+  } else if (movieData.voteAverage) {
+    rating = Math.round((movieData.voteAverage / 2) * 10) / 10;
+  }
+
+  const newCandidate = {
+    id: `cand-${genreId}-${Date.now()}`,
+    titleId,
+    title: candidateTitle,
+    type: isSeries ? 'SERIES' : 'MOVIE',
+    isTv: isSeries,
+    releaseYear,
+    rating,
+    language: movieData.language || (movieData.originalLanguage === 'te' ? 'Telugu' : (movieData.originalLanguage === 'hi' ? 'Hindi' : 'English')),
+    posterUrl: movieData.posterUrl || '',
+    backdropUrl: movieData.backdropUrl || '',
+    overview: movieData.overview || '',
+    initialVoteSeed: 0,
+    addedByUser: true,
+    addedByUserId: user?.id || null,
+    addedByUserName: user?.name || 'Community Member',
+    addedAt: new Date().toISOString(),
+  };
+
+  const updatedCandidates = [...existingCandidates, newCandidate];
+  const updatedGenreRounds = {
+    ...(round.genreRounds || {}),
+    [genreId]: {
+      ...genreRound,
+      candidates: updatedCandidates,
+    }
+  };
+
+  const updatedRound = updateRound(round.id, { genreRounds: updatedGenreRounds });
+  return { updatedRound, newCandidate };
+}
+
+/**
  * Get all votes from storage
  */
 export function getAllVotes() {
@@ -2168,10 +2257,43 @@ export function matchesMoodHelper(item, mood) {
 }
 
 /**
+ * Helper: Smart language matching
+ */
+export function matchesLanguageHelper(item, language) {
+  if (!language || language === 'all') return true;
+  const langLower = String(language).toLowerCase();
+  const itemLang = String(item.language || '').toLowerCase();
+  const itemTags = Array.isArray(item.tags) ? item.tags.map(t => String(t).toLowerCase()) : [];
+
+  const langMap = {
+    te: ['te', 'telugu'],
+    telugu: ['te', 'telugu'],
+    hi: ['hi', 'hindi'],
+    hindi: ['hi', 'hindi'],
+    ta: ['ta', 'tamil'],
+    tamil: ['ta', 'tamil'],
+    ml: ['ml', 'malayalam'],
+    malayalam: ['ml', 'malayalam'],
+    kn: ['kn', 'kannada'],
+    kannada: ['kn', 'kannada'],
+    en: ['en', 'english'],
+    english: ['en', 'english'],
+    ko: ['ko', 'korean'],
+    korean: ['ko', 'korean'],
+    ja: ['ja', 'japanese'],
+    japanese: ['ja', 'japanese'],
+  };
+
+  const matches = langMap[langLower] || [langLower];
+  return matches.some(m => itemLang === m || itemLang.includes(m) || itemTags.includes(m));
+}
+
+/**
  * Pick a random title from ALL movies & series according to user specifications (Synchronous)
  */
 export function getRandomTitleFromAll({
   appMovies = [],
+  language = 'all',
   genreId = 'all',
   type = 'ANY', // 'ANY' | 'MOVIE' | 'SERIES'
   mood = 'any',
@@ -2260,6 +2382,16 @@ export function getRandomTitleFromAll({
     pool = pool.filter(p => String(p.type).toUpperCase() === normalizedType);
   }
 
+  // 4b. Language Filtering
+  if (language && language !== 'all') {
+    const langFiltered = pool.filter(p => matchesLanguageHelper(p, language));
+    if (langFiltered.length > 0) {
+      pool = langFiltered;
+    } else {
+      return null;
+    }
+  }
+
   if (pool.length === 0) {
     return null;
   }
@@ -2303,12 +2435,13 @@ export function getRandomTitleFromAll({
  */
 export async function getRandomTitleFromAllAsync({
   appMovies = [],
+  language = 'all',
   genreId = 'all',
   type = 'ANY', // 'ANY' | 'MOVIE' | 'SERIES'
   mood = 'any',
 } = {}) {
   // First attempt: local enriched pool
-  const localPick = getRandomTitleFromAll({ appMovies, genreId, type, mood });
+  const localPick = getRandomTitleFromAll({ appMovies, language, genreId, type, mood });
   if (localPick) {
     return localPick;
   }
@@ -2317,14 +2450,23 @@ export async function getRandomTitleFromAllAsync({
   try {
     const targetType = String(type || 'ANY').toUpperCase();
     const gLower = String(genreId || 'all').toLowerCase();
+    const lLower = String(language || 'all').toLowerCase();
 
-    // Map genre to TMDB parameters
-    let language = null;
-    if (gLower === 'telugu') language = 'te';
-    else if (gLower === 'hindi') language = 'hi';
-    else if (gLower === 'tamil') language = 'ta';
-    else if (gLower === 'korean') language = 'ko';
-    else if (gLower === 'japanese') language = 'ja';
+    // Map language to TMDB parameters
+    let tmdbLang = null;
+    if (lLower === 'te' || lLower === 'telugu') tmdbLang = 'te';
+    else if (lLower === 'hi' || lLower === 'hindi') tmdbLang = 'hi';
+    else if (lLower === 'ta' || lLower === 'tamil') tmdbLang = 'ta';
+    else if (lLower === 'ml' || lLower === 'malayalam') tmdbLang = 'ml';
+    else if (lLower === 'kn' || lLower === 'kannada') tmdbLang = 'kn';
+    else if (lLower === 'en' || lLower === 'english') tmdbLang = 'en';
+    else if (lLower === 'ko' || lLower === 'korean') tmdbLang = 'ko';
+    else if (lLower === 'ja' || lLower === 'japanese') tmdbLang = 'ja';
+    else if (gLower === 'telugu') tmdbLang = 'te';
+    else if (gLower === 'hindi') tmdbLang = 'hi';
+    else if (gLower === 'tamil') tmdbLang = 'ta';
+    else if (gLower === 'korean') tmdbLang = 'ko';
+    else if (gLower === 'japanese') tmdbLang = 'ja';
 
     const genreIdMap = {
       action: targetType === 'SERIES' ? 10759 : 28,
@@ -2340,11 +2482,11 @@ export async function getRandomTitleFromAllAsync({
 
     if (targetType === 'SERIES') {
       let tvData;
-      if (language === 'te') {
+      if (tmdbLang === 'te') {
         tvData = await fetchTeluguTv(1);
       } else {
         tvData = await discoverTv({
-          language,
+          language: tmdbLang,
           with_genres: withGenres,
           sortBy: 'popularity.desc',
           page: 1,
@@ -2372,7 +2514,7 @@ export async function getRandomTitleFromAllAsync({
     } else {
       // MOVIE or ANY
       const movieData = await discoverMovies({
-        language,
+        language: tmdbLang,
         genreId: withGenres,
         sortBy: 'popularity.desc',
         page: 1,
