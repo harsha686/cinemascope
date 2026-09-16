@@ -695,7 +695,7 @@ export default function WeekendRecommendationHero() {
                 </h3>
 
                 {/* Stats row */}
-                <div className="spotlight-stats-row" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, fontSize: 12, color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                <div className="spotlight-stats-row" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, fontSize: 12, color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--gold)', fontWeight: 600 }}>
                     <Star size={13} fill="var(--gold)" color="var(--gold)" />
                     <span>{winner.communityScore ? `${winner.communityScore}% Community Score` : '4.8 rating'}</span>
@@ -707,20 +707,6 @@ export default function WeekendRecommendationHero() {
                     {isLeading ? `Leading in ${winner.genreName || genreObj.name}` : `Crowned in ${winner.genreName || genreObj.name}`}
                   </span>
                 </div>
-
-                <p style={{
-                  fontSize: 12,
-                  color: 'var(--text-muted)',
-                  lineHeight: 1.55,
-                  marginBottom: 16,
-                  maxWidth: 680,
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                }}>
-                  {winner.overview || 'Voted by the community as the standout pick for this weekend. Verified and recommended by Cinemascope.'}
-                </p>
 
                 {/* Action Bar */}
                 <div className="spotlight-actions-row" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
