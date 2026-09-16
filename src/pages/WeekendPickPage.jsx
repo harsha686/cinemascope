@@ -12,6 +12,7 @@ import {
   Lock,
   ArrowRight,
   Info,
+  Plus,
 } from 'lucide-react';
 import {
   getActiveRound,
@@ -32,6 +33,7 @@ import CandidateVoteCard from '../components/weekend/CandidateVoteCard';
 import PickMyWeekendModal from '../components/weekend/PickMyWeekendModal';
 import SocialShareModal from '../components/weekend/SocialShareModal';
 import WeekendWinnerBadge from '../components/weekend/WeekendWinnerBadge';
+import UserAddCandidateModal from '../components/weekend/UserAddCandidateModal';
 
 export default function WeekendPickPage() {
   const navigate = useNavigate();
@@ -42,6 +44,7 @@ export default function WeekendPickPage() {
   const [activeRound, setActiveRound] = useState(() => getActiveRound());
   const [selectedGenre, setSelectedGenre] = useState(() => getGenreOptions()[0]?.id || 'action');
   const [showPickModal, setShowPickModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [shareModalData, setShareModalData] = useState(null);
   const [voteConfirmationMsg, setVoteConfirmationMsg] = useState('');
 
@@ -438,23 +441,42 @@ export default function WeekendPickPage() {
             </p>
           </div>
 
-          {userVote && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              background: 'var(--gold-faint)',
-              border: '1px solid var(--gold)',
-              padding: '6px 14px',
-              borderRadius: 20,
-              fontSize: 11,
-              color: 'var(--gold)',
-              fontWeight: 600,
-            }}>
-              <Check size={13} />
-              <span>Your Choice: <strong>{userVote.title}</strong></span>
-            </div>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {userVote && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                background: 'var(--gold-faint)',
+                border: '1px solid var(--gold)',
+                padding: '6px 14px',
+                borderRadius: 20,
+                fontSize: 11,
+                color: 'var(--gold)',
+                fontWeight: 600,
+              }}>
+                <Check size={13} />
+                <span>Your Choice: <strong>{userVote.title}</strong></span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className="btn btn-outline btn-sm"
+              style={{
+                fontSize: 12,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                borderColor: 'rgba(212, 175, 55, 0.4)',
+                color: 'var(--gold)',
+                background: 'rgba(212, 175, 55, 0.05)',
+              }}
+            >
+              <Plus size={14} /> Add Movie / Series
+            </button>
+          </div>
         </div>
 
         {/* Candidates Grid */}
@@ -470,9 +492,17 @@ export default function WeekendPickPage() {
             <h3 style={{ fontFamily: 'var(--font-serif)', color: 'var(--text-secondary)' }}>
               No candidates in {genreObj.name} for this round
             </h3>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              Check out other active genres or pick from the winner archive.
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
+              Be the first to nominate a movie or series to compete in this genre!
             </p>
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className="btn btn-primary btn-sm"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <Plus size={14} /> Add First Movie to {genreObj.name}
+            </button>
           </div>
         ) : (
           <div className="weekend-candidates-grid" style={{
@@ -493,6 +523,91 @@ export default function WeekendPickPage() {
                 rank={idx + 1}
               />
             ))}
+
+            {/* "Add Movie / Series" Card at the end of every genre */}
+            <div
+              onClick={() => setShowAddModal(true)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '2px dashed rgba(212, 175, 55, 0.35)',
+                borderRadius: 6,
+                padding: '32px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center',
+                cursor: 'pointer',
+                minHeight: 340,
+                transition: 'all 200ms ease',
+                position: 'relative',
+                boxShadow: 'inset 0 0 24px rgba(212, 175, 55, 0.03)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--gold)';
+                e.currentTarget.style.background = 'rgba(212, 175, 55, 0.06)';
+                e.currentTarget.style.transform = 'translateY(-3px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.35)';
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              <div
+                style={{
+                  width: 54,
+                  height: 54,
+                  borderRadius: '50%',
+                  background: 'rgba(212, 175, 55, 0.12)',
+                  border: '1px solid rgba(212, 175, 55, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--gold)',
+                  marginBottom: 16,
+                  boxShadow: '0 0 16px rgba(212, 175, 55, 0.15)',
+                }}
+              >
+                <Plus size={26} />
+              </div>
+              <div
+                style={{
+                  fontFamily: 'var(--font-serif)',
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: 'var(--gold)',
+                  marginBottom: 6,
+                }}
+              >
+                Add Movie or Series
+              </div>
+              <p
+                style={{
+                  fontSize: 12,
+                  color: 'var(--text-muted)',
+                  margin: '0 0 18px',
+                  maxWidth: 220,
+                  lineHeight: 1.4,
+                }}
+              >
+                Nominate any movie or series to compete in <strong>{genreObj.name}</strong> this weekend
+              </p>
+              <span
+                className="btn btn-outline btn-sm"
+                style={{
+                  fontSize: 11,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  pointerEvents: 'none',
+                  borderColor: 'rgba(212, 175, 55, 0.4)',
+                  color: 'var(--gold)',
+                }}
+              >
+                <Plus size={13} /> Nominate Contender
+              </span>
+            </div>
           </div>
         )}
 
@@ -584,6 +699,19 @@ export default function WeekendPickPage() {
           isOpen={!!shareModalData}
           onClose={() => setShareModalData(null)}
           {...shareModalData}
+        />
+      )}
+
+      {/* User Add Candidate Modal */}
+      {activeRound && (
+        <UserAddCandidateModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          roundId={activeRound.id}
+          genreId={selectedGenre}
+          genreName={genreObj.name}
+          existingCandidates={genreResults?.candidates || []}
+          onCandidateAdded={() => reloadRoundData()}
         />
       )}
     </div>
