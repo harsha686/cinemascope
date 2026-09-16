@@ -364,48 +364,8 @@ export default function DiscoverPage() {
             })}
           </div>
 
-          {/* Desktop Filter Dropdowns */}
-          <div className="desktop-filters" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-            <select 
-              className="input" 
-              style={{ width: 'auto', minWidth: '125px', background: '#18140e', color: '#ffffff', padding: '5px 10px', fontSize: '12px' }}
-              value={activeSort}
-              onChange={(e) => updateFilter('sort', e.target.value)}
-            >
-              {sorts.map(s => <option key={s.val} value={s.val} style={{ background: '#18140e', color: '#ffffff' }}>{s.label}</option>)}
-            </select>
-
-            <select 
-              className="input" 
-              style={{ width: 'auto', minWidth: '125px', background: '#18140e', color: '#ffffff', padding: '5px 10px', fontSize: '12px' }}
-              value={activeGenre}
-              onChange={(e) => updateFilter('genre', e.target.value)}
-            >
-              <option value="" style={{ background: '#18140e', color: '#ffffff' }}>All Genres</option>
-              {genres.map(g => <option key={g.id} value={g.id} style={{ background: '#18140e', color: '#ffffff' }}>{g.name}</option>)}
-            </select>
-
-            <select 
-              className="input" 
-              style={{ width: 'auto', minWidth: '120px', background: '#18140e', color: '#ffffff', padding: '5px 10px', fontSize: '12px' }}
-              value={activeLang}
-              onChange={(e) => updateFilter('language', e.target.value)}
-            >
-              {languages.map(l => <option key={l.code} value={l.code} style={{ background: '#18140e', color: '#ffffff' }}>{l.label}</option>)}
-            </select>
-
-            <select 
-              className="input" 
-              style={{ width: 'auto', minWidth: '110px', background: '#18140e', color: '#ffffff', padding: '5px 10px', fontSize: '12px' }}
-              value={activeDecade}
-              onChange={(e) => updateFilter('decade', e.target.value)}
-            >
-              {decades.map(d => <option key={d.val} value={d.val} style={{ background: '#18140e', color: '#ffffff' }}>{d.label}</option>)}
-            </select>
-          </div>
-
-          {/* Mobile Filter Button trigger */}
-          <div className="mobile-filter-trigger" style={{ display: 'none' }}>
+          {/* All-in-One Filter Menu Trigger & Active Filter Tags */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <button
               type="button"
               onClick={() => setFilterDrawerOpen(true)}
@@ -413,26 +373,32 @@ export default function DiscoverPage() {
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '7px',
                 fontSize: '12px',
-                padding: '5px 12px',
+                padding: '6px 14px',
+                background: activeFilterCount > 0 ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
                 borderColor: activeFilterCount > 0 ? 'var(--gold)' : 'var(--border-subtle)',
                 color: activeFilterCount > 0 ? 'var(--gold)' : 'var(--text-primary)',
+                fontFamily: 'var(--font-serif)',
+                fontWeight: 600,
+                letterSpacing: '0.04em',
+                borderRadius: 'var(--radius-sm)',
+                transition: 'all var(--transition-fast)',
               }}
             >
-              <SlidersHorizontal size={13} />
+              <SlidersHorizontal size={14} color={activeFilterCount > 0 ? 'var(--gold)' : 'currentColor'} />
               <span>Filters</span>
               {activeFilterCount > 0 && (
                 <span
                   style={{
                     backgroundColor: 'var(--gold)',
-                    color: 'var(--bg-primary)',
-                    borderRadius: '50%',
-                    width: '18px',
-                    height: '18px',
+                    color: '#000000',
+                    borderRadius: '10px',
+                    padding: '0 6px',
                     fontSize: '10px',
-                    fontWeight: 700,
-                    display: 'flex',
+                    fontWeight: 800,
+                    height: '18px',
+                    display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
@@ -441,17 +407,127 @@ export default function DiscoverPage() {
                 </span>
               )}
             </button>
-          </div>
 
-          {hasFilters && (
-            <button 
-              className="btn btn-ghost btn-sm"
-              onClick={resetAllFilters}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--gold)', fontSize: '12px', padding: '4px 8px' }}
-            >
-              <X size={14} /> Clear
-            </button>
-          )}
+            {/* Active Filter Chips for instant visibility & 1-click removal */}
+            {activeGenre && (
+              <span
+                className="badge"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '11px',
+                  padding: '4px 8px',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-secondary)',
+                  borderRadius: 'var(--radius-sm)',
+                }}
+              >
+                {genres.find(g => String(g.id) === String(activeGenre))?.name || 'Genre'}
+                <button
+                  type="button"
+                  onClick={() => updateFilter('genre', '')}
+                  style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', color: 'var(--text-muted)' }}
+                  title="Remove genre filter"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {activeLang && (
+              <span
+                className="badge"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '11px',
+                  padding: '4px 8px',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-secondary)',
+                  borderRadius: 'var(--radius-sm)',
+                }}
+              >
+                {languages.find(l => l.code === activeLang)?.label || 'Language'}
+                <button
+                  type="button"
+                  onClick={() => updateFilter('language', '')}
+                  style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', color: 'var(--text-muted)' }}
+                  title="Remove language filter"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {activeDecade && (
+              <span
+                className="badge"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '11px',
+                  padding: '4px 8px',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-secondary)',
+                  borderRadius: 'var(--radius-sm)',
+                }}
+              >
+                {decades.find(d => d.val === activeDecade)?.label || 'Decade'}
+                <button
+                  type="button"
+                  onClick={() => updateFilter('decade', '')}
+                  style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', color: 'var(--text-muted)' }}
+                  title="Remove decade filter"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {activeSort && activeSort !== 'popularity.desc' && (
+              <span
+                className="badge"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '11px',
+                  padding: '4px 8px',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-secondary)',
+                  borderRadius: 'var(--radius-sm)',
+                }}
+              >
+                {sorts.find(s => s.val === activeSort)?.label || 'Sort'}
+                <button
+                  type="button"
+                  onClick={() => updateFilter('sort', 'popularity.desc')}
+                  style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', color: 'var(--text-muted)' }}
+                  title="Reset sort order"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {hasFilters && (
+              <button 
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={resetAllFilters}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--gold)', fontSize: '12px', padding: '4px 8px' }}
+              >
+                <X size={13} /> Clear All
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -592,13 +668,6 @@ export default function DiscoverPage() {
         onUpdateFilter={updateFilter}
         onResetFilters={resetAllFilters}
       />
-
-      <style>{`
-        @media (max-width: 768px) {
-          .desktop-filters { display: none !important; }
-          .mobile-filter-trigger { display: block !important; }
-        }
-      `}</style>
     </div>
   );
 }

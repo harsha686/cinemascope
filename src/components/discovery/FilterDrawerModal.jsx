@@ -21,33 +21,55 @@ export default function FilterDrawerModal({
 
   return createPortal(
     <div
+      className="filter-modal-backdrop"
       style={{
         position: 'fixed',
         inset: 0,
         zIndex: 2500,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        backgroundColor: 'rgba(0, 0, 0, 0.82)',
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
         display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'flex-end',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+        animation: 'fadeIn 180ms ease',
       }}
-      onClick={onClose}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
+        className="filter-modal-container"
         style={{
           backgroundColor: 'var(--bg-card)',
-          borderTop: '1px solid var(--border)',
-          borderTopLeftRadius: 'var(--radius-lg)',
-          borderTopRightRadius: 'var(--radius-lg)',
-          maxHeight: '85vh',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-sm)',
+          maxWidth: '520px',
+          width: '100%',
+          maxHeight: '88vh',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          boxShadow: '0 -10px 40px rgba(0,0,0,0.9)',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.85)',
+          position: 'relative',
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        <style>{`
+          @media (max-width: 640px) {
+            .filter-modal-backdrop {
+              align-items: flex-end !important;
+              padding: 0 !important;
+            }
+            .filter-modal-container {
+              max-width: 100% !important;
+              border-radius: 16px 16px 0 0 !important;
+              border-bottom: none !important;
+              max-height: 85vh !important;
+            }
+          }
+        `}</style>
         {/* Header */}
         <div
           style={{
@@ -56,6 +78,7 @@ export default function FilterDrawerModal({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            background: 'rgba(255, 255, 255, 0.02)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -71,6 +94,32 @@ export default function FilterDrawerModal({
             >
               Filter & Sort
             </h3>
+            {([
+              activeGenre,
+              activeLang,
+              activeDecade,
+              activeSort && activeSort !== 'popularity.desc',
+              activeType && activeType !== 'all',
+            ].filter(Boolean).length > 0) && (
+              <span
+                style={{
+                  backgroundColor: 'var(--gold)',
+                  color: '#000000',
+                  borderRadius: '10px',
+                  padding: '1px 7px',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                }}
+              >
+                {[
+                  activeGenre,
+                  activeLang,
+                  activeDecade,
+                  activeSort && activeSort !== 'popularity.desc',
+                  activeType && activeType !== 'all',
+                ].filter(Boolean).length}
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button

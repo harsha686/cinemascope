@@ -188,25 +188,41 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
         {/* Modal Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
           <div style={{
-            width: 44,
-            height: 44,
+            width: 48,
+            height: 48,
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, rgba(201,168,76,0.2) 0%, rgba(201,168,76,0.05) 100%)',
-            border: '1px solid var(--gold)',
+            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+            border: '2px solid rgba(250, 204, 21, 0.8)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'var(--gold)',
-            fontSize: 20,
+            fontSize: 24,
+            boxShadow: '0 0 20px rgba(245, 158, 11, 0.4)',
+            flexShrink: 0,
           }}>
             🎲
           </div>
           <div>
-            <div style={{ fontSize: 10, fontFamily: 'var(--font-serif)', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--gold)' }}>
-              CinemaScope Discovery
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+              <span style={{ fontSize: 10, fontFamily: 'var(--font-serif)', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--gold)' }}>
+                CinemaScope Discovery
+              </span>
+              <span style={{
+                fontSize: 9,
+                fontWeight: 800,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                padding: '2px 7px',
+                borderRadius: 10,
+                background: 'linear-gradient(90deg, #f59e0b, #eab308)',
+                color: '#000000',
+                boxShadow: '0 0 8px rgba(245, 158, 11, 0.4)',
+              }}>
+                ⭐ BEST FEATURE
+              </span>
             </div>
             <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--text-primary)', margin: 0 }}>
-              Random Movie / Series
+              Random Movie & Series Roulette
             </h3>
           </div>
         </div>

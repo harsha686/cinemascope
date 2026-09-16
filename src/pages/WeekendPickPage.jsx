@@ -129,6 +129,10 @@ export default function WeekendPickPage() {
 
   const genreObj = genres.find(g => g.id === selectedGenre) || genres[0] || { id: selectedGenre, name: selectedGenre, emoji: '🎬' };
 
+  const userVotingProgress = (currentUser && activeRound)
+    ? getUserVotedGenresCount(currentUser.id, activeRound.id)
+    : null;
+
   return (
     <div className="page-enter" style={{ minHeight: '90vh', paddingBottom: 60 }}>
       {/* Top Hero Banner */}
@@ -189,14 +193,50 @@ export default function WeekendPickPage() {
 
             {/* Quick Actions */}
             <div className="weekend-page-quick-actions" style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => setShowPickModal(true)}
-                  className="btn btn-outline btn-sm"
-                  style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px 16px',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: '#ffffff',
+                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.22) 0%, rgba(201, 168, 76, 0.15) 50%, rgba(168, 85, 247, 0.2) 100%)',
+                    border: '1.5px solid rgba(250, 204, 21, 0.75)',
+                    borderRadius: 8,
+                    boxShadow: '0 0 16px rgba(245, 158, 11, 0.25)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 0 22px rgba(245, 158, 11, 0.45)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'none';
+                    e.currentTarget.style.boxShadow = '0 0 16px rgba(245, 158, 11, 0.25)';
+                  }}
                 >
-                  <Dices size={14} /> 🎲 Random Movie
+                  <span style={{ fontSize: 16 }}>🎲</span>
+                  <span>Random Movie</span>
+                  <span style={{
+                    fontSize: 9,
+                    fontWeight: 800,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    padding: '2px 7px',
+                    borderRadius: 10,
+                    background: 'linear-gradient(90deg, #f59e0b, #eab308)',
+                    color: '#000000',
+                    marginLeft: 2,
+                    boxShadow: '0 0 8px rgba(245, 158, 11, 0.4)',
+                  }}>
+                    ⭐ BEST FEATURE
+                  </span>
                 </button>
 
                 <button
@@ -210,33 +250,30 @@ export default function WeekendPickPage() {
               </div>
 
               {/* User Voting Status & Progress */}
-              {currentUser && activeRound && (() => {
-                const progress = getUserVotedGenresCount(currentUser.id, activeRound.id);
-                return (
-                  <div style={{
-                    fontSize: 11,
-                    color: progress.isComplete ? '#4ade80' : 'var(--text-secondary)',
-                    background: progress.isComplete ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.04)',
-                    padding: '6px 14px',
-                    borderRadius: 20,
-                    border: `1px solid ${progress.isComplete ? '#4ade80' : 'var(--border-subtle)'}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}>
-                    {progress.isComplete ? (
-                      <>
-                        <Check size={12} />
-                        <span>All {progress.totalGenres} genres voted! <strong>Weekend Pick Unlocked 🏆</strong></span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Voted in <strong style={{ color: 'var(--gold)' }}>{progress.votedCount}</strong> of {progress.totalGenres} genres ({progress.remainingCount} left to unlock full standings)</span>
-                      </>
-                    )}
-                  </div>
-                );
-              })()}
+              {userVotingProgress && (
+                <div style={{
+                  fontSize: 11,
+                  color: userVotingProgress.isComplete ? '#4ade80' : 'var(--text-secondary)',
+                  background: userVotingProgress.isComplete ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.04)',
+                  padding: '6px 14px',
+                  borderRadius: 20,
+                  border: `1px solid ${userVotingProgress.isComplete ? '#4ade80' : 'var(--border-subtle)'}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}>
+                  {userVotingProgress.isComplete ? (
+                    <>
+                      <Check size={12} />
+                      <span>All {userVotingProgress.totalGenres} genres voted! <strong>Weekend Pick Unlocked 🏆</strong></span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Voted in <strong style={{ color: 'var(--gold)' }}>{userVotingProgress.votedCount}</strong> of {userVotingProgress.totalGenres} genres ({userVotingProgress.remainingCount} left to unlock full standings)</span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
