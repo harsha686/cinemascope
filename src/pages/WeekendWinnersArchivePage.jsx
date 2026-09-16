@@ -281,43 +281,29 @@ export default function WeekendWinnersArchivePage() {
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 8,
-                  padding: '7px 16px',
-                  fontSize: 13,
-                  fontWeight: 700,
+                  gap: 10,
+                  padding: '8px 18px',
+                  fontSize: 14,
+                  fontWeight: 800,
                   color: '#ffffff',
-                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.22) 0%, rgba(201, 168, 76, 0.15) 50%, rgba(168, 85, 247, 0.2) 100%)',
-                  border: '1.5px solid rgba(250, 204, 21, 0.75)',
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(201, 168, 76, 0.18) 50%, rgba(139, 92, 246, 0.2) 100%)',
+                  border: '1.5px solid rgba(250, 204, 21, 0.85)',
                   borderRadius: 8,
-                  boxShadow: '0 0 16px rgba(245, 158, 11, 0.25)',
+                  boxShadow: '0 0 18px rgba(245, 158, 11, 0.3)',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
                 }}
                 onMouseEnter={e => {
                   e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 0 22px rgba(245, 158, 11, 0.45)';
+                  e.currentTarget.style.boxShadow = '0 0 24px rgba(245, 158, 11, 0.5)';
                 }}
                 onMouseLeave={e => {
                   e.currentTarget.style.transform = 'none';
-                  e.currentTarget.style.boxShadow = '0 0 16px rgba(245, 158, 11, 0.25)';
+                  e.currentTarget.style.boxShadow = '0 0 18px rgba(245, 158, 11, 0.3)';
                 }}
               >
-                <span style={{ fontSize: 16 }}>🎲</span>
-                <span>Random Movie</span>
-                <span style={{
-                  fontSize: 9,
-                  fontWeight: 800,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  padding: '2px 7px',
-                  borderRadius: 10,
-                  background: 'linear-gradient(90deg, #f59e0b, #eab308)',
-                  color: '#000000',
-                  marginLeft: 2,
-                  boxShadow: '0 0 8px rgba(245, 158, 11, 0.4)',
-                }}>
-                  ⭐ BEST FEATURE
-                </span>
+                <span style={{ fontSize: 22, lineHeight: 1 }}>🎲</span>
+                <span style={{ fontFamily: 'var(--font-serif)', letterSpacing: '0.02em' }}>Random Pick</span>
               </button>
               <button
                 type="button"

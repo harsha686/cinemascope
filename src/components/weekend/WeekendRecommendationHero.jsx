@@ -300,55 +300,33 @@ export default function WeekendRecommendationHero() {
           <button
             type="button"
             onClick={() => setShowPickModal(true)}
-            className="weekend-hero-btn weekend-random-best-feature-btn"
+            className="weekend-hero-btn"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 8,
-              padding: '7px 16px',
-              fontSize: 13,
-              fontWeight: 700,
+              gap: 10,
+              padding: '8px 18px',
+              fontSize: 14,
+              fontWeight: 800,
               color: '#ffffff',
-              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.22) 0%, rgba(201, 168, 76, 0.15) 50%, rgba(168, 85, 247, 0.2) 100%)',
-              border: '1.5px solid rgba(250, 204, 21, 0.75)',
+              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(201, 168, 76, 0.18) 50%, rgba(139, 92, 246, 0.2) 100%)',
+              border: '1.5px solid rgba(250, 204, 21, 0.85)',
               borderRadius: 8,
-              boxShadow: '0 0 16px rgba(245, 158, 11, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.2)',
+              boxShadow: '0 0 18px rgba(245, 158, 11, 0.3)',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
-              letterSpacing: '0.02em',
             }}
             onMouseEnter={e => {
               e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = '0 0 22px rgba(245, 158, 11, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.3)';
+              e.currentTarget.style.boxShadow = '0 0 24px rgba(245, 158, 11, 0.5)';
             }}
             onMouseLeave={e => {
               e.currentTarget.style.transform = 'none';
-              e.currentTarget.style.boxShadow = '0 0 16px rgba(245, 158, 11, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.2)';
+              e.currentTarget.style.boxShadow = '0 0 18px rgba(245, 158, 11, 0.3)';
             }}
           >
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 15,
-            }}>
-              🎲
-            </span>
-            <span>Random Movie</span>
-            <span style={{
-              fontSize: 9,
-              fontWeight: 800,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              padding: '2px 7px',
-              borderRadius: 10,
-              background: 'linear-gradient(90deg, #f59e0b, #eab308)',
-              color: '#000000',
-              marginLeft: 2,
-              boxShadow: '0 0 8px rgba(245, 158, 11, 0.4)',
-            }}>
-              ⭐ BEST FEATURE
-            </span>
+            <span style={{ fontSize: 22, lineHeight: 1 }}>🎲</span>
+            <span style={{ fontFamily: 'var(--font-serif)', letterSpacing: '0.02em' }}>Random Pick</span>
           </button>
 
           <button
@@ -360,120 +338,6 @@ export default function WeekendRecommendationHero() {
             <Trophy size={14} /> Vote in This Weekend's Poll →
           </button>
         </div>
-      </div>
-
-      {/* BEST FEATURE: Prominent Spotlight Banner */}
-      <div
-        className="weekend-random-spotlight-banner"
-        style={{
-          margin: '18px 0 24px',
-          padding: '16px 20px',
-          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.16) 0%, rgba(201, 168, 76, 0.08) 40%, rgba(20, 16, 12, 0.95) 100%)',
-          border: '1.5px solid rgba(245, 158, 11, 0.45)',
-          borderRadius: 12,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 14,
-          boxShadow: '0 8px 30px rgba(245, 158, 11, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Glow ambient background */}
-        <div style={{
-          position: 'absolute',
-          right: -20,
-          top: -30,
-          width: 140,
-          height: 140,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(245, 158, 11, 0.25) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 260, flex: 1 }}>
-          <div style={{
-            width: 48,
-            height: 48,
-            borderRadius: 12,
-            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 18px rgba(245, 158, 11, 0.4)',
-            fontSize: 24,
-            flexShrink: 0,
-          }}>
-            🎲
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-              <span style={{
-                fontSize: 10,
-                fontFamily: 'var(--font-serif)',
-                fontWeight: 800,
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-                padding: '2px 8px',
-                borderRadius: 12,
-                background: 'linear-gradient(90deg, #f59e0b, #eab308)',
-                color: '#000000',
-                boxShadow: '0 0 10px rgba(245, 158, 11, 0.5)',
-              }}>
-                ⭐ BEST FEATURE
-              </span>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                Can't decide what to watch tonight?
-              </span>
-            </div>
-            <div style={{
-              fontFamily: 'var(--font-serif)',
-              fontSize: 'clamp(15px, 2.5vw, 18px)',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              letterSpacing: '0.02em',
-            }}>
-              Random Movie & TV Series Roulette
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-              Roll by mood (⚡ Adrenaline, 😂 Comedy, 🌙 Horror), format, or genre with instant OTT streaming links.
-            </div>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setShowPickModal(true)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '12px 24px',
-            fontSize: 14,
-            fontWeight: 800,
-            color: '#000000',
-            background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%)',
-            border: 'none',
-            borderRadius: 8,
-            cursor: 'pointer',
-            boxShadow: '0 4px 20px rgba(245, 158, 11, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.4)',
-            transition: 'all 0.2s ease',
-            whiteSpace: 'nowrap',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
-            e.currentTarget.style.boxShadow = '0 6px 26px rgba(245, 158, 11, 0.6)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.transform = 'none';
-            e.currentTarget.style.boxShadow = '0 4px 20px rgba(245, 158, 11, 0.4)';
-          }}
-        >
-          <Dices size={18} />
-          <span>Roll Random Pick Now →</span>
-        </button>
       </div>
 
       {/* Winner Spotlight Card or Vote-Gated Teaser */}

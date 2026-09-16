@@ -207,22 +207,9 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
               <span style={{ fontSize: 10, fontFamily: 'var(--font-serif)', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--gold)' }}>
                 CinemaScope Discovery
               </span>
-              <span style={{
-                fontSize: 9,
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                padding: '2px 7px',
-                borderRadius: 10,
-                background: 'linear-gradient(90deg, #f59e0b, #eab308)',
-                color: '#000000',
-                boxShadow: '0 0 8px rgba(245, 158, 11, 0.4)',
-              }}>
-                ⭐ BEST FEATURE
-              </span>
             </div>
             <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--text-primary)', margin: 0 }}>
-              Random Movie & Series Roulette
+              Random Pick Roulette
             </h3>
           </div>
         </div>
