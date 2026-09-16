@@ -10,14 +10,16 @@ import {
 import { toggleWatchlist, toggleFavorite, getMovieStatusSync } from '../../services/movieLibraryService';
 import { useApp } from '../../AppContext';
 
-const MOODS = [
-  { id: 'any', label: 'Any Vibe', emoji: '✨' },
-  { id: 'hyped', label: 'Adrenaline / High Energy', emoji: '⚡', preferredGenre: 'action' },
-  { id: 'laugh', label: 'Need a Good Laugh', emoji: '😂', preferredGenre: 'comedy' },
-  { id: 'spooky', label: 'Dark & Chilling', emoji: '🌙', preferredGenre: 'horror' },
-  { id: 'mindblown', label: 'Mind-Bending & Epic', emoji: '🌌', preferredGenre: 'scifi' },
-  { id: 'edge', label: 'Edge of My Seat', emoji: '🔥', preferredGenre: 'thriller' },
-  { id: 'cozy', label: 'Warm & Emotional', emoji: '☕', preferredGenre: 'romance' },
+const LANGUAGES = [
+  { id: 'all', label: 'All Languages', emoji: '🌐' },
+  { id: 'te', label: 'Telugu', emoji: '🎬' },
+  { id: 'hi', label: 'Hindi', emoji: '🎭' },
+  { id: 'ta', label: 'Tamil', emoji: '🎪' },
+  { id: 'ml', label: 'Malayalam', emoji: '🌴' },
+  { id: 'kn', label: 'Kannada', emoji: '🌟' },
+  { id: 'en', label: 'English', emoji: '🗽' },
+  { id: 'ko', label: 'Korean', emoji: '🇰🇷' },
+  { id: 'ja', label: 'Japanese', emoji: '🇯🇵' },
 ];
 
 export default function PickMyWeekendModal({ isOpen, onClose }) {
@@ -26,8 +28,8 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
   const currentUser = state.currentUser;
 
   const [genres, setGenres] = useState(() => getGenreOptions());
+  const [selectedLanguage, setSelectedLanguage] = useState('all');
   const [selectedGenre, setSelectedGenre] = useState('all');
-  const [selectedMood, setSelectedMood] = useState('any');
   const [selectedType, setSelectedType] = useState('ANY'); // ANY | MOVIE | SERIES
   const [result, setResult] = useState(null);
   const [isSpinning, setIsSpinning] = useState(false);
@@ -37,6 +39,8 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
   useEffect(() => {
     if (isOpen) {
       setGenres(getGenreOptions());
+      setSelectedLanguage('all');
+      setSelectedGenre('all');
       setResult(null);
       setIsSpinning(false);
       setNoMatchNotice(null);
@@ -72,6 +76,11 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
+  const cleanGenres = genres.filter(g => {
+    const name = String(g.name || g.id).toLowerCase();
+    return !['telugu', 'hindi', 'tamil', 'malayalam', 'kannada', 'english', 'korean', 'japanese'].includes(name);
+  });
+
   const handleGenerate = async () => {
     setIsSpinning(true);
     setNoMatchNotice(null);
@@ -79,15 +88,17 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
     try {
       const pick = await getRandomTitleFromAllAsync({
         appMovies: state.movies,
+        language: selectedLanguage,
         genreId: selectedGenre,
-        mood: selectedMood,
         type: selectedType,
       });
 
       if (!pick) {
         const gObj = genres.find(g => g.id === selectedGenre);
+        const lObj = LANGUAGES.find(l => l.id === selectedLanguage);
         setNoMatchNotice({
-          genre: gObj?.name || selectedGenre,
+          language: lObj?.label || (selectedLanguage !== 'all' ? selectedLanguage : null),
+          genre: gObj?.name || (selectedGenre !== 'all' ? selectedGenre : null),
           type: selectedType === 'SERIES' ? 'TV Series' : (selectedType === 'MOVIE' ? 'Movies' : 'Titles'),
         });
         setResult(null);
@@ -98,15 +109,16 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
       console.error('Error picking random title:', err);
       const syncPick = getRandomTitleFromAll({
         appMovies: state.movies,
+        language: selectedLanguage,
         genreId: selectedGenre,
-        mood: selectedMood,
         type: selectedType,
       });
       if (syncPick) {
         setResult(syncPick);
       } else {
         setNoMatchNotice({
-          genre: selectedGenre,
+          language: selectedLanguage !== 'all' ? selectedLanguage : null,
+          genre: selectedGenre !== 'all' ? selectedGenre : null,
           type: selectedType,
         });
       }
@@ -254,10 +266,45 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
               </div>
             </div>
 
-            {/* Genre selector */}
+            {/* 2. Language Preference */}
             <div>
               <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-                2. Genre Preference
+                2. Language Preference
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {LANGUAGES.map(l => {
+                  const isSelected = selectedLanguage === l.id;
+                  return (
+                    <button
+                      key={l.id}
+                      type="button"
+                      onClick={() => setSelectedLanguage(l.id)}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: 11,
+                        background: isSelected ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
+                        border: `1px solid ${isSelected ? 'var(--gold)' : 'var(--border-subtle)'}`,
+                        borderRadius: 20,
+                        color: isSelected ? 'var(--gold)' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span>{l.emoji}</span>
+                      <span>{l.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3. Genre Preference */}
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                3. Genre Preference
               </label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 <button
@@ -271,11 +318,16 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                     borderRadius: 20,
                     color: selectedGenre === 'all' ? 'var(--gold)' : 'var(--text-secondary)',
                     cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  🎲 All Genres
+                  <span>🎲</span>
+                  <span>All Genres</span>
                 </button>
-                {genres.map(g => (
+                {cleanGenres.map(g => (
                   <button
                     key={g.id}
                     type="button"
@@ -288,46 +340,16 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                       borderRadius: 20,
                       color: selectedGenre === g.id ? 'var(--gold)' : 'var(--text-secondary)',
                       cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      transition: 'all 0.15s ease',
                     }}
                   >
-                    {g.emoji} {g.name}
+                    <span>{g.emoji}</span>
+                    <span>{g.name}</span>
                   </button>
                 ))}
-              </div>
-            </div>
-
-            {/* Mood selector (optional) */}
-            <div>
-              <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-                3. Mood / Vibe (Optional)
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
-                {MOODS.map(m => {
-                  const isSelected = selectedMood === m.id;
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => setSelectedMood(m.id)}
-                      style={{
-                        padding: '8px 10px',
-                        fontSize: 11,
-                        background: isSelected ? 'var(--gold-faint)' : 'rgba(255,255,255,0.02)',
-                        border: `1px solid ${isSelected ? 'var(--gold)' : 'var(--border-subtle)'}`,
-                        borderRadius: 4,
-                        color: isSelected ? 'var(--gold)' : 'var(--text-secondary)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        textAlign: 'left',
-                      }}
-                    >
-                      <span>{m.emoji}</span>
-                      <span style={{ fontSize: 11 }}>{m.label}</span>
-                    </button>
-                  );
-                })}
               </div>
             </div>
 
@@ -344,10 +366,12 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                 gap: 8,
               }}>
                 <div>
-                  No {noMatchNotice.type} found matching "{noMatchNotice.genre}".
-                  Try loosening your format to "Any Format" or choosing another genre.
+                  No {noMatchNotice.type} found
+                  {noMatchNotice.language ? ` in ${noMatchNotice.language}` : ''}
+                  {noMatchNotice.genre ? ` matching "${noMatchNotice.genre}"` : ''}.
+                  Try loosening your format or filters.
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button
                     type="button"
                     onClick={() => { setSelectedType('ANY'); setNoMatchNotice(null); }}
@@ -362,6 +386,21 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                     }}
                   >
                     🎬 Any Format
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedLanguage('all'); setNoMatchNotice(null); }}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: 11,
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: 4,
+                      color: '#fff',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🌐 All Languages
                   </button>
                   <button
                     type="button"
