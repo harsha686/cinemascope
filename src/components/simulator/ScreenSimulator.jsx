@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Expand } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Expand, Film, Image as ImageIcon } from 'lucide-react';
 import { calcAspectFit, calcAspectCrop, ASPECT_RATIOS } from '../../data/formats';
 
-// Demo image - a cinematic widescreen landscape (we use a gradient + SVG as fallback)
-const DEMO_IMAGE_URL = '/demo-frame.jpg';
-// BIG BUCK BUNNY - public domain, CC-licensed
+// Default cinema frame - Varanasi Movie Glimpse
+const DEMO_IMAGE_URL = '/varanasi-frame.jpg';
+// Optional sample motion video
 const DEMO_VIDEO_URL = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-const SOURCE_RATIO = 1.78; // BBB is 16:9
+const SOURCE_RATIO = 1.78; // 16:9 cinematic widescreen frame
 
 function formatVal(v, unit = '') {
   if (v === null || v === undefined) return 'N/A';
@@ -34,7 +34,7 @@ export default function ScreenSimulator({
       setContainerW(containerWidth);
     }
   }, [containerWidth]);
-  const [useVideo, setUseVideo] = useState(true);
+  const [useVideo, setUseVideo] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [videoTime, setVideoTime] = useState(0);
@@ -340,11 +340,10 @@ export default function ScreenSimulator({
           ) : (
             <img
               src={DEMO_IMAGE_URL}
-              alt="Demo cinema frame"
+              alt="Varanasi Movie Glimpse"
               style={mediaStyle}
               onError={(e) => {
-                // Generate gradient fallback
-                e.target.style.display = 'none';
+                e.target.src = '/demo-frame.jpg';
               }}
             />
           )}
@@ -360,11 +359,37 @@ export default function ScreenSimulator({
             fontFamily: 'var(--font-serif)',
             fontSize: 9,
             letterSpacing: '0.15em',
-            color: 'rgba(255,255,255,0.6)',
+            color: 'rgba(255,255,255,0.7)',
+            background: 'rgba(0,0,0,0.5)',
+            padding: '2px 8px',
+            borderRadius: 3,
+            backdropFilter: 'blur(4px)',
             pointerEvents: 'none',
           }}>
             {screenRatioLabel} · {screenFormatName}
           </div>
+
+          {/* Varanasi Glimpse watermark badge */}
+          {!useVideo && (
+            <div style={{
+              position: 'absolute',
+              bottom: 10,
+              left: 12,
+              fontFamily: 'var(--font-serif)',
+              fontSize: 9,
+              letterSpacing: '0.12em',
+              color: 'rgba(201,168,76,0.9)',
+              background: 'rgba(0,0,0,0.55)',
+              padding: '3px 8px',
+              borderRadius: 3,
+              backdropFilter: 'blur(6px)',
+              border: '1px solid rgba(201,168,76,0.25)',
+              pointerEvents: 'none',
+              textTransform: 'uppercase',
+            }}>
+              Vāranāsi · Glimpse Frame
+            </div>
+          )}
 
           {/* Video controls */}
           {useVideo && !videoError && (
@@ -411,7 +436,7 @@ export default function ScreenSimulator({
       {/* Mode toggle & stats */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, minHeight: 46, gap: 12 }}>
         {/* Mode toggle */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {['fit', 'crop'].map(m => (
             <button
               key={m}
@@ -422,6 +447,21 @@ export default function ScreenSimulator({
               {m === 'fit' ? 'Full Frame' : 'Cinema Crop'}
             </button>
           ))}
+
+          <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 2px' }} />
+
+          <button
+            onClick={() => {
+              setUseVideo(!useVideo);
+              setIsPlaying(!useVideo);
+            }}
+            className={`btn btn-sm ${useVideo ? 'btn-primary' : 'btn-ghost'}`}
+            style={{ fontSize: 9, letterSpacing: '0.08em', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+            title={useVideo ? 'Switch to Varanasi Glimpse Still' : 'Switch to Motion Sample Video'}
+          >
+            {useVideo ? <Film size={12} /> : <Play size={12} />}
+            {useVideo ? 'Varanasi Glimpse' : 'Motion Video'}
+          </button>
         </div>
 
         {/* Visibility stat */}
