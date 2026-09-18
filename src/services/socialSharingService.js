@@ -213,6 +213,10 @@ export function normalizeShareableContent({
     }
 
     case SOCIAL_CONTENT_TYPES.WEEKEND_WINNER: {
+      const winnerRating = data.rating != null && data.rating > 0
+        ? (Number(data.rating) > 5 ? Math.round((Number(data.rating) / 2) * 10) / 10 : Number(data.rating))
+        : (data.voteAverage ? (Number(data.voteAverage) > 5 ? Math.round((Number(data.voteAverage) / 2) * 10) / 10 : Number(data.voteAverage)) : 5);
+
       return {
         type: SOCIAL_CONTENT_TYPES.WEEKEND_WINNER,
         id: data.roundId || `win-${Date.now()}`,
@@ -221,7 +225,7 @@ export function normalizeShareableContent({
         subtitle: `${(data.genreName || 'Cinema').toUpperCase()} GENRE WINNER`,
         posterUrl: data.posterUrl || '',
         backdropUrl: data.backdropUrl || '',
-        rating: 5,
+        rating: Math.round(winnerRating * 10) / 10,
         communityScore: data.communityScore || 94,
         voteCount: data.voteCount || 18400,
         votePercentage: data.votePercentage || 64.2,
@@ -235,6 +239,25 @@ export function normalizeShareableContent({
 
     case SOCIAL_CONTENT_TYPES.MOVIE:
     default: {
+      // Determine correct rating on 0-5 scale matching the movie details display
+      let resolvedRating = 4.5;
+      if (data.displayScore != null && Number(data.displayScore) > 0) {
+        resolvedRating = Number(data.displayScore);
+      } else if (data.rating != null && Number(data.rating) > 0) {
+        resolvedRating = Number(data.rating) > 5
+          ? Math.round((Number(data.rating) / 2) * 10) / 10
+          : Number(data.rating);
+      } else if (data.voteAverage != null && Number(data.voteAverage) > 0) {
+        // If voteAverage is already 0-5 scale (<= 5), preserve it! Only divide if raw 10-scale (> 5).
+        resolvedRating = Number(data.voteAverage) > 5
+          ? Math.round((Number(data.voteAverage) / 2) * 10) / 10
+          : Math.round(Number(data.voteAverage) * 10) / 10;
+      } else if (data.personalRating != null && Number(data.personalRating) > 0) {
+        resolvedRating = Number(data.personalRating);
+      } else if (data.voteAverage10 != null && Number(data.voteAverage10) > 0) {
+        resolvedRating = Math.round((Number(data.voteAverage10) / 2) * 10) / 10;
+      }
+
       return {
         type: SOCIAL_CONTENT_TYPES.MOVIE,
         id: data.id || data.tmdbId || 'movie',
@@ -243,7 +266,7 @@ export function normalizeShareableContent({
         subtitle: [data.releaseYear || (data.releaseDate ? data.releaseDate.split('-')[0] : ''), data.language].filter(Boolean).join(' · '),
         posterUrl: data.posterUrl || '',
         backdropUrl: data.backdropUrl || '',
-        rating: data.personalRating || (data.voteAverage ? Math.round(data.voteAverage / 2 * 10) / 10 : 4.5),
+        rating: Math.round(resolvedRating * 10) / 10,
         userRating: data.personalRating || null,
         genres: (data.genres || []).slice(0, 3).map(g => typeof g === 'string' ? g : g.name),
         quote: data.tagline ? `"${data.tagline}"` : (data.overview ? extractSmartReviewExcerpt(data.overview, 120) : 'An unforgettable cinema experience.'),

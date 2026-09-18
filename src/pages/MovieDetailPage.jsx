@@ -131,6 +131,18 @@ export default function MovieDetailPage() {
     return { average: Math.round((sum / userReviewsList.length) * 10) / 10, count: userReviewsList.length };
   }, [userReviewsList]);
 
+  // Unified movie display score (user average, TMDB normalized score, or admin rating)
+  const movieDisplayScore = useMemo(() => {
+    if (!movie) return 4.5;
+    const hasUserReviews = (userRatingInfo.count || ratingInfo.count) > 0;
+    const userAvg = userRatingInfo.average > 0 ? userRatingInfo.average : ratingInfo.average;
+
+    const rawTmdbRating = movie.voteAverage || 0;
+    const tmdbAvg5 = rawTmdbRating > 5 ? Math.round((rawTmdbRating / 2) * 10) / 10 : rawTmdbRating;
+
+    return hasUserReviews ? userAvg : (tmdbAvg5 > 0 ? tmdbAvg5 : (movie.rating || 4.5));
+  }, [movie, userRatingInfo, ratingInfo]);
+
   const winningHistory = useMemo(() => {
     const list = getMovieWinningHistory(movieId);
     if (list && list.length > 0) return list;
@@ -619,6 +631,8 @@ export default function MovieDetailPage() {
                   contentType={SOCIAL_CONTENT_TYPES.MOVIE}
                   data={{
                     ...movie,
+                    rating: movieDisplayScore,
+                    displayScore: movieDisplayScore,
                     personalRating: userExistingReview?.rating || movie.personalRating || null,
                   }}
                   variant="outline"

@@ -33,11 +33,17 @@ export default function AestheticCardRenderer({
   const isPortrait = format.id === 'portrait';
 
   const headline = customHeadline || content.headline;
-  const quote = customQuote !== undefined && customQuote !== '' ? customQuote : content.quote;
-  // Use user's personal rating first, then content rating
-  const effectiveRating = customRating !== '' ? customRating : (content.userRating ?? content.rating ?? 5);
-  const ratingNum = Math.round((content.rating || 5) * 10) / 10;
-  const fullStars = Math.floor(content.rating || 5);
+  // For reviews, prioritize personal userRating; for movies and other content, prioritize content.rating
+  const effectiveRating = customRating !== ''
+    ? customRating
+    : (content.type === SOCIAL_CONTENT_TYPES.REVIEW
+        ? (content.userRating ?? content.rating ?? 5)
+        : (content.rating ?? content.userRating ?? 5));
+  const ratingNum = Math.round((Number(effectiveRating) || content.rating || 5) * 10) / 10;
+  const fullStars = Math.floor(ratingNum);
+  const formattedRatingStr = !isNaN(Number(effectiveRating)) && Number(effectiveRating) > 0
+    ? Number(effectiveRating).toFixed(1)
+    : String(effectiveRating);
 
   // Dynamic layout adaptation for multi-movie collections or lists
   const hasMultiplePosters = content.posters && content.posters.length > 1;
@@ -177,7 +183,7 @@ export default function AestheticCardRenderer({
             }}>
               <span style={{ color: '#fce08b', fontSize: 13 }}>★</span>
               <span style={{ fontSize: 13, fontWeight: 800, color: '#ffffff', letterSpacing: '0.05em' }}>
-                {effectiveRating}
+                {formattedRatingStr}
                 <span style={{ fontSize: 10, opacity: 0.65, marginLeft: 2 }}> / 5.0</span>
               </span>
             </div>
@@ -651,7 +657,7 @@ export default function AestheticCardRenderer({
                     ))}
                   </div>
                   <span style={{ fontSize: 12, fontWeight: 700, color: template.textColor }}>
-                    {effectiveRating} <span style={{ fontSize: 10, opacity: 0.6 }}>/ 5</span>
+                    {formattedRatingStr} <span style={{ fontSize: 10, opacity: 0.6 }}>/ 5</span>
                   </span>
                 </div>
               )}

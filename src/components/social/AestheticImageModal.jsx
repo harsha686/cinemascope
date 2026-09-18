@@ -120,8 +120,10 @@ export default function AestheticImageModal({
       setCustomAppName('CINEMASCOPE');
       setCustomTitle(normalized.title || '');
       setCustomSubtitle(normalized.subtitle || '');
-      setCustomGenreBadge(normalized.genres && normalized.genres.length > 0 ? normalized.genres.join(' · ') : 'CINEMASCOPE SELECTION');
-      setCustomRating(normalized.userRating != null ? String(normalized.userRating) : (normalized.rating != null ? String(normalized.rating) : '5.0'));
+      const initialRatingStr = contentType === SOCIAL_CONTENT_TYPES.REVIEW
+        ? (normalized.userRating != null ? String(normalized.userRating) : (normalized.rating != null ? String(normalized.rating) : '5.0'))
+        : (normalized.rating != null ? String(normalized.rating) : (normalized.userRating != null ? String(normalized.userRating) : '5.0'));
+      setCustomRating(initialRatingStr);
       setCustomBottomLeft('CINEMASCOPE EXCLUSIVE');
       setCustomBottomRight('NOW STREAMING');
       setResolvedContent(normalized);
@@ -678,7 +680,10 @@ export default function AestheticImageModal({
                             setCustomQuote(normalized?.quote || '');
                             setCustomTitle(normalized?.title || '');
                             setCustomSubtitle(normalized?.subtitle || '');
-                            setCustomRating(normalized?.userRating != null ? String(normalized.userRating) : (normalized?.rating != null ? String(normalized.rating) : '5.0'));
+                            const resetRatingStr = contentType === SOCIAL_CONTENT_TYPES.REVIEW
+                              ? (normalized?.userRating != null ? String(normalized.userRating) : (normalized?.rating != null ? String(normalized.rating) : '5.0'))
+                              : (normalized?.rating != null ? String(normalized.rating) : (normalized?.userRating != null ? String(normalized.userRating) : '5.0'));
+                            setCustomRating(resetRatingStr);
                             setCustomAppName('CINEMASCOPE');
                             setCustomGenreBadge(normalized?.genres && normalized.genres.length > 0 ? normalized.genres.join(' · ') : 'CINEMASCOPE SELECTION');
                             setCustomBottomLeft('CINEMASCOPE EXCLUSIVE');
@@ -741,7 +746,7 @@ export default function AestheticImageModal({
                         style={{ width: '100%', fontSize: 12 }}
                         value={customRating}
                         onChange={e => setCustomRating(e.target.value)}
-                        placeholder={String(normalized?.userRating ?? normalized?.rating ?? '4.5')}
+                        placeholder={String(contentType === SOCIAL_CONTENT_TYPES.REVIEW ? (normalized?.userRating ?? normalized?.rating ?? '4.5') : (normalized?.rating ?? normalized?.userRating ?? '4.5'))}
                       />
                     </div>
 

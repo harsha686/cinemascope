@@ -880,9 +880,11 @@ export function addCandidateToRound(roundId, genreId, movieData, user = null) {
   // Format rating (convert 10-scale to 5-scale if needed)
   let rating = 4.8;
   if (movieData.rating) {
-    rating = movieData.rating;
+    rating = Number(movieData.rating) > 5 ? Math.round((Number(movieData.rating) / 2) * 10) / 10 : Number(movieData.rating);
   } else if (movieData.voteAverage) {
-    rating = Math.round((movieData.voteAverage / 2) * 10) / 10;
+    rating = Number(movieData.voteAverage) > 5
+      ? Math.round((Number(movieData.voteAverage) / 2) * 10) / 10
+      : Math.round(Number(movieData.voteAverage) * 10) / 10;
   }
 
   const newCandidate = {
