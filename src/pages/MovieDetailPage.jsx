@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck, Tv, Film, Users, Layers, Share2 } from 'lucide-react';
+import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck, Tv, Film, Users, Layers, Share2, Copy, Check, ExternalLink, Send, MessageCircle } from 'lucide-react';
 import { useApp } from '../AppContext';
 import RatingBreakdown from '../components/reviews/RatingBreakdown';
 import ReviewCard from '../components/reviews/ReviewCard';
@@ -66,8 +66,17 @@ export default function MovieDetailPage() {
   const [editingReview, setEditingReview] = useState(null);
   const [reviewTab, setReviewTab] = useState('all'); // 'all' | 'audience' | 'professional'
   const [submitAsPro, setSubmitAsPro] = useState(currentUserIsPro);
-  const [activeSectionTab, setActiveSectionTab] = useState('reviews'); // 'reviews' | 'about' | 'cast' | 'all'
+  const [activeSectionTab, setActiveSectionTab] = useState('reviews'); // 'reviews' | 'streaming' | 'watch-now' | 'about' | 'cast' | 'all'
   const [sharingPoster, setSharingPoster] = useState(false);
+  const [copiedDmText, setCopiedDmText] = useState(false);
+
+  const handleCopyDmText = () => {
+    if (!movie) return;
+    const requestMsg = `Hi! Please send me the movie link for "${movie.title}" (${movie.releaseYear || ''})`;
+    navigator.clipboard.writeText(requestMsg);
+    setCopiedDmText(true);
+    setTimeout(() => setCopiedDmText(false), 2500);
+  };
 
   const handleSharePoster = async () => {
     if (!movie || !movie.posterUrl) return;
@@ -666,6 +675,8 @@ export default function MovieDetailPage() {
             }}>
               {[
                 { id: 'reviews', label: 'What People Think', icon: <MessageSquare size={14} />, count: allReviews.length },
+                { id: 'streaming', label: 'Streaming In', icon: <Tv size={14} /> },
+                { id: 'watch-now', label: 'Watch Now', icon: <Play size={14} /> },
                 { id: 'about', label: movie.isTv ? 'About Series' : 'About Movie', icon: movie.isTv ? <Tv size={14} /> : <Film size={14} /> },
                 { id: 'cast', label: movie.isTv ? 'Cast & Creators' : 'Cast & Filmmakers', icon: <Users size={14} />, count: (movie.cast?.length || 0) + (movie.director ? 1 : 0) },
                 { id: 'all', label: 'All Info', icon: <Layers size={14} /> },
@@ -710,6 +721,351 @@ export default function MovieDetailPage() {
                 );
               })}
             </div>
+
+            {/* STREAMING IN SECTION */}
+            {(activeSectionTab === 'streaming' || activeSectionTab === 'all') && (
+              <div id="streaming-in-section" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                  <div>
+                    <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', letterSpacing: '0.04em', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Tv size={20} color="var(--gold)" />
+                      <span>Streaming In</span>
+                    </h2>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
+                      Official OTT platforms, digital release schedule &amp; streaming availability for {movie.title}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveSectionTab('watch-now')}
+                    className="btn btn-outline btn-sm"
+                    style={{
+                      fontSize: 12,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      borderColor: 'rgba(212,175,55,0.4)',
+                      color: 'var(--gold)',
+                      background: 'rgba(212,175,55,0.06)',
+                    }}
+                  >
+                    <Play size={13} />
+                    <span>Watch Now (DM for link) →</span>
+                  </button>
+                </div>
+
+                {/* OttStreamingInfo Component */}
+                <OttStreamingInfo movie={movie} />
+              </div>
+            )}
+
+            {/* WATCH NOW SECTION */}
+            {(activeSectionTab === 'watch-now' || activeSectionTab === 'all') && (
+              <div id="watch-now-section" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                  <div>
+                    <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', letterSpacing: '0.04em', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Play size={20} color="var(--gold)" />
+                      <span>Watch Now</span>
+                    </h2>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
+                      Direct streaming &amp; download access for {movie.title}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Primary Card with DM for movie link */}
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(220,182,91,0.12) 0%, rgba(18,15,11,0.95) 100%)',
+                  border: '1px solid var(--gold)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '28px 24px',
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.5), inset 0 0 25px rgba(220,182,91,0.06)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}>
+                  {/* Glowing accent circle */}
+                  <div style={{
+                    position: 'absolute',
+                    top: -50,
+                    right: -50,
+                    width: 160,
+                    height: 160,
+                    borderRadius: '50%',
+                    background: 'radial-gradient(circle, rgba(220,182,91,0.2) 0%, transparent 70%)',
+                    pointerEvents: 'none',
+                  }} />
+
+                  {/* Badge: DM for movie link */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 7,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-serif)',
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      padding: '6px 14px',
+                      borderRadius: 20,
+                      background: 'var(--gold)',
+                      color: '#000000',
+                      boxShadow: '0 2px 12px rgba(220,182,91,0.35)',
+                    }}>
+                      <MessageSquare size={14} />
+                      DM for movie link
+                    </span>
+                    <span style={{
+                      fontSize: 11,
+                      color: '#4ade80',
+                      background: 'rgba(74, 222, 128, 0.12)',
+                      border: '1px solid rgba(74, 222, 128, 0.3)',
+                      padding: '4px 10px',
+                      borderRadius: 20,
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                    }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80', display: 'inline-block' }} />
+                      Direct Links Available
+                    </span>
+                  </div>
+
+                  <h3 style={{
+                    fontFamily: 'var(--font-serif)',
+                    fontSize: 22,
+                    fontWeight: 700,
+                    color: '#ffffff',
+                    margin: '0 0 10px',
+                  }}>
+                    Looking to watch {movie.title}?
+                  </h3>
+
+                  <p style={{
+                    fontSize: 14,
+                    color: 'var(--text-secondary)',
+                    lineHeight: 1.6,
+                    margin: '0 0 20px',
+                    maxWidth: 620,
+                  }}>
+                    Send us a direct message on Instagram, WhatsApp, or Telegram with this movie name to get the high-speed streaming / download link directly in your inbox.
+                  </p>
+
+                  {/* Pre-filled Message Copy Box */}
+                  <div style={{
+                    background: 'rgba(0, 0, 0, 0.45)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: 6,
+                    padding: '14px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 12,
+                    marginBottom: 20,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 220 }}>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Pre-filled request:</span>
+                      <span style={{ fontSize: 13, color: 'var(--gold)', fontWeight: 600, fontFamily: 'monospace' }}>
+                        "Hi! Please send me the movie link for {movie.title} ({movie.releaseYear || ''})"
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleCopyDmText}
+                      className="btn btn-outline btn-sm"
+                      style={{
+                        fontSize: 11,
+                        padding: '6px 14px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        borderColor: copiedDmText ? '#4ade80' : 'var(--gold-dim)',
+                        color: copiedDmText ? '#4ade80' : 'var(--gold)',
+                        background: copiedDmText ? 'rgba(74, 222, 128, 0.1)' : 'transparent',
+                        transition: 'all 150ms ease',
+                      }}
+                    >
+                      {copiedDmText ? (
+                        <>
+                          <Check size={13} />
+                          <span>Copied to Clipboard!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={13} />
+                          <span>Copy Request Message</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Direct DM Buttons */}
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                    <a
+                      href="https://www.instagram.com/direct/inbox/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-primary btn-sm"
+                      style={{
+                        padding: '10px 20px',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        textDecoration: 'none',
+                        boxShadow: '0 4px 14px rgba(220,182,91,0.25)',
+                      }}
+                    >
+                      <MessageCircle size={16} />
+                      <span>DM on Instagram</span>
+                    </a>
+
+                    <a
+                      href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Hi! Please send me the movie link for "${movie.title}" (${movie.releaseYear || ''})`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-outline btn-sm"
+                      style={{
+                        padding: '10px 20px',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        borderColor: '#25D366',
+                        color: '#25D366',
+                        textDecoration: 'none',
+                        background: 'rgba(37, 211, 102, 0.08)',
+                      }}
+                    >
+                      <Send size={15} />
+                      <span>DM on WhatsApp</span>
+                    </a>
+
+                    <a
+                      href={`https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(`Hi! Please send me the movie link for "${movie.title}"`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-outline btn-sm"
+                      style={{
+                        padding: '10px 20px',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        borderColor: '#0088cc',
+                        color: '#38bdf8',
+                        textDecoration: 'none',
+                        background: 'rgba(0, 136, 204, 0.08)',
+                      }}
+                    >
+                      <ExternalLink size={15} />
+                      <span>DM on Telegram</span>
+                    </a>
+                  </div>
+
+                  {/* Official OTT fallback link if available */}
+                  {(movie.ottWatchUrl || movie.ottUrl) && (
+                    <div style={{
+                      marginTop: 22,
+                      paddingTop: 16,
+                      borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: 10,
+                    }}>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        Official OTT streaming is also available for this title:
+                      </span>
+                      <a
+                        href={movie.ottWatchUrl || movie.ottUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          fontSize: 12,
+                          color: '#10b981',
+                          textDecoration: 'none',
+                          fontWeight: 600,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}
+                      >
+                        <span>Open Official Streaming Link</span>
+                        <ExternalLink size={13} />
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3 Step Quick Guide */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: 14,
+                }}>
+                  <div style={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 6,
+                    padding: '16px 18px',
+                  }}>
+                    <div style={{ fontSize: 11, color: 'var(--gold)', fontFamily: 'var(--font-serif)', fontWeight: 700, marginBottom: 4 }}>
+                      STEP 1
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, marginBottom: 4 }}>
+                      Click DM or Copy
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                      Choose Instagram, WhatsApp, or Telegram, or copy the pre-filled request text.
+                    </div>
+                  </div>
+
+                  <div style={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 6,
+                    padding: '16px 18px',
+                  }}>
+                    <div style={{ fontSize: 11, color: 'var(--gold)', fontFamily: 'var(--font-serif)', fontWeight: 700, marginBottom: 4 }}>
+                      STEP 2
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, marginBottom: 4 }}>
+                      Send Movie Title
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                      Send your request for "{movie.title}" in direct messages.
+                    </div>
+                  </div>
+
+                  <div style={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 6,
+                    padding: '16px 18px',
+                  }}>
+                    <div style={{ fontSize: 11, color: 'var(--gold)', fontFamily: 'var(--font-serif)', fontWeight: 700, marginBottom: 4 }}>
+                      STEP 3
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, marginBottom: 4 }}>
+                      Get Link &amp; Watch
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                      Receive the direct streaming or download link in your chat to start watching!
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* ABOUT THE MOVIE */}
             {(activeSectionTab === 'about' || activeSectionTab === 'all') && (
@@ -1097,13 +1453,14 @@ export default function MovieDetailPage() {
           <button
             type="button"
             onClick={() => {
-              const el = document.getElementById('streaming-section');
+              setActiveSectionTab('watch-now');
+              const el = document.getElementById('main-content-tabs') || document.getElementById('watch-now-section');
               if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }}
             className="btn btn-outline btn-sm"
-            style={{ fontSize: '11px', padding: '6px 10px', color: '#10b981', borderColor: 'rgba(16,185,129,0.4)' }}
+            style={{ fontSize: '11px', padding: '6px 10px', color: 'var(--gold)', borderColor: 'var(--gold-dim)' }}
           >
-            <Tv size={13} /> Watch
+            <Play size={13} /> Watch Now
           </button>
         </div>
       </div>
