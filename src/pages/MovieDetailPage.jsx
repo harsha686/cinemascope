@@ -927,7 +927,7 @@ export default function MovieDetailPage() {
                     </a>
 
                     <a
-                      href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Hi! Please send me the movie link for "${movie.title}" (${movie.releaseYear || ''})`)}`}
+                      href={`https://wa.me/917702918921?text=${encodeURIComponent(`Hi! Please send me the movie link for "${movie.title}" (${movie.releaseYear || ''})`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-outline btn-sm"
