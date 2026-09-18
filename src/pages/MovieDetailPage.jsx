@@ -1343,11 +1343,6 @@ export default function MovieDetailPage() {
           {/* Right Sidebar: Where to Watch & Screen Tech */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
 
-            {/* OTT STREAMING & RELEASE DETAILS */}
-            <div id="streaming-section">
-              <OttStreamingInfo movie={movie} />
-            </div>
-
             {/* SCREEN EXPERIENCE & ASPECT RATIO TECH */}
             {movie.aspectRatio && (
               <div style={{ padding: 24, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
