@@ -33,6 +33,7 @@ export default function AestheticCardRenderer({
   const isPortrait = format.id === 'portrait';
 
   const headline = customHeadline || content.headline;
+  const quote = customQuote !== undefined && customQuote !== '' ? customQuote : (content.quote || '');
   // For reviews, prioritize personal userRating; for movies and other content, prioritize content.rating
   const effectiveRating = customRating !== ''
     ? customRating
