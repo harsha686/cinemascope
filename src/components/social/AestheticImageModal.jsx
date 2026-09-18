@@ -18,6 +18,7 @@ import { toPng, toBlob } from 'html-to-image';
 import {
   SOCIAL_FORMATS,
   TEMPLATE_STYLES,
+  SOCIAL_CONTENT_TYPES,
   normalizeShareableContent,
   saveCreationToHistory,
   trackShareEvent,
