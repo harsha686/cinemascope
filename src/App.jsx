@@ -1,5 +1,5 @@
-import React from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AppProvider } from './AppContext';
 import Navbar from './components/layout/Navbar';
 import MobileBottomNav from './components/layout/MobileBottomNav';
@@ -29,10 +29,25 @@ import WeekendWinnersArchivePage from './pages/WeekendWinnersArchivePage';
 import PublicReviewPage from './pages/PublicReviewPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    try {
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    } catch (e) {}
+  }, [pathname]);
+
+  return null;
+}
+
 export default function App() {
   return (
     <AppProvider>
       <HashRouter>
+        <ScrollToTop />
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
           <Navbar />
           <main style={{ flex: 1, paddingTop: 'var(--nav-height)' }}>

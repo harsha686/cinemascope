@@ -46,12 +46,29 @@ export default function MovieDetailPage() {
   const [tmdbLoading, setTmdbLoading] = useState(false);
   const [tmdbError, setTmdbError] = useState(null);
 
+  // Ensure page always starts at top on route / movie change
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    try {
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    } catch (e) {}
+  }, [movieId]);
+
   // Fetch TMDB data when ID starts with "tmdb-" or "tv-"
   useEffect(() => {
     if (!isTmdbMovie || !tmdbId) return;
     setTmdbLoading(true);
     fetchFullTmdbMovieDetails(tmdbId)
-      .then(m => { setTmdbMovie(m); setTmdbLoading(false); })
+      .then(m => {
+        setTmdbMovie(m);
+        setTmdbLoading(false);
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        try {
+          document.documentElement.scrollTop = 0;
+          document.body.scrollTop = 0;
+        } catch (e) {}
+      })
       .catch(err => { setTmdbError(err.message); setTmdbLoading(false); });
   }, [isTmdbMovie, tmdbId]);
 
@@ -218,11 +235,20 @@ export default function MovieDetailPage() {
   // Loading state for TMDB movies & TV series
   if (isTmdbMovie && tmdbLoading) {
     return (
-      <div style={{ padding: '80px 24px', textAlign: 'center' }}>
-        <div style={{ fontFamily: 'var(--font-serif)', color: 'var(--gold)', fontSize: 18, marginBottom: 12 }}>
+      <div style={{ minHeight: '100vh', padding: '120px 24px', textAlign: 'center', background: 'var(--bg)' }}>
+        <div style={{
+          width: 44,
+          height: 44,
+          borderRadius: '50%',
+          border: '3px solid rgba(220,182,91,0.2)',
+          borderTopColor: 'var(--gold)',
+          margin: '0 auto 20px',
+          animation: 'spin 0.8s linear infinite',
+        }} />
+        <div style={{ fontFamily: 'var(--font-serif)', color: 'var(--gold)', fontSize: 18, marginBottom: 8, letterSpacing: '0.04em' }}>
           {isTmdbTv ? 'Loading series…' : 'Loading movie…'}
         </div>
-        <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13, maxWidth: 360, margin: '0 auto' }}>
           {isTmdbTv ? 'Fetching from global TV & series archive' : 'Fetching from global movie archive'}
         </p>
       </div>
