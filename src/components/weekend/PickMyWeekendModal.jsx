@@ -31,6 +31,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
   const [selectedLanguage, setSelectedLanguage] = useState('all');
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [selectedType, setSelectedType] = useState('ANY'); // ANY | MOVIE | SERIES
+  const [seenTitleIds, setSeenTitleIds] = useState([]);
   const [result, setResult] = useState(null);
   const [isSpinning, setIsSpinning] = useState(false);
   const [currentStatus, setCurrentStatus] = useState({});
@@ -41,11 +42,30 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
       setGenres(getGenreOptions());
       setSelectedLanguage('all');
       setSelectedGenre('all');
+      setSeenTitleIds([]);
       setResult(null);
       setIsSpinning(false);
       setNoMatchNotice(null);
     }
   }, [isOpen]);
+
+  const handleTypeChange = (newType) => {
+    setSelectedType(newType);
+    setSeenTitleIds([]);
+    setNoMatchNotice(null);
+  };
+
+  const handleLanguageChange = (newLang) => {
+    setSelectedLanguage(newLang);
+    setSeenTitleIds([]);
+    setNoMatchNotice(null);
+  };
+
+  const handleGenreChange = (newGenre) => {
+    setSelectedGenre(newGenre);
+    setSeenTitleIds([]);
+    setNoMatchNotice(null);
+  };
 
   useEffect(() => {
     const handleUpdate = () => setGenres(getGenreOptions());
@@ -86,12 +106,31 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
     setNoMatchNotice(null);
 
     try {
-      const pick = await getRandomTitleFromAllAsync({
+      let pick = await getRandomTitleFromAllAsync({
         appMovies: state.movies,
         language: selectedLanguage,
         genreId: selectedGenre,
         type: selectedType,
+        excludeIds: seenTitleIds,
       });
+
+      // If pool was exhausted with current seenTitleIds, reset seen list and retry fresh
+      if (!pick && seenTitleIds.length > 0) {
+        pick = await getRandomTitleFromAllAsync({
+          appMovies: state.movies,
+          language: selectedLanguage,
+          genreId: selectedGenre,
+          type: selectedType,
+          excludeIds: [],
+        });
+        if (pick) {
+          const pickedId = String(pick.titleId || pick.id);
+          setSeenTitleIds([pickedId]);
+        }
+      } else if (pick) {
+        const pickedId = String(pick.titleId || pick.id);
+        setSeenTitleIds(prev => [...prev, pickedId]);
+      }
 
       if (!pick) {
         const gObj = genres.find(g => g.id === selectedGenre);
@@ -112,8 +151,11 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
         language: selectedLanguage,
         genreId: selectedGenre,
         type: selectedType,
+        excludeIds: seenTitleIds,
       });
       if (syncPick) {
+        const pickedId = String(syncPick.titleId || syncPick.id);
+        setSeenTitleIds(prev => [...prev, pickedId]);
         setResult(syncPick);
       } else {
         setNoMatchNotice({
@@ -247,7 +289,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => setSelectedType(t.id)}
+                    onClick={() => handleTypeChange(t.id)}
                     style={{
                       flex: 1,
                       padding: '8px 12px',
@@ -278,7 +320,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                     <button
                       key={l.id}
                       type="button"
-                      onClick={() => setSelectedLanguage(l.id)}
+                      onClick={() => handleLanguageChange(l.id)}
                       style={{
                         padding: '6px 12px',
                         fontSize: 11,
@@ -309,7 +351,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 <button
                   type="button"
-                  onClick={() => setSelectedGenre('all')}
+                  onClick={() => handleGenreChange('all')}
                   style={{
                     padding: '6px 12px',
                     fontSize: 11,
@@ -331,7 +373,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                   <button
                     key={g.id}
                     type="button"
-                    onClick={() => setSelectedGenre(g.id)}
+                    onClick={() => handleGenreChange(g.id)}
                     style={{
                       padding: '6px 12px',
                       fontSize: 11,
@@ -374,7 +416,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button
                     type="button"
-                    onClick={() => { setSelectedType('ANY'); setNoMatchNotice(null); }}
+                    onClick={() => handleTypeChange('ANY')}
                     style={{
                       padding: '4px 10px',
                       fontSize: 11,
@@ -389,7 +431,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setSelectedLanguage('all'); setNoMatchNotice(null); }}
+                    onClick={() => handleLanguageChange('all')}
                     style={{
                       padding: '4px 10px',
                       fontSize: 11,
@@ -404,7 +446,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setSelectedGenre('all'); setNoMatchNotice(null); }}
+                    onClick={() => handleGenreChange('all')}
                     style={{
                       padding: '4px 10px',
                       fontSize: 11,

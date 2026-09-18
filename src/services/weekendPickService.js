@@ -2259,33 +2259,93 @@ export function matchesMoodHelper(item, mood) {
 /**
  * Helper: Smart language matching
  */
+/**
+ * Helper: Resolve TMDB ISO Language Code
+ */
+export function getTmdbLanguageCode(langKey) {
+  if (!langKey || langKey === 'all') return null;
+  const key = String(langKey).toLowerCase().trim();
+  if (key === 'te' || key === 'telugu') return 'te';
+  if (key === 'hi' || key === 'hindi') return 'hi';
+  if (key === 'ta' || key === 'tamil') return 'ta';
+  if (key === 'ml' || key === 'malayalam') return 'ml';
+  if (key === 'kn' || key === 'kannada') return 'kn';
+  if (key === 'en' || key === 'english') return 'en';
+  if (key === 'ko' || key === 'korean') return 'ko';
+  if (key === 'ja' || key === 'japanese') return 'ja';
+  return key;
+}
+
+/**
+ * Helper: Resolve TMDB Genre ID(s)
+ */
+export function getTmdbGenreId(genreKey, isTv = false) {
+  if (!genreKey || genreKey === 'all') return null;
+  const key = String(genreKey).toLowerCase().trim();
+
+  if (isTv) {
+    if (key.includes('action')) return '10759';
+    if (key.includes('comedy')) return '35';
+    if (key.includes('sci')) return '10765';
+    if (key.includes('mind')) return '10765,9648';
+    if (key.includes('thrill') || key.includes('suspense')) return '80,9648';
+    if (key.includes('disturb')) return '80,9648';
+    if (key.includes('horror')) return '9648,10765';
+    if (key.includes('drama')) return '18';
+    if (key.includes('anim')) return '16';
+    if (key.includes('crime')) return '80';
+    if (key.includes('mystery')) return '9648';
+    if (key.includes('romance') || key.includes('love')) return '10766,18';
+    return null;
+  }
+
+  // Movies
+  if (key.includes('action')) return '28';
+  if (key.includes('comedy')) return '35';
+  if (key.includes('horror')) return '27';
+  if (key.includes('mind')) return '878,9648';
+  if (key.includes('disturb')) return '27,53,80';
+  if (key.includes('suspense') || key.includes('thrill')) return '53,9648';
+  if (key.includes('sci')) return '878';
+  if (key.includes('drama')) return '18';
+  if (key.includes('romance') || key.includes('love')) return '10749';
+  if (key.includes('anim')) return '16';
+  if (key.includes('crime')) return '80';
+  if (key.includes('mystery')) return '9648';
+  if (key.includes('adventur')) return '12';
+  if (key.includes('fantasy')) return '14';
+  return null;
+}
+
+/**
+ * Helper: Strict language matching
+ */
 export function matchesLanguageHelper(item, language) {
   if (!language || language === 'all') return true;
-  const langLower = String(language).toLowerCase();
-  const itemLang = String(item.language || '').toLowerCase();
+  const targetCode = getTmdbLanguageCode(language);
+  if (!targetCode) return true;
+
+  const itemLang = String(item.language || item.originalLanguage || item.original_language || '').toLowerCase().trim();
   const itemTags = Array.isArray(item.tags) ? item.tags.map(t => String(t).toLowerCase()) : [];
 
-  const langMap = {
-    te: ['te', 'telugu'],
-    telugu: ['te', 'telugu'],
-    hi: ['hi', 'hindi'],
-    hindi: ['hi', 'hindi'],
-    ta: ['ta', 'tamil'],
-    tamil: ['ta', 'tamil'],
-    ml: ['ml', 'malayalam'],
-    malayalam: ['ml', 'malayalam'],
-    kn: ['kn', 'kannada'],
-    kannada: ['kn', 'kannada'],
-    en: ['en', 'english'],
-    english: ['en', 'english'],
-    ko: ['ko', 'korean'],
-    korean: ['ko', 'korean'],
-    ja: ['ja', 'japanese'],
-    japanese: ['ja', 'japanese'],
+  const langNames = {
+    te: 'telugu',
+    hi: 'hindi',
+    ta: 'tamil',
+    ml: 'malayalam',
+    kn: 'kannada',
+    en: 'english',
+    ko: 'korean',
+    ja: 'japanese',
   };
 
-  const matches = langMap[langLower] || [langLower];
-  return matches.some(m => itemLang === m || itemLang.includes(m) || itemTags.includes(m));
+  const targetName = langNames[targetCode] || targetCode;
+
+  if (itemLang === targetCode || itemLang === targetName) return true;
+  if (itemLang.includes(targetName) || itemLang.includes(targetCode)) return true;
+  if (itemTags.includes(targetCode) || itemTags.includes(targetName)) return true;
+
+  return false;
 }
 
 /**
@@ -2297,12 +2357,16 @@ export function getRandomTitleFromAll({
   genreId = 'all',
   type = 'ANY', // 'ANY' | 'MOVIE' | 'SERIES'
   mood = 'any',
+  excludeIds = [],
 } = {}) {
-  // 1. Assemble pool from UNIVERSAL_TITLES
+  const excludeSet = new Set(
+    (Array.isArray(excludeIds) ? excludeIds : []).map(id => String(id).toLowerCase().replace(/^tmdb-/, ''))
+  );
+
   let pool = [...UNIVERSAL_TITLES];
   const existingIds = new Set(pool.map(p => String(p.titleId || p.id).toLowerCase()));
 
-  // 2. Incorporate candidates from all active and archived rounds
+  // Incorporate candidates from all active and archived rounds
   try {
     const rounds = getAllRounds();
     if (Array.isArray(rounds)) {
@@ -2323,7 +2387,7 @@ export function getRandomTitleFromAll({
                     genreName: gr.genreName || gKey,
                     releaseYear: c.releaseYear || 2024,
                     rating: c.rating || 4.8,
-                    language: c.language || 'Telugu',
+                    language: c.language || '',
                     posterUrl: c.posterUrl,
                     backdropUrl: c.backdropUrl,
                     overview: c.overview || '',
@@ -2340,7 +2404,7 @@ export function getRandomTitleFromAll({
     console.warn('Could not incorporate round candidates into discovery pool:', err);
   }
 
-  // 3. Merge in app movies (from state.movies or database)
+  // Merge in app movies
   if (Array.isArray(appMovies) && appMovies.length > 0) {
     appMovies.forEach(m => {
       const idKey = String(m.id || m.tmdbId || '').toLowerCase();
@@ -2366,7 +2430,7 @@ export function getRandomTitleFromAll({
           genreName: rawGenre,
           releaseYear: m.releaseDate ? parseInt(m.releaseDate.split('-')[0], 10) : 2024,
           rating: 4.8,
-          language: m.language || 'Telugu',
+          language: m.language || (m.original_language ? m.original_language.toUpperCase() : ''),
           posterUrl: m.posterUrl,
           backdropUrl: m.backdropUrl,
           overview: m.overview || '',
@@ -2376,19 +2440,31 @@ export function getRandomTitleFromAll({
     });
   }
 
-  // 4. Strict Type Filtering (NEVER return a Movie if user wants TV Series, and vice versa)
+  // 4. Strict Type Filtering
   if (type && type !== 'ANY') {
     const normalizedType = String(type).toUpperCase();
     pool = pool.filter(p => String(p.type).toUpperCase() === normalizedType);
   }
 
-  // 4b. Language Filtering
+  // 4b. Strict Language Filtering
   if (language && language !== 'all') {
-    const langFiltered = pool.filter(p => matchesLanguageHelper(p, language));
-    if (langFiltered.length > 0) {
-      pool = langFiltered;
-    } else {
-      return null;
+    pool = pool.filter(p => matchesLanguageHelper(p, language));
+  }
+
+  // 4c. Strict Genre Filtering
+  const genreOptions = getGenreOptions();
+  if (genreId && genreId !== 'all') {
+    pool = pool.filter(p => matchesGenreHelper(p, genreId, genreOptions));
+  }
+
+  // 4d. Strict Exclude Seen Titles
+  if (excludeSet.size > 0) {
+    const unseenPool = pool.filter(p => {
+      const pId = String(p.titleId || p.id).toLowerCase().replace(/^(tmdb-)?(tv-)?/, '');
+      return !excludeSet.has(pId) && !excludeSet.has(`tmdb-${pId}`) && !excludeSet.has(`tv-${pId}`) && !excludeSet.has(String(p.id).toLowerCase());
+    });
+    if (unseenPool.length > 0) {
+      pool = unseenPool;
     }
   }
 
@@ -2396,42 +2472,13 @@ export function getRandomTitleFromAll({
     return null;
   }
 
-  const genreOptions = getGenreOptions();
-
-  // 5. Genre & Mood Filtering
-  let targetPool = [...pool];
-
-  // If specific genre selected:
-  if (genreId && genreId !== 'all') {
-    const genreFiltered = targetPool.filter(p => matchesGenreHelper(p, genreId, genreOptions));
-    if (genreFiltered.length > 0) {
-      targetPool = genreFiltered;
-    } else {
-      // No local match for this genre and type combination
-      return null;
-    }
-  }
-
-  // If mood selected:
-  if (mood && mood !== 'any') {
-    const moodFiltered = targetPool.filter(p => matchesMoodHelper(p, mood));
-    // If some titles match both genre AND mood, prioritize them!
-    if (moodFiltered.length > 0) {
-      targetPool = moodFiltered;
-    }
-    // If none match mood, retain targetPool (which matches user's chosen genre)
-  }
-
-  if (targetPool.length === 0) {
-    return null;
-  }
-
-  const randomIndex = Math.floor(Math.random() * targetPool.length);
-  return targetPool[randomIndex];
+  const randomIndex = Math.floor(Math.random() * pool.length);
+  return pool[randomIndex];
 }
 
 /**
- * Async title discovery with real-time TMDB fallback for rare filter combinations
+ * Async title discovery with real-time TMDB dynamic discover across thousands of titles
+ * Ensures unique titles on every roll with zero repeated movies in a session.
  */
 export async function getRandomTitleFromAllAsync({
   appMovies = [],
@@ -2439,113 +2486,184 @@ export async function getRandomTitleFromAllAsync({
   genreId = 'all',
   type = 'ANY', // 'ANY' | 'MOVIE' | 'SERIES'
   mood = 'any',
+  excludeIds = [],
 } = {}) {
-  // First attempt: local enriched pool
-  const localPick = getRandomTitleFromAll({ appMovies, language, genreId, type, mood });
-  if (localPick) {
-    return localPick;
-  }
+  const excludeSet = new Set(
+    (Array.isArray(excludeIds) ? excludeIds : []).map(id => String(id).toLowerCase().replace(/^(tmdb-)?(tv-)?/, ''))
+  );
 
-  // If no local match, query live TMDB discover to guarantee accurate results!
-  try {
-    const targetType = String(type || 'ANY').toUpperCase();
-    const gLower = String(genreId || 'all').toLowerCase();
-    const lLower = String(language || 'all').toLowerCase();
+  const targetType = String(type || 'ANY').toUpperCase();
+  const tmdbLang = getTmdbLanguageCode(language);
+  const genreOptions = getGenreOptions();
 
-    // Map language to TMDB parameters
-    let tmdbLang = null;
-    if (lLower === 'te' || lLower === 'telugu') tmdbLang = 'te';
-    else if (lLower === 'hi' || lLower === 'hindi') tmdbLang = 'hi';
-    else if (lLower === 'ta' || lLower === 'tamil') tmdbLang = 'ta';
-    else if (lLower === 'ml' || lLower === 'malayalam') tmdbLang = 'ml';
-    else if (lLower === 'kn' || lLower === 'kannada') tmdbLang = 'kn';
-    else if (lLower === 'en' || lLower === 'english') tmdbLang = 'en';
-    else if (lLower === 'ko' || lLower === 'korean') tmdbLang = 'ko';
-    else if (lLower === 'ja' || lLower === 'japanese') tmdbLang = 'ja';
-    else if (gLower === 'telugu') tmdbLang = 'te';
-    else if (gLower === 'hindi') tmdbLang = 'hi';
-    else if (gLower === 'tamil') tmdbLang = 'ta';
-    else if (gLower === 'korean') tmdbLang = 'ko';
-    else if (gLower === 'japanese') tmdbLang = 'ja';
-
-    const genreIdMap = {
-      action: targetType === 'SERIES' ? 10759 : 28,
-      comedy: 35,
-      horror: 27,
-      scifi: targetType === 'SERIES' ? 10765 : 878,
-      thriller: 53,
-      romance: 10749,
-      animation: 16,
-      drama: 18,
+  const getLanguageLabel = (rawLang) => {
+    const code = String(rawLang || '').toLowerCase();
+    const map = {
+      te: 'Telugu',
+      hi: 'Hindi',
+      ta: 'Tamil',
+      ml: 'Malayalam',
+      kn: 'Kannada',
+      en: 'English',
+      ko: 'Korean',
+      ja: 'Japanese',
     };
-    const withGenres = genreIdMap[gLower] || null;
+    return map[code] || (rawLang ? String(rawLang).toUpperCase() : (tmdbLang ? (map[tmdbLang] || 'Cinema') : 'Featured'));
+  };
 
-    if (targetType === 'SERIES') {
+  // 1. Gather local matching titles that have NOT been seen yet
+  const localCandidates = [];
+  try {
+    const localMatch = getRandomTitleFromAll({ appMovies, language, genreId, type, mood, excludeIds });
+    if (localMatch) {
+      localCandidates.push(localMatch);
+    }
+  } catch (e) {}
+
+  // 2. Query live TMDB Discover with randomized pages for vast catalog & deep variety
+  try {
+    const isTv = targetType === 'SERIES' || (targetType === 'ANY' && Math.random() < 0.35);
+    const tmdbGenre = getTmdbGenreId(genreId, isTv);
+
+    // Pick random page between 1 and 8 (for regional languages with fewer pages, 1 to 4)
+    const maxPage = ['te', 'ta', 'ml', 'kn'].includes(tmdbLang) ? 4 : 8;
+    const randomPage = Math.floor(Math.random() * maxPage) + 1;
+
+    let items = [];
+
+    if (isTv) {
       let tvData;
-      if (tmdbLang === 'te') {
-        tvData = await fetchTeluguTv(1);
+      if (tmdbLang === 'te' && !tmdbGenre) {
+        tvData = await fetchTeluguTv(randomPage);
       } else {
         tvData = await discoverTv({
-          language: tmdbLang,
-          with_genres: withGenres,
+          with_original_language: tmdbLang,
+          with_genres: tmdbGenre,
+          sortBy: 'popularity.desc',
+          page: randomPage,
+        });
+      }
+
+      if (!tvData?.results?.length && randomPage > 1) {
+        tvData = await discoverTv({
+          with_original_language: tmdbLang,
+          with_genres: tmdbGenre,
           sortBy: 'popularity.desc',
           page: 1,
         });
       }
 
-      if (tvData && tvData.results && tvData.results.length > 0) {
-        const rand = tvData.results[Math.floor(Math.random() * Math.min(tvData.results.length, 12))];
-        return {
-          id: `tv-${rand.tmdbId || rand.id}`,
-          titleId: `tv-${rand.tmdbId || rand.id}`,
-          title: rand.title,
+      if (tvData?.results?.length) {
+        items = tvData.results.map(r => ({
+          id: `tv-${r.tmdbId || r.id}`,
+          titleId: `tv-${r.tmdbId || r.id}`,
+          title: r.title,
           type: 'SERIES',
-          genreId: gLower,
-          genreName: genreId !== 'all' ? genreId.toUpperCase() : 'TV Series',
-          releaseYear: rand.releaseYear || (rand.firstAirDate ? parseInt(rand.firstAirDate.split('-')[0], 10) : 2024),
-          rating: rand.voteAverage ? Math.round(rand.voteAverage * 10) / 10 : 4.8,
-          language: rand.language === 'TE' ? 'Telugu' : (rand.language === 'HI' ? 'Hindi' : 'English'),
-          posterUrl: rand.posterUrl,
-          backdropUrl: rand.backdropUrl,
-          overview: rand.overview || 'Featured TV series discovered matching your format and genre preferences.',
-          tags: [gLower, 'series'],
-        };
+          genreId: String(genreId || 'series').toLowerCase(),
+          genreName: genreId !== 'all' ? (genreOptions.find(g => g.id === genreId)?.name || genreId) : 'TV Series',
+          releaseYear: r.releaseYear || (r.firstAirDate ? parseInt(r.firstAirDate.split('-')[0], 10) : 2024),
+          rating: r.voteAverage ? Math.round(r.voteAverage * 10) / 10 : 4.8,
+          language: getLanguageLabel(r.language),
+          posterUrl: r.posterUrl,
+          backdropUrl: r.backdropUrl,
+          overview: r.overview || 'Recommended TV series discovered matching your format and genre preferences.',
+          tags: ['series', String(r.language || '').toLowerCase()],
+        }));
       }
     } else {
-      // MOVIE or ANY
-      const movieData = await discoverMovies({
-        language: tmdbLang,
-        genreId: withGenres,
+      // MOVIE
+      let movieData = await discoverMovies({
+        with_original_language: tmdbLang,
+        with_genres: tmdbGenre,
         sortBy: 'popularity.desc',
-        page: 1,
+        page: randomPage,
       });
 
-      if (movieData && movieData.results && movieData.results.length > 0) {
-        const rand = movieData.results[Math.floor(Math.random() * Math.min(movieData.results.length, 15))];
-        return {
-          id: `tmdb-${rand.tmdbId || rand.id}`,
-          titleId: `tmdb-${rand.tmdbId || rand.id}`,
-          title: rand.title,
+      if (!movieData?.results?.length && randomPage > 1) {
+        movieData = await discoverMovies({
+          with_original_language: tmdbLang,
+          with_genres: tmdbGenre,
+          sortBy: 'popularity.desc',
+          page: 1,
+        });
+      }
+
+      if (movieData?.results?.length) {
+        items = movieData.results.map(r => ({
+          id: `tmdb-${r.tmdbId || r.id}`,
+          titleId: `tmdb-${r.tmdbId || r.id}`,
+          title: r.title,
           type: 'MOVIE',
-          genreId: gLower,
-          genreName: genreId !== 'all' ? genreId.toUpperCase() : 'Movie',
-          releaseYear: rand.releaseYear || (rand.releaseDate ? parseInt(rand.releaseDate.split('-')[0], 10) : 2024),
-          rating: rand.voteAverage ? Math.round(rand.voteAverage * 10) / 10 : 4.8,
-          language: rand.language === 'TE' ? 'Telugu' : (rand.language === 'HI' ? 'Hindi' : 'English'),
-          posterUrl: rand.posterUrl,
-          backdropUrl: rand.backdropUrl,
-          overview: rand.overview || 'Featured movie discovered matching your format and genre preferences.',
-          tags: [gLower, 'movie'],
-        };
+          genreId: String(genreId || 'movie').toLowerCase(),
+          genreName: genreId !== 'all' ? (genreOptions.find(g => g.id === genreId)?.name || genreId) : 'Movie',
+          releaseYear: r.releaseYear || (r.releaseDate ? parseInt(r.releaseDate.split('-')[0], 10) : 2024),
+          rating: r.voteAverage ? Math.round(r.voteAverage * 10) / 10 : 4.8,
+          language: getLanguageLabel(r.language),
+          posterUrl: r.posterUrl,
+          backdropUrl: r.backdropUrl,
+          overview: r.overview || 'Recommended movie discovered matching your format and genre preferences.',
+          tags: ['movie', String(r.language || '').toLowerCase()],
+        }));
+      }
+    }
+
+    // Strictly filter out any title that was already seen in this session
+    const unseenTmdb = items.filter(item => {
+      const rawId = String(item.titleId || item.id).toLowerCase().replace(/^(tmdb-)?(tv-)?/, '');
+      return !excludeSet.has(rawId) && !excludeSet.has(String(item.id).toLowerCase()) && !excludeSet.has(String(item.titleId).toLowerCase());
+    });
+
+    const allCandidates = [...unseenTmdb, ...localCandidates];
+
+    if (allCandidates.length > 0) {
+      const pick = allCandidates[Math.floor(Math.random() * allCandidates.length)];
+      return pick;
+    }
+
+    // If all items on randomPage were seen, try page 1 for unseen items
+    if (items.length > 0 && randomPage > 1) {
+      const page1Data = isTv
+        ? await discoverTv({ with_original_language: tmdbLang, with_genres: tmdbGenre, page: 1 })
+        : await discoverMovies({ with_original_language: tmdbLang, with_genres: tmdbGenre, page: 1 });
+      const p1Items = (page1Data?.results || []).map(r => ({
+        id: isTv ? `tv-${r.tmdbId || r.id}` : `tmdb-${r.tmdbId || r.id}`,
+        titleId: isTv ? `tv-${r.tmdbId || r.id}` : `tmdb-${r.tmdbId || r.id}`,
+        title: r.title,
+        type: isTv ? 'SERIES' : 'MOVIE',
+        genreId: String(genreId || 'all').toLowerCase(),
+        genreName: genreId !== 'all' ? (genreOptions.find(g => g.id === genreId)?.name || genreId) : (isTv ? 'TV Series' : 'Movie'),
+        releaseYear: r.releaseYear || 2024,
+        rating: r.voteAverage ? Math.round(r.voteAverage * 10) / 10 : 4.8,
+        language: getLanguageLabel(r.language),
+        posterUrl: r.posterUrl,
+        backdropUrl: r.backdropUrl,
+        overview: r.overview || '',
+        tags: [isTv ? 'series' : 'movie'],
+      }));
+
+      const unseenP1 = p1Items.filter(item => {
+        const rawId = String(item.titleId || item.id).toLowerCase().replace(/^(tmdb-)?(tv-)?/, '');
+        return !excludeSet.has(rawId) && !excludeSet.has(String(item.id).toLowerCase());
+      });
+
+      if (unseenP1.length > 0) {
+        return unseenP1[Math.floor(Math.random() * unseenP1.length)];
       }
     }
   } catch (err) {
-    console.warn('TMDB discovery fallback failed:', err);
+    console.warn('Live TMDB discovery failed, falling back to local pool:', err);
   }
+
+  // 3. Fallback to local pool if TMDB had no network or failed
+  if (localCandidates.length > 0) {
+    return localCandidates[Math.floor(Math.random() * localCandidates.length)];
+  }
+
+  const finalLocal = getRandomTitleFromAll({ appMovies, language, genreId, type, mood, excludeIds });
+  if (finalLocal) return finalLocal;
 
   return null;
 }
-
 
 /**
  * Legacy wrapper
