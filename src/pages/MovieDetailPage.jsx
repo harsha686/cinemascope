@@ -6,7 +6,6 @@ import RatingBreakdown from '../components/reviews/RatingBreakdown';
 import ReviewCard from '../components/reviews/ReviewCard';
 import ProfessionalReviewCard from '../components/reviews/ProfessionalReviewCard';
 import ReviewTabs from '../components/reviews/ReviewTabs';
-import ProfessionalRatingBadge from '../components/reviews/ProfessionalRatingBadge';
 import ReviewComposer from '../components/reviews/ReviewComposer';
 import MovieStatusBar from '../components/library/MovieStatusBar';
 import OttStreamingInfo from '../components/movies/OttStreamingInfo';
@@ -1085,7 +1084,7 @@ export default function MovieDetailPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 220 }}>
                       <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Pre-filled request:</span>
                       <span style={{ fontSize: 13, color: 'var(--gold)', fontWeight: 600, fontFamily: 'monospace' }}>
-                        "Hi! Please send me the movie link for {movie.title} ({movie.releaseYear || ''})"
+                        {`"Hi! Please send me the movie link for ${movie.title} (${movie.releaseYear || ''})"`}
                       </span>
                     </div>
 
@@ -1258,7 +1257,7 @@ export default function MovieDetailPage() {
                       Send Movie Title
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                      Send your request for "{movie.title}" in direct messages.
+                      Send your request for {`"${movie.title}"`} in direct messages.
                     </div>
                   </div>
 

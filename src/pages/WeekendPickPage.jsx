@@ -14,7 +14,6 @@ import {
   submitVote,
   hasUserVotedInGenre,
   getUserVoteInGenre,
-  getUserVotes,
   getGenreOptions,
   syncWeekendPickDataFromCloud,
   formatMediaDetailUrl,
@@ -87,9 +86,6 @@ export default function WeekendPickPage() {
   const userVote = currentUser && activeRound
     ? getUserVoteInGenre(currentUser.id, activeRound.id, selectedGenre)
     : null;
-  const userAllVotes = currentUser && activeRound
-    ? getUserVotes(currentUser.id, activeRound.id)
-    : [];
 
   const handleVoteSubmit = (candidate) => {
     if (!currentUser) {
@@ -176,7 +172,7 @@ export default function WeekendPickPage() {
                 lineHeight: 1.6,
                 margin: 0,
               }}>
-                The community chooses what's worth watching. Vote for your top movie or TV series across 8 genres. The title with the most votes becomes this weekend's official recommendation!
+                The community chooses what&apos;s worth watching. Vote for your top movie or TV series across 8 genres. The title with the most votes becomes this weekend&apos;s official recommendation!
               </p>
 
               <div style={{ marginTop: 16 }}>
@@ -601,7 +597,7 @@ export default function WeekendPickPage() {
                   🏆 Declared Weekend Winners
                 </h3>
                 <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>
-                  The community crowned these titles as this weekend's top recommendations.
+                  The community crowned these titles as this weekend&apos;s top recommendations.
                 </p>
               </div>
 
