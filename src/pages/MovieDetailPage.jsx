@@ -74,6 +74,7 @@ export default function MovieDetailPage() {
 
   const adminMovie = getMovie(movieId);
   const movie = isTmdbMovie ? tmdbMovie : adminMovie;
+  const isNowShowing = movie?.status === 'CURRENTLY_SHOWING';
   const currentUser = state.currentUser;
   const currentCity = state.selectedCity || getCity('visakhapatnam');
   const currentUserIsPro = currentUser ? isVerifiedPro(currentUser.id) : false;
@@ -83,7 +84,7 @@ export default function MovieDetailPage() {
   const [editingReview, setEditingReview] = useState(null);
   const [reviewTab, setReviewTab] = useState('all'); // 'all' | 'audience' | 'professional'
   const [submitAsPro, setSubmitAsPro] = useState(currentUserIsPro);
-  const [activeSectionTab, setActiveSectionTab] = useState('reviews'); // 'reviews' | 'streaming' | 'watch-now' | 'about' | 'cast' | 'all'
+  const [activeSectionTab, setActiveSectionTab] = useState('reviews'); // 'reviews' | 'streaming' | 'watch-in' | 'watch-now' | 'about' | 'cast' | 'all'
   const [sharingPoster, setSharingPoster] = useState(false);
   const [copiedDmText, setCopiedDmText] = useState(false);
 
@@ -716,12 +717,14 @@ export default function MovieDetailPage() {
               {[
                 { id: 'reviews', label: 'What People Think', icon: <MessageSquare size={14} />, count: allReviews.length },
                 { id: 'streaming', label: 'Streaming In', icon: <Tv size={14} /> },
-                { id: 'watch-now', label: 'Watch Now', icon: <Play size={14} /> },
+                isNowShowing
+                  ? { id: 'watch-in', label: 'Watch In', icon: <MapPin size={14} /> }
+                  : { id: 'watch-now', label: 'Watch Now', icon: <Play size={14} /> },
                 { id: 'about', label: movie.isTv ? 'About Series' : 'About Movie', icon: movie.isTv ? <Tv size={14} /> : <Film size={14} /> },
                 { id: 'cast', label: movie.isTv ? 'Cast & Creators' : 'Cast & Filmmakers', icon: <Users size={14} />, count: (movie.cast?.length || 0) + (movie.director ? 1 : 0) },
                 { id: 'all', label: 'All Info', icon: <Layers size={14} /> },
               ].map(tab => {
-                const isActive = activeSectionTab === tab.id;
+                const isActive = activeSectionTab === tab.id || (tab.id === 'watch-in' && activeSectionTab === 'watch-now') || (tab.id === 'watch-now' && activeSectionTab === 'watch-in');
                 return (
                   <button
                     key={tab.id}
@@ -778,7 +781,7 @@ export default function MovieDetailPage() {
 
                   <button
                     type="button"
-                    onClick={() => setActiveSectionTab('watch-now')}
+                    onClick={() => setActiveSectionTab(isNowShowing ? 'watch-in' : 'watch-now')}
                     className="btn btn-outline btn-sm"
                     style={{
                       fontSize: 12,
@@ -790,8 +793,8 @@ export default function MovieDetailPage() {
                       background: 'rgba(212,175,55,0.06)',
                     }}
                   >
-                    <Play size={13} />
-                    <span>Watch Now (DM for link) →</span>
+                    {isNowShowing ? <MapPin size={13} /> : <Play size={13} />}
+                    <span>{isNowShowing ? 'Watch In (Theaters) →' : 'Watch Now (DM for link) →'}</span>
                   </button>
                 </div>
 
@@ -800,8 +803,183 @@ export default function MovieDetailPage() {
               </div>
             )}
 
-            {/* WATCH NOW SECTION */}
-            {(activeSectionTab === 'watch-now' || activeSectionTab === 'all') && (
+            {/* WATCH IN SECTION (For Now Showing Theatrical Movies) */}
+            {isNowShowing && (activeSectionTab === 'watch-in' || activeSectionTab === 'watch-now' || activeSectionTab === 'all') && (
+              <div id="watch-in-section" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                  <div>
+                    <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', letterSpacing: '0.04em', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <MapPin size={20} color="var(--gold)" />
+                      <span>Watch In Theaters</span>
+                    </h2>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
+                      Confirmed theater screenings &amp; cinema screens in <strong style={{ color: 'var(--gold)' }}>{currentCity?.name}</strong>
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => navigate('/compare')}
+                    className="btn btn-outline btn-sm"
+                    style={{
+                      fontSize: 12,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <Monitor size={13} />
+                    <span>Compare Cinema Screens →</span>
+                  </button>
+                </div>
+
+                {/* Confirmed Theaters List */}
+                {localTheaters.length > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+                    {localTheaters.map(t => (
+                      <div
+                        key={t.id}
+                        onClick={() => navigate(`/theater/${t.id}`)}
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(220,182,91,0.08) 0%, rgba(20,17,13,0.95) 100%)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 8,
+                          padding: '20px 22px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 12,
+                          cursor: 'pointer',
+                          transition: 'all 200ms ease',
+                          position: 'relative',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.borderColor = 'var(--gold-dim)';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                          <div>
+                            <div style={{ fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2 }}>
+                              {t.chain || 'Cinema'}
+                            </div>
+                            <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', margin: 0, fontWeight: 700 }}>
+                              {t.name}
+                            </h4>
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                              📍 {t.area}
+                            </div>
+                          </div>
+                          <span className="badge badge-gold" style={{ fontSize: 10 }}>
+                            {t.totalScreens} {t.totalScreens === 1 ? 'Screen' : 'Screens'}
+                          </span>
+                        </div>
+
+                        {t.features && t.features.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {t.features.slice(0, 4).map((feat, i) => (
+                              <span
+                                key={i}
+                                style={{
+                                  fontSize: 10,
+                                  padding: '2px 7px',
+                                  borderRadius: 4,
+                                  background: 'rgba(255,255,255,0.05)',
+                                  color: 'var(--text-secondary)',
+                                  border: '1px solid rgba(255,255,255,0.08)',
+                                }}
+                              >
+                                {feat}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        <div style={{
+                          marginTop: 'auto',
+                          paddingTop: 10,
+                          borderTop: '1px solid rgba(255,255,255,0.06)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          fontSize: 12,
+                          color: 'var(--gold)',
+                          fontWeight: 600,
+                        }}>
+                          <span>View Theater &amp; Screens</span>
+                          <ChevronRight size={14} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{
+                    padding: '36px 24px',
+                    textAlign: 'center',
+                    background: 'var(--bg-card)',
+                    border: '1px dashed var(--border)',
+                    borderRadius: 8,
+                  }}>
+                    <MapPin size={32} color="var(--gold-dim)" style={{ margin: '0 auto 12px' }} />
+                    <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--text-primary)', margin: '0 0 6px' }}>
+                      No confirmed screenings reported in {currentCity?.name || 'this city'}
+                    </h3>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 440, margin: '0 auto 18px', lineHeight: 1.5 }}>
+                      This movie is currently in theaters. Try switching your city in the navigation bar to check confirmed screens in other regions.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/compare')}
+                      className="btn btn-outline btn-sm"
+                    >
+                      Compare All Screens →
+                    </button>
+                  </div>
+                )}
+
+                {/* Screen Format Presentation Spec for this Movie */}
+                {movie.aspectRatio && (
+                  <div style={{
+                    padding: '20px 24px',
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 16,
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 4 }}>
+                        Screen Format Presentation
+                      </div>
+                      <div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 600 }}>
+                        Target Native Aspect Ratio: <strong style={{ color: 'var(--gold)', fontFamily: 'var(--font-serif)', fontSize: 16 }}>{movie.aspectRatio}</strong>
+                      </div>
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0', maxWidth: 540 }}>
+                        Look for screens matching {movie.aspectRatio} presentation (e.g. Scope 2.39:1 or Flat 1.85:1) for optimal uncropped viewing.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => navigate('/compare')}
+                      className="btn btn-outline btn-sm"
+                      style={{ whiteSpace: 'nowrap' }}
+                    >
+                      Compare Screens →
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* WATCH NOW SECTION (Only for Non-Theatrical / Catalog / Archive Movies) */}
+            {!isNowShowing && (activeSectionTab === 'watch-now' || activeSectionTab === 'watch-in' || activeSectionTab === 'all') && (
               <div id="watch-now-section" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
                   <div>
@@ -1488,14 +1666,14 @@ export default function MovieDetailPage() {
           <button
             type="button"
             onClick={() => {
-              setActiveSectionTab('watch-now');
-              const el = document.getElementById('main-content-tabs') || document.getElementById('watch-now-section');
+              setActiveSectionTab(isNowShowing ? 'watch-in' : 'watch-now');
+              const el = document.getElementById('main-content-tabs') || document.getElementById(isNowShowing ? 'watch-in-section' : 'watch-now-section');
               if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }}
             className="btn btn-outline btn-sm"
             style={{ fontSize: '11px', padding: '6px 10px', color: 'var(--gold)', borderColor: 'var(--gold-dim)' }}
           >
-            <Play size={13} /> Watch Now
+            {isNowShowing ? <MapPin size={13} /> : <Play size={13} />} {isNowShowing ? 'Watch In' : 'Watch Now'}
           </button>
         </div>
       </div>

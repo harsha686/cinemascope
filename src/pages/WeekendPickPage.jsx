@@ -24,7 +24,6 @@ import {
   getGenreOptions,
   getAllWinners,
   hasUserVotedInAllGenres,
-  getUserVotedGenresCount,
   syncWeekendPickDataFromCloud,
   formatMediaDetailUrl,
 } from '../services/weekendPickService';
@@ -132,10 +131,6 @@ export default function WeekendPickPage() {
 
   const genreObj = genres.find(g => g.id === selectedGenre) || genres[0] || { id: selectedGenre, name: selectedGenre, emoji: '🎬' };
 
-  const userVotingProgress = (currentUser && activeRound)
-    ? getUserVotedGenresCount(currentUser.id, activeRound.id)
-    : null;
-
   return (
     <div className="page-enter" style={{ minHeight: '90vh', paddingBottom: 60 }}>
       {/* Top Hero Banner */}
@@ -192,6 +187,38 @@ export default function WeekendPickPage() {
               }}>
                 The community chooses what's worth watching. Vote for your top movie or TV series across 8 genres. The title with the most votes becomes this weekend's official recommendation!
               </p>
+
+              <div style={{ marginTop: 16 }}>
+                <button
+                  type="button"
+                  onClick={() => navigate('/weekend-winners')}
+                  className="btn btn-ghost btn-sm"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    color: 'var(--gold)',
+                    padding: '7px 14px',
+                    borderRadius: 6,
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid var(--border-subtle)',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'var(--gold-faint)';
+                    e.currentTarget.style.borderColor = 'var(--gold)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                    e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                  }}
+                >
+                  <Archive size={14} /> Winner Archive →
+                </button>
+              </div>
             </div>
 
             {/* Quick Actions */}
@@ -267,47 +294,10 @@ export default function WeekendPickPage() {
                   Random Pick
                 </span>
               </button>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' }}>
-                <button
-                  type="button"
-                  onClick={() => navigate('/weekend-winners')}
-                  className="btn btn-ghost btn-sm"
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--gold)' }}
-                >
-                  <Archive size={14} /> Winner Archive →
-                </button>
-
-              {/* User Voting Status & Progress */}
-              {userVotingProgress && (
-                <div style={{
-                  fontSize: 11,
-                  color: userVotingProgress.isComplete ? '#4ade80' : 'var(--text-secondary)',
-                  background: userVotingProgress.isComplete ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.04)',
-                  padding: '6px 14px',
-                  borderRadius: 20,
-                  border: `1px solid ${userVotingProgress.isComplete ? '#4ade80' : 'var(--border-subtle)'}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}>
-                  {userVotingProgress.isComplete ? (
-                    <>
-                      <Check size={12} />
-                      <span>All {userVotingProgress.totalGenres} genres voted! <strong>Weekend Pick Unlocked 🏆</strong></span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Voted in <strong style={{ color: 'var(--gold)' }}>{userVotingProgress.votedCount}</strong> of {userVotingProgress.totalGenres} genres ({userVotingProgress.remainingCount} left to unlock full standings)</span>
-                    </>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         </div>
       </div>
-    </div>
 
       {/* Main Content Area */}
       <div className="container" style={{ marginTop: 32 }}>
