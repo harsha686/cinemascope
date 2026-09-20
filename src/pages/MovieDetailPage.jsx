@@ -694,10 +694,7 @@ export default function MovieDetailPage() {
 
       {/* Main Content Layout */}
       <div className="container" style={{ padding: '48px 24px 80px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 48 }} className="detail-layout">
-          
-          {/* Main Left Column */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+        <div style={{ maxWidth: 1040, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 32 }} className="detail-layout">
 
             {/* Sub-Navigation Tabs */}
             <div id="main-content-tabs" style={{
@@ -1555,86 +1552,6 @@ export default function MovieDetailPage() {
               )}
             </div>
             )}
-
-          </div>
-
-          {/* Right Sidebar: Where to Watch & Screen Tech */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-
-            {/* SCREEN EXPERIENCE & ASPECT RATIO TECH */}
-            {movie.aspectRatio && (
-              <div style={{ padding: 24, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <Monitor size={16} color="var(--gold)" />
-                  <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 13, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
-                    Screen Format Spec
-                  </h3>
-                </div>
-
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>
-                  Target Native Ratio: <strong style={{ color: 'var(--gold)', fontFamily: 'var(--font-serif)' }}>{movie.aspectRatio}</strong>
-                </div>
-
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 16 }}>
-                  Check how this movie's native {movie.aspectRatio} aspect ratio presents on local screens in your city.
-                </p>
-
-                <button
-                  type="button"
-                  onClick={() => navigate('/compare')}
-                  className="btn btn-outline btn-sm"
-                  style={{ width: '100%', justifyContent: 'center' }}
-                >
-                  Compare Cinema Screens →
-                </button>
-              </div>
-            )}
-
-            {/* WHERE TO WATCH (THEATERS IN CURRENT CITY) - Only for active current movies screening locally */}
-            {!isOldMovie && movie.status === 'CURRENTLY_SHOWING' && localTheaters.length > 0 && (
-              <div style={{ padding: 24, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <MapPin size={16} color="var(--gold)" />
-                  <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 13, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
-                    Where to Watch
-                  </h3>
-                </div>
-
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>
-                  Confirmed screening at <strong style={{ color: 'var(--text-primary)' }}>{currentCity?.name}</strong>:
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {localTheaters.map(t => (
-                    <Link
-                      key={t.id}
-                      to={`/theater/${t.id}`}
-                      style={{
-                        padding: '10px 12px',
-                        background: 'rgba(255,255,255,0.03)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: 3,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        textDecoration: 'none',
-                        transition: 'border-color 150ms ease',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--gold-dim)'}
-                      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
-                    >
-                      <div>
-                        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 12, color: 'var(--text-primary)' }}>{t.name}</div>
-                        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{t.totalScreens} screens • {t.area}</div>
-                      </div>
-                      <ChevronRight size={13} color="var(--gold)" />
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-          </div>
 
         </div>
       </div>
