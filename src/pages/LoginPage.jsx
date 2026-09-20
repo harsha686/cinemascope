@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { LogIn, Key, Mail, ShieldAlert } from 'lucide-react';
 import { useApp } from '../AppContext';
+import GoogleAuthButton from '../components/auth/GoogleAuthButton';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -13,6 +14,13 @@ export default function LoginPage() {
   const [error, setError] = useState('');
 
   const from = location.state?.from || '/';
+
+  // If user is already logged in (or just logged in via Google OAuth redirect)
+  useEffect(() => {
+    if (state.currentUser) {
+      navigate(from === '/login' ? '/movies' : from, { replace: true });
+    }
+  }, [state.currentUser, from, navigate]);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -58,7 +66,7 @@ export default function LoginPage() {
       <div style={{ maxWidth: 420, width: '100%', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', padding: 32, borderRadius: 'var(--radius-sm)', boxShadow: 'var(--shadow-card)' }}>
 
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--gold-faint)', border: '1px solid var(--gold-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', color: 'var(--gold)' }}>
             <LogIn size={20} />
           </div>
@@ -77,6 +85,22 @@ export default function LoginPage() {
             {error}
           </div>
         )}
+
+        {/* Google Sign In */}
+        <GoogleAuthButton
+          mode="signin"
+          redirectTo={typeof window !== 'undefined' ? `${window.location.origin}${from === '/login' ? '/movies' : from}` : undefined}
+          onError={(msg) => setError(msg)}
+        />
+
+        {/* Divider */}
+        <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', gap: 12 }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            or continue with email
+          </span>
+          <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+        </div>
 
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>

@@ -2,15 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Trophy,
-  Sparkles,
-  Dices,
   Clock,
   Check,
-  Flame,
   Archive,
-  Share2,
-  Lock,
-  ArrowRight,
   Info,
   Plus,
 } from 'lucide-react';
@@ -22,8 +16,6 @@ import {
   getUserVoteInGenre,
   getUserVotes,
   getGenreOptions,
-  getAllWinners,
-  hasUserVotedInAllGenres,
   syncWeekendPickDataFromCloud,
   formatMediaDetailUrl,
 } from '../services/weekendPickService';
@@ -31,7 +23,6 @@ import { useApp } from '../AppContext';
 import CandidateVoteCard from '../components/weekend/CandidateVoteCard';
 import PickMyWeekendModal from '../components/weekend/PickMyWeekendModal';
 import SocialShareModal from '../components/weekend/SocialShareModal';
-import WeekendWinnerBadge from '../components/weekend/WeekendWinnerBadge';
 import UserAddCandidateModal from '../components/weekend/UserAddCandidateModal';
 
 export default function WeekendPickPage() {

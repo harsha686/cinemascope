@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserPlus, Mail, Key, User, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../AppContext';
+import GoogleAuthButton from '../components/auth/GoogleAuthButton';
 
 export default function SignupPage() {
   const navigate = useNavigate();
@@ -13,6 +14,13 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState(false);
+
+  // If user is already logged in (or just logged in via Google OAuth redirect)
+  useEffect(() => {
+    if (state.currentUser) {
+      navigate('/movies', { replace: true });
+    }
+  }, [state.currentUser, navigate]);
 
   const handleSignup = (e) => {
     e.preventDefault();
@@ -60,7 +68,7 @@ export default function SignupPage() {
     <div className="page-enter" style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
       <div style={{ maxWidth: 440, width: '100%', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', padding: 32, borderRadius: 'var(--radius-sm)', boxShadow: 'var(--shadow-card)' }}>
         
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--gold-faint)', border: '1px solid var(--gold-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', color: 'var(--gold)' }}>
             <UserPlus size={20} />
           </div>
@@ -82,6 +90,22 @@ export default function SignupPage() {
             {error}
           </div>
         )}
+
+        {/* Google Sign Up */}
+        <GoogleAuthButton
+          mode="signup"
+          redirectTo={typeof window !== 'undefined' ? `${window.location.origin}/movies` : undefined}
+          onError={(msg) => setError(msg)}
+        />
+
+        {/* Divider */}
+        <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', gap: 12 }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            or sign up with email
+          </span>
+          <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+        </div>
 
         <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>

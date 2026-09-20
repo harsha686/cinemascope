@@ -27,7 +27,13 @@ export const getSupabaseClient = () => {
 
   // Re-create client if URL changed (credentials updated)
   if (!supabaseClient || supabaseClientUrl !== url) {
-    supabaseClient = createClient(url, key);
+    supabaseClient = createClient(url, key, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+      },
+    });
     supabaseClientUrl = url;
   }
   return supabaseClient;
@@ -46,6 +52,32 @@ export const setCustomSupabaseCredentials = (url, key) => {
   else localStorage.removeItem('cinemascope_supabase_key');
 
   supabaseClient = null; // reset client
+};
+
+export const signInWithGoogle = async (redirectTo) => {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return { data: null, error: new Error('Supabase client is not configured.') };
+  }
+
+  const callbackUrl = redirectTo || (typeof window !== 'undefined' ? `${window.location.origin}/movies` : undefined);
+
+  return await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: callbackUrl,
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'consent',
+      },
+    },
+  });
+};
+
+export const signOutUser = async () => {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { error: null };
+  return await supabase.auth.signOut();
 };
 
 // ============================================================

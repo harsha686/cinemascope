@@ -3,7 +3,7 @@ import theaterDB from './data/theaters.json';
 import initialMovies from './data/movies.json';
 import initialReviews from './data/reviews.json';
 import initialUsers from './data/users.json';
-import { supabaseService, isSupabaseConfigured } from './services/supabase';
+import { supabaseService, isSupabaseConfigured, getSupabaseClient } from './services/supabase';
 import { syncWeekendPickDataFromCloud, pushWeekendPickDataToCloud } from './services/weekendPickService';
 import { syncUserLibraryWithCloud } from './services/movieLibraryService';
 import { DEFAULT_PRO_APPLICATIONS, getUserApplication as getProAppFromService } from './services/proReviewerService';
@@ -136,21 +136,33 @@ function reducer(state, action) {
       saveStorage('cinemascope_users', action.payload);
       return newState;
 
-    case 'REGISTER_USER':
+    case 'REGISTER_USER': {
+      const userToRegister = {
+        ...action.payload,
+        role: action.payload.email?.toLowerCase() === 'harshavardhanmellof41@gmail.com' ? 'ADMIN' : (action.payload.role || 'USER'),
+      };
       const updatedUsers = [
-        ...state.users.filter(u => u.id !== action.payload.id && u.email?.toLowerCase() !== action.payload.email?.toLowerCase()),
-        action.payload
+        ...state.users.filter(u => u.id !== userToRegister.id && u.email?.toLowerCase() !== userToRegister.email?.toLowerCase()),
+        userToRegister
       ];
-      newState = { ...state, users: updatedUsers, currentUser: action.payload };
+      newState = { ...state, users: updatedUsers, currentUser: userToRegister };
       saveStorage('cinemascope_users', updatedUsers);
-      saveStorage('cinemascope_currentUser', action.payload);
-      if (isSupabaseConfigured()) supabaseService.saveUser(action.payload);
+      saveStorage('cinemascope_currentUser', userToRegister);
+      if (isSupabaseConfigured()) supabaseService.saveUser(userToRegister);
       return newState;
+    }
 
-    case 'LOGOUT':
+    case 'LOGOUT': {
       newState = { ...state, currentUser: null };
       saveStorage('cinemascope_currentUser', null);
+      try {
+        const sbClient = getSupabaseClient();
+        if (sbClient) sbClient.auth.signOut().catch(() => {});
+      } catch (e) {
+        // ignore
+      }
       return newState;
+    }
 
     // --- MOVIE ACTIONS (ADMIN) ---
     case 'SET_MOVIES':
@@ -558,9 +570,79 @@ export function AppProvider({ children }) {
     return syncCloudData({ quiet: true });
   }, [syncCloudData]);
 
-  // Run initial cloud sync once on app load
+  // Run initial cloud sync once on load
   useEffect(() => {
     refreshData();
+  }, []);
+
+  // Supabase Auth listener for Google OAuth sign-in / sign-up
+  useEffect(() => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    const handleSbUser = (sbUser) => {
+      if (!sbUser || !sbUser.email) return;
+
+      const email = sbUser.email;
+      const currentUsers = stateRef.current?.users || [];
+      const existingUser = currentUsers.find(u => u.email?.toLowerCase() === email.toLowerCase());
+
+      const displayName =
+        sbUser.user_metadata?.full_name ||
+        sbUser.user_metadata?.name ||
+        existingUser?.displayName ||
+        email.split('@')[0] ||
+        'User';
+
+      const avatarUrl =
+        sbUser.user_metadata?.avatar_url ||
+        sbUser.user_metadata?.picture ||
+        existingUser?.avatarUrl ||
+        null;
+
+      const isAdminEmail = email.toLowerCase() === 'harshavardhanmellof41@gmail.com';
+      const role = isAdminEmail ? 'ADMIN' : (existingUser?.role || 'USER');
+
+      const userObj = {
+        id: existingUser?.id || sbUser.id,
+        email: email,
+        displayName: displayName,
+        role: role,
+        avatarUrl: avatarUrl,
+        authProvider: 'google',
+        createdAt: existingUser?.createdAt || sbUser.created_at || new Date().toISOString(),
+      };
+
+      const current = stateRef.current?.currentUser;
+      if (!current || current.email?.toLowerCase() !== email.toLowerCase() || current.avatarUrl !== avatarUrl) {
+        dispatch({ type: 'REGISTER_USER', payload: userObj });
+      }
+    };
+
+    // Check existing active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        handleSbUser(session.user);
+      }
+    }).catch(console.warn);
+
+    // Subscribe to live auth changes (OAuth redirects return)
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION') {
+        if (session?.user) {
+          handleSbUser(session.user);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        const current = stateRef.current?.currentUser;
+        if (current?.authProvider === 'google') {
+          dispatch({ type: 'LOGOUT' });
+        }
+      }
+    });
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
   }, []);
 
   // Derived data helpers for Movies & Reviews

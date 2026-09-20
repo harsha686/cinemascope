@@ -112,14 +112,28 @@ export default function ProfilePage() {
         <div className="container" style={{ maxWidth: 900 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-              <div style={{
-                width: 72, height: 72, borderRadius: '50%',
-                background: 'var(--gold-faint)', border: '2px solid var(--gold-dim)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 28, fontFamily: 'var(--font-serif)', fontWeight: 700, color: 'var(--gold)',
-              }}>
-                {currentUser.displayName.charAt(0).toUpperCase()}
-              </div>
+              {currentUser.avatarUrl ? (
+                <img
+                  src={currentUser.avatarUrl}
+                  alt={currentUser.displayName}
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '2px solid var(--gold-dim)',
+                  }}
+                />
+              ) : (
+                <div style={{
+                  width: 72, height: 72, borderRadius: '50%',
+                  background: 'var(--gold-faint)', border: '2px solid var(--gold-dim)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 28, fontFamily: 'var(--font-serif)', fontWeight: 700, color: 'var(--gold)',
+                }}>
+                  {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'U'}
+                </div>
+              )}
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 26, color: 'var(--text-primary)' }}>

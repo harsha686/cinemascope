@@ -287,22 +287,36 @@ export default function Navbar() {
                   e.currentTarget.style.borderColor = 'var(--border-neutral)';
                 }}
               >
-                <div
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: '50%',
-                    background: 'var(--accent)',
-                    color: '#080604',
-                    fontWeight: 700,
-                    fontSize: 11,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'U'}
-                </div>
+                {currentUser.avatarUrl ? (
+                  <img
+                    src={currentUser.avatarUrl}
+                    alt={currentUser.displayName || 'User'}
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '1px solid var(--gold-dim)',
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: '50%',
+                      background: 'var(--accent)',
+                      color: '#080604',
+                      fontWeight: 700,
+                      fontSize: 11,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                )}
                 <span className="navbar-username" style={{ fontSize: 12, fontWeight: 500 }}>
                   {currentUser.displayName}
                 </span>
@@ -633,22 +647,36 @@ export default function Navbar() {
           {currentUser ? (
             <div style={{ marginTop: 12, paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
-                <div
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    background: 'var(--accent)',
-                    color: '#080604',
-                    fontWeight: 700,
-                    fontSize: 12,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'U'}
-                </div>
+                {currentUser.avatarUrl ? (
+                  <img
+                    src={currentUser.avatarUrl}
+                    alt={currentUser.displayName || 'User'}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '1px solid var(--gold-dim)',
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      background: 'var(--accent)',
+                      color: '#080604',
+                      fontWeight: 700,
+                      fontSize: 12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                )}
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{currentUser.displayName}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{currentUser.email}</div>
