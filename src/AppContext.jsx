@@ -476,6 +476,13 @@ export function AppProvider({ children }) {
         });
         const mergedUsers = [...remoteUsers, ...localOnlyUsers];
         dispatch({ type: 'SET_USERS', payload: mergedUsers });
+        // If local has users not yet in cloud, push them up
+        if (localOnlyUsers.length > 0) {
+          supabaseService.saveUsersData(mergedUsers).catch(console.warn);
+        }
+      } else if (currentState.users?.length > 0) {
+        // Cloud has no users yet — seed it with current local users
+        supabaseService.saveUsersData(currentState.users).catch(console.warn);
       }
 
       if (remoteReviews && remoteReviews.length > 0) {

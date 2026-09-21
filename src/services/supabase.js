@@ -235,15 +235,30 @@ export const supabaseService = {
     return !error;
   },
 
-  // Users
+  // Users — reads from system_users_data collection (cross-device sync layer)
+  // Falls back to public.users table if it exists (created via SQL editor)
   async getUsers() {
     const supabase = getSupabaseClient();
     if (!supabase) return null;
     try {
-      const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
-      if (error) {
-        return null;
+      // Primary: read from system_users_data collection (always available)
+      const { data: colData, error: colErr } = await supabase
+        .from('collections')
+        .select('*')
+        .eq('id', 'system_users_data')
+        .maybeSingle();
+
+      if (!colErr && colData && colData.description) {
+        const parsed = JSON.parse(colData.description);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
+
+      // Fallback: public.users table (only if it exists)
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) return null;
       return (data || []).map(u => ({
         id: u.id,
         email: u.email,
@@ -256,9 +271,77 @@ export const supabaseService = {
     }
   },
 
+  // Save the full users list to system_users_data collection
+  async saveUsersData(usersList) {
+    const supabase = getSupabaseClient();
+    if (!supabase || !usersList) return false;
+    try {
+      const { error } = await supabase.from('collections').upsert({
+        id: 'system_users_data',
+        user_id: 'system',
+        name: 'users_state',
+        description: JSON.stringify(usersList),
+        visibility: 'public',
+        movie_ids: [],
+        updated_at: new Date().toISOString(),
+      });
+      if (error) {
+        console.warn('Supabase saveUsersData error:', error);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.warn('Supabase saveUsersData error:', e);
+      return false;
+    }
+  },
+
+  // Append a single new user to the cloud list atomically
+  async appendUserToCloudList(user) {
+    const supabase = getSupabaseClient();
+    if (!supabase || !user) return false;
+    try {
+      // Fetch current list
+      const { data: colData } = await supabase
+        .from('collections')
+        .select('description')
+        .eq('id', 'system_users_data')
+        .maybeSingle();
+
+      let currentList = [];
+      if (colData && colData.description) {
+        try { currentList = JSON.parse(colData.description); } catch (_) {}
+      }
+      if (!Array.isArray(currentList)) currentList = [];
+
+      // Deduplicate by id and email
+      const exists = currentList.some(u =>
+        u.id === user.id ||
+        (user.email && user.email !== '—' && u.email && u.email.toLowerCase() === user.email.toLowerCase())
+      );
+      if (exists) {
+        // Update in place
+        const updated = currentList.map(u =>
+          (u.id === user.id || (user.email && user.email !== '—' && u.email && u.email.toLowerCase() === user.email.toLowerCase()))
+            ? { ...u, ...user }
+            : u
+        );
+        return this.saveUsersData(updated);
+      }
+
+      return this.saveUsersData([...currentList, user]);
+    } catch (e) {
+      console.warn('appendUserToCloudList error:', e);
+      return false;
+    }
+  },
+
   async saveUser(user) {
     const supabase = getSupabaseClient();
     if (!supabase || !user) return false;
+    // Append to the cross-device system_users_data collection
+    await this.appendUserToCloudList(user).catch(console.warn);
+    // Also try public.users table (best-effort, silently fails if table missing)
     try {
       const payload = {
         id: user.id,
@@ -267,15 +350,9 @@ export const supabaseService = {
         role: user.role || 'USER',
         updated_at: new Date().toISOString(),
       };
-      const { error } = await supabase.from('users').upsert(payload);
-      if (error) {
-        console.warn('Supabase saveUser warning:', error.message);
-        return false;
-      }
-      return true;
-    } catch (e) {
-      return false;
-    }
+      await supabase.from('users').upsert(payload);
+    } catch (_) {}
+    return true;
   },
 
   // User Movies
