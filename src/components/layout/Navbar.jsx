@@ -55,6 +55,7 @@ export default function Navbar() {
     { to: '/movies', label: 'Now Showing' },
     { to: '/formats', label: 'Format Guide' },
     { to: '/weekend-winners', label: 'Weekend Winners' },
+    { to: '/users', label: 'Find Members' },
     { to: '/about', label: 'About & Data' },
   ];
 

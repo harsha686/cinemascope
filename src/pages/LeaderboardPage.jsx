@@ -164,6 +164,11 @@ export default function LeaderboardPage() {
           <p style={{ color: 'var(--text-secondary)', fontSize: 14, maxWidth: 580, margin: '0 auto', lineHeight: 1.6 }}>
             Honoring our top movie reviewers, most dedicated cinephiles, and active weekend pick voters shaping our cinema rankings.
           </p>
+          <div style={{ marginTop: 12 }}>
+            <Link to="/users" style={{ fontSize: 12, color: 'var(--gold)', display: 'inline-flex', alignItems: 'center', gap: 4, textDecoration: 'none', opacity: 0.85 }}>
+              <User size={12} /> Search &amp; find any member
+            </Link>
+          </div>
 
           {/* Category Tabs */}
           <div
