@@ -250,7 +250,19 @@ export const supabaseService = {
 
       if (!colErr && colData && colData.description) {
         const parsed = JSON.parse(colData.description);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Deduplicate by ID and DisplayName
+          const seen = new Set();
+          return parsed.filter(u => {
+            if (!u || !u.id) return false;
+            const normName = (u.displayName || '').trim().toLowerCase();
+            const key = normName ? `name:${normName}` : `id:${u.id}`;
+            if (seen.has(key) || seen.has(`id:${u.id}`)) return false;
+            seen.add(key);
+            seen.add(`id:${u.id}`);
+            return true;
+          });
+        }
       }
 
       // Fallback: public.users table (only if it exists)
@@ -314,19 +326,25 @@ export const supabaseService = {
       }
       if (!Array.isArray(currentList)) currentList = [];
 
-      // Deduplicate by id and email
-      const exists = currentList.some(u =>
+      const normUserEmail = (user.email && user.email !== '—') ? user.email.toLowerCase().trim() : null;
+      const normUserName = (user.displayName || '').trim().toLowerCase();
+
+      // Deduplicate by id, email, and display name
+      const existsIndex = currentList.findIndex(u =>
         u.id === user.id ||
-        (user.email && user.email !== '—' && u.email && u.email.toLowerCase() === user.email.toLowerCase())
+        (normUserEmail && u.email && u.email !== '—' && u.email.toLowerCase().trim() === normUserEmail) ||
+        (normUserName && u.displayName && u.displayName.trim().toLowerCase() === normUserName)
       );
-      if (exists) {
-        // Update in place
-        const updated = currentList.map(u =>
-          (u.id === user.id || (user.email && user.email !== '—' && u.email && u.email.toLowerCase() === user.email.toLowerCase()))
-            ? { ...u, ...user }
-            : u
-        );
-        return this.saveUsersData(updated);
+
+      if (existsIndex >= 0) {
+        // Update in place preserving existing stats or merging newer ones
+        const existing = currentList[existsIndex];
+        currentList[existsIndex] = {
+          ...existing,
+          ...user,
+          stats: { ...(existing.stats || {}), ...(user.stats || {}) },
+        };
+        return this.saveUsersData(currentList);
       }
 
       return this.saveUsersData([...currentList, user]);
@@ -565,6 +583,78 @@ export const supabaseService = {
       return true;
     } catch (e) {
       console.warn('Supabase saveCitiesData error:', e);
+      return false;
+    }
+  },
+
+  // Professional Reviewer Applications Cloud Sync across all devices
+  async getProApplicationsData() {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('collections')
+        .select('*')
+        .eq('id', 'system_pro_applications_data')
+        .maybeSingle();
+
+      if (error || !data || !data.description) return null;
+      return JSON.parse(data.description);
+    } catch (e) {
+      console.warn('Supabase getProApplicationsData error:', e);
+      return null;
+    }
+  },
+
+  async saveProApplicationsData(appsList) {
+    const supabase = getSupabaseClient();
+    if (!supabase || !appsList) return false;
+    try {
+      const { error } = await supabase.from('collections').upsert({
+        id: 'system_pro_applications_data',
+        user_id: 'system',
+        name: 'pro_applications_state',
+        description: JSON.stringify(appsList),
+        visibility: 'public',
+        movie_ids: [],
+        updated_at: new Date().toISOString(),
+      });
+      if (error) {
+        console.warn('Supabase saveProApplicationsData error:', error);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.warn('Supabase saveProApplicationsData error:', e);
+      return false;
+    }
+  },
+
+  async appendProApplicationToCloud(app) {
+    const supabase = getSupabaseClient();
+    if (!supabase || !app) return false;
+    try {
+      const { data: colData } = await supabase
+        .from('collections')
+        .select('description')
+        .eq('id', 'system_pro_applications_data')
+        .maybeSingle();
+
+      let currentList = [];
+      if (colData && colData.description) {
+        try { currentList = JSON.parse(colData.description); } catch (_) {}
+      }
+      if (!Array.isArray(currentList)) currentList = [];
+
+      const idx = currentList.findIndex(a => a.userId === app.userId || a.id === app.id);
+      if (idx >= 0) {
+        currentList[idx] = { ...currentList[idx], ...app };
+      } else {
+        currentList.push(app);
+      }
+      return this.saveProApplicationsData(currentList);
+    } catch (e) {
+      console.warn('appendProApplicationToCloud error:', e);
       return false;
     }
   },

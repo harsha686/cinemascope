@@ -150,6 +150,8 @@ export async function toggleWatchlist(tmdbId, userIdOrMeta, maybeMeta) {
     }).catch(console.error);
   }
 
+  syncUserPublicStats(userId).catch(() => {});
+
   return {
     ...lib[cleanId],
     inWatchlist: !!lib[cleanId].watchlist,
@@ -193,6 +195,8 @@ export async function toggleWatched(tmdbId, userIdOrMeta, maybeMeta) {
     }).catch(console.error);
   }
 
+  syncUserPublicStats(userId).catch(() => {});
+
   return {
     ...lib[cleanId],
     inWatchlist: !!lib[cleanId].watchlist,
@@ -232,6 +236,8 @@ export async function toggleFavorite(tmdbId, userIdOrMeta, maybeMeta) {
       updated_at: new Date().toISOString()
     }).catch(console.error);
   }
+
+  syncUserPublicStats(userId).catch(() => {});
 
   return {
     ...lib[cleanId],
@@ -355,8 +361,51 @@ export async function getFavoriteMovies(userId) {
   return Object.keys(lib).filter(id => lib[id].favorite).map(tmdbId => ({ tmdbId, ...lib[tmdbId] }));
 }
 
+/**
+ * Synchronizes a user's calculated public stats (watched count, watchlist count, avg rating)
+ * into the community users directory in localStorage and Supabase.
+ */
+export async function syncUserPublicStats(userId) {
+  const uid = getActiveUserId(userId);
+  if (!uid || uid === 'guest') return;
+
+  try {
+    const stats = await getLibraryStats(uid);
+    const raw = localStorage.getItem('cinemascope_users');
+    let users = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(users)) users = [];
+
+    const idx = users.findIndex(u => u.id === uid);
+    if (idx >= 0) {
+      users[idx] = {
+        ...users[idx],
+        stats: {
+          ...(users[idx].stats || {}),
+          watchedCount: stats.totalWatched,
+          watchlistCount: stats.totalWatchlist,
+          favoritesCount: stats.totalFavorites,
+          avgRating: stats.avgRating,
+          updatedAt: new Date().toISOString(),
+        }
+      };
+      localStorage.setItem('cinemascope_users', JSON.stringify(users));
+
+      if (isSupabaseConfigured()) {
+        supabaseService.saveUser(users[idx]).catch(console.warn);
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cinemascope_user_stats_updated', { detail: { userId: uid, stats } }));
+      }
+    }
+  } catch (e) {
+    console.warn('syncUserPublicStats error:', e);
+  }
+}
+
 export async function getLibraryStats(userId) {
-  const lib = await getLibrary(userId);
+  const uid = getActiveUserId(userId);
+  const lib = await getLibrary(uid);
   let totalWatchlist = 0, totalWatched = 0, totalFavorites = 0, totalRated = 0, sumRating = 0;
   for (const key in lib) {
     const movie = lib[key];
@@ -368,6 +417,51 @@ export async function getLibraryStats(userId) {
       sumRating += parseFloat(movie.rating);
     }
   }
+
+  // If local is completely empty for this user (e.g. viewing another member's profile or new device)
+  if (totalWatched === 0 && totalWatchlist === 0 && totalFavorites === 0 && uid !== 'guest') {
+    // 1. Check if user object in localStorage has cached stats from cloud
+    try {
+      const rawUsers = localStorage.getItem('cinemascope_users');
+      if (rawUsers) {
+        const uList = JSON.parse(rawUsers);
+        const match = Array.isArray(uList) ? uList.find(u => u.id === uid) : null;
+        if (match && match.stats && (match.stats.watchedCount > 0 || match.stats.watchlistCount > 0)) {
+          totalWatched = match.stats.watchedCount || 0;
+          totalWatchlist = match.stats.watchlistCount || 0;
+          totalFavorites = match.stats.favoritesCount || 0;
+          return {
+            totalWatchlist,
+            totalWatched,
+            totalFavorites,
+            totalRated: totalWatched,
+            avgRating: match.stats.avgRating || 0,
+          };
+        }
+      }
+    } catch (_) {}
+
+    // 2. Query remote Supabase user_movies for this user
+    if (isSupabaseConfigured()) {
+      try {
+        const remote = await supabaseService.getUserMovies(uid);
+        if (remote && Array.isArray(remote) && remote.length > 0) {
+          for (const rm of remote) {
+            if (rm.in_watchlist) totalWatchlist++;
+            if (rm.is_watched) totalWatched++;
+            if (rm.is_favorite) totalFavorites++;
+            if (rm.personal_rating !== null && rm.personal_rating !== undefined) {
+              totalRated++;
+              sumRating += parseFloat(rm.personal_rating);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Could not fetch remote user movies for stats:', e);
+      }
+    }
+  }
+
   return {
     totalWatchlist,
     totalWatched,

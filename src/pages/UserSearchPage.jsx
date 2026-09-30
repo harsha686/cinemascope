@@ -19,26 +19,50 @@ export default function UserSearchPage() {
 
   // Build user list with stats
   const allUsers = useMemo(() => {
-    return (state.users || []).map(user => {
+    const rawUsers = state.users || [];
+    
+    // Deduplicate community users
+    const seen = new Set();
+    const cleanUsers = [];
+    for (const u of rawUsers) {
+      if (!u || !u.id) continue;
+      const idKey = String(u.id).trim();
+      const nameKey = (u.displayName || '').trim().toLowerCase();
+      if (seen.has(idKey)) continue;
+      if (nameKey && cleanUsers.some(c => (c.displayName || '').trim().toLowerCase() === nameKey && (c.email === u.email || !c.email || !u.email))) {
+        continue;
+      }
+      seen.add(idKey);
+      cleanUsers.push(u);
+    }
+
+    return cleanUsers.map(user => {
       const userReviews = (state.reviews || []).filter(
         r => r.userId === user.id && r.status === 'PUBLISHED'
       );
       const votingStats = getUserVotingStats(user.id);
       const voteCount = votingStats?.totalVotes || 0;
-      const seed = SEED_USER_STATS[user.id] || { watched: 3, reviews: 0 };
-      const reviewCount = Math.max(userReviews.length, seed.reviews);
+      const seed = SEED_USER_STATS[user.id] || null;
+      const reviewCount = seed ? Math.max(userReviews.length, seed.reviews) : userReviews.length;
 
-      // Try to get watched count from localStorage
-      let watchedCount = seed.watched;
-      try {
-        const saved = localStorage.getItem(`cinemascope_user_library_${user.id}`);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          const lsWatched = Object.values(parsed).filter(m => m.watched).length;
-          watchedCount = Math.max(lsWatched, seed.watched);
-        }
-      } catch (e) {}
+      // Watched count: from user.stats, or local storage, or seed for demo accounts
+      let watchedCount = user.stats?.watchedCount !== undefined ? user.stats.watchedCount : 0;
+      if (watchedCount === 0) {
+        try {
+          const saved = localStorage.getItem(`cinemascope_user_library_${user.id}`);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            const lsWatched = Object.values(parsed).filter(m => m.watched).length;
+            watchedCount = lsWatched;
+          }
+        } catch (e) {}
+      }
 
+      if (seed && watchedCount < seed.watched) {
+        watchedCount = seed.watched;
+      }
+
+      const cinemaScore = (watchedCount * 5) + (reviewCount * 15) + (voteCount * 10);
       const isPro = isVerifiedPro ? isVerifiedPro(user.id) : false;
 
       return {
@@ -47,6 +71,7 @@ export default function UserSearchPage() {
         reviewCount,
         watchedCount,
         voteCount,
+        cinemaScore,
         isPro,
       };
     });

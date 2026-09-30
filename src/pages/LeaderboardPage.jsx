@@ -35,7 +35,22 @@ export default function LeaderboardPage() {
   const leaderboardUsers = useMemo(() => {
     const rawUsers = state.users || [];
     
-    return rawUsers.map(user => {
+    // Deduplicate community users by id and normalized displayName
+    const seen = new Set();
+    const cleanUsers = [];
+    for (const u of rawUsers) {
+      if (!u || !u.id) continue;
+      const idKey = String(u.id).trim();
+      const nameKey = (u.displayName || '').trim().toLowerCase();
+      if (seen.has(idKey)) continue;
+      if (nameKey && cleanUsers.some(c => (c.displayName || '').trim().toLowerCase() === nameKey && (c.email === u.email || !c.email || !u.email))) {
+        continue;
+      }
+      seen.add(idKey);
+      cleanUsers.push(u);
+    }
+
+    return cleanUsers.map(user => {
       const isCurrent = currentUser && currentUser.id === user.id;
 
       // Count reviews in state
@@ -46,12 +61,13 @@ export default function LeaderboardPage() {
       const votingStats = getUserVotingStats(user.id);
       const voteCount = votingStats?.totalVotes || 0;
 
-      // Watched count from local library if current user, or seed
+      // Watched count: from local library if current user, or user's synced stats, or local storage
       let watchedCount = 0;
       if (isCurrent && currentLibStats) {
         watchedCount = currentLibStats.totalWatched || 0;
+      } else if (user.stats?.watchedCount !== undefined) {
+        watchedCount = user.stats.watchedCount || 0;
       } else {
-        // Try local storage key if available
         try {
           const key = `cinemascope_user_library_${user.id}`;
           const saved = localStorage.getItem(key);
@@ -62,21 +78,25 @@ export default function LeaderboardPage() {
         } catch (e) {}
       }
 
-      // Fallback to seed stats for baseline community activity
-      const seed = SEED_USER_STATS[user.id] || { watched: 5, reviews: 1, votes: 2, avgRating: 4.0 };
-      const effectiveWatched = Math.max(watchedCount, seed.watched);
-      const effectiveReviews = Math.max(reviewCountFromState, seed.reviews);
-      const effectiveVotes = Math.max(voteCount, seed.votes);
+      // Fallback only for initial mock demo accounts (user-1 to user-4, admin-1)
+      const seed = SEED_USER_STATS[user.id] || null;
+      const effectiveWatched = seed ? Math.max(watchedCount, seed.watched) : watchedCount;
+      const effectiveReviews = seed ? Math.max(reviewCountFromState, seed.reviews) : reviewCountFromState;
+      const effectiveVotes = seed ? Math.max(voteCount, seed.votes) : voteCount;
 
       // Calculate composite cinema score
       // Score = (watched * 5) + (reviews * 15) + (votes * 10)
       const cinemaScore = (effectiveWatched * 5) + (effectiveReviews * 15) + (effectiveVotes * 10);
 
       // Average rating calculation
-      let avgRating = seed.avgRating;
+      let avgRating = 0;
       if (userReviews.length > 0) {
         const sum = userReviews.reduce((acc, r) => acc + (r.rating || 0), 0);
         avgRating = Math.round((sum / userReviews.length) * 10) / 10;
+      } else if (user.stats?.avgRating) {
+        avgRating = user.stats.avgRating;
+      } else if (seed) {
+        avgRating = seed.avgRating;
       }
 
       return {

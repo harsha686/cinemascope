@@ -40,15 +40,49 @@ const loadedTheaters = loadStorage('cinemascope_theaters', theaterDB.theaters);
 const sanitizedTheaters = Array.isArray(loadedTheaters) && loadedTheaters.length > 0 ? loadedTheaters : theaterDB.theaters;
 saveStorage('cinemascope_theaters', sanitizedTheaters);
 
+export function deduplicateUsers(usersList) {
+  if (!Array.isArray(usersList)) return [];
+  const seenIds = new Set();
+  const seenNames = new Map();
+
+  const result = [];
+  for (const user of usersList) {
+    if (!user || !user.id) continue;
+    const id = String(user.id).trim();
+    const email = user.email && user.email !== '—' ? user.email.trim().toLowerCase() : null;
+    const name = (user.displayName || '').trim().toLowerCase();
+
+    if (seenIds.has(id)) continue;
+
+    // Check duplicate by exact DisplayName if both represent the same user
+    if (name && seenNames.has(name)) {
+      const existing = seenNames.get(name);
+      if (existing) {
+        if (!existing.avatarUrl && user.avatarUrl) existing.avatarUrl = user.avatarUrl;
+        if (!existing.email && email) existing.email = email;
+        if (user.stats && (!existing.stats || (user.stats.watchedCount || 0) > (existing.stats.watchedCount || 0))) {
+          existing.stats = { ...(existing.stats || {}), ...(user.stats || {}) };
+        }
+        continue;
+      }
+    }
+
+    seenIds.add(id);
+    if (name) seenNames.set(name, user);
+    result.push({ ...user });
+  }
+  return result;
+}
+
 const rawUsers = loadStorage('cinemascope_users', initialUsers);
-const sanitizedUsers = (Array.isArray(rawUsers) ? rawUsers : initialUsers).map(u => {
+const processedUsers = (Array.isArray(rawUsers) ? rawUsers : initialUsers).map(u => {
   if (u.role === 'ADMIN' || u.id === 'admin-1' || u.email === 'admin@cinema.com') {
     return { ...u, email: 'harshavardhanmellof41@gmail.com', displayName: 'Harshavardhan (Admin)', role: 'ADMIN' };
   }
   return u;
 });
-if (!sanitizedUsers.some(u => u.email === 'harshavardhanmellof41@gmail.com')) {
-  sanitizedUsers.push({
+if (!processedUsers.some(u => u.email === 'harshavardhanmellof41@gmail.com')) {
+  processedUsers.push({
     id: 'admin-1',
     email: 'harshavardhanmellof41@gmail.com',
     displayName: 'Harshavardhan (Admin)',
@@ -56,6 +90,7 @@ if (!sanitizedUsers.some(u => u.email === 'harshavardhanmellof41@gmail.com')) {
     createdAt: new Date().toISOString(),
   });
 }
+const sanitizedUsers = deduplicateUsers(processedUsers);
 saveStorage('cinemascope_users', sanitizedUsers);
 
 const loadedCurrentUser = loadStorage('cinemascope_currentUser', null);
@@ -131,20 +166,41 @@ function reducer(state, action) {
       saveStorage('cinemascope_currentUser', action.payload);
       return newState;
 
-    case 'SET_USERS':
-      newState = { ...state, users: action.payload };
-      saveStorage('cinemascope_users', action.payload);
+    case 'SET_USERS': {
+      const cleanUsers = deduplicateUsers(action.payload);
+      newState = { ...state, users: cleanUsers };
+      saveStorage('cinemascope_users', cleanUsers);
       return newState;
+    }
+
+    case 'UPDATE_USER_STATS': {
+      const { userId, stats } = action.payload;
+      const updatedUsers = state.users.map(u => {
+        if (u.id === userId) {
+          return {
+            ...u,
+            stats: { ...(u.stats || {}), ...stats },
+          };
+        }
+        return u;
+      });
+      newState = { ...state, users: updatedUsers };
+      saveStorage('cinemascope_users', updatedUsers);
+      return newState;
+    }
 
     case 'REGISTER_USER': {
       const userToRegister = {
         ...action.payload,
         role: action.payload.email?.toLowerCase() === 'harshavardhanmellof41@gmail.com' ? 'ADMIN' : (action.payload.role || 'USER'),
       };
-      const updatedUsers = [
-        ...state.users.filter(u => u.id !== userToRegister.id && u.email?.toLowerCase() !== userToRegister.email?.toLowerCase()),
-        userToRegister
-      ];
+      const normName = (userToRegister.displayName || '').trim().toLowerCase();
+      const filtered = state.users.filter(u =>
+        u.id !== userToRegister.id &&
+        (!userToRegister.email || userToRegister.email === '—' || u.email?.toLowerCase() !== userToRegister.email?.toLowerCase()) &&
+        (!normName || (u.displayName || '').trim().toLowerCase() !== normName)
+      );
+      const updatedUsers = deduplicateUsers([...filtered, userToRegister]);
       newState = { ...state, users: updatedUsers, currentUser: userToRegister };
       saveStorage('cinemascope_users', updatedUsers);
       saveStorage('cinemascope_currentUser', userToRegister);
@@ -343,6 +399,9 @@ function reducer(state, action) {
       }
       newState = { ...state, professionalApplications: updatedApps };
       saveStorage('cinemascope_pro_applications', updatedApps);
+      if (isSupabaseConfigured()) {
+        supabaseService.saveProApplicationsData(updatedApps).catch(console.warn);
+      }
       return newState;
     }
 
@@ -352,6 +411,9 @@ function reducer(state, action) {
       );
       newState = { ...state, professionalApplications: updatedProApps };
       saveStorage('cinemascope_pro_applications', updatedProApps);
+      if (isSupabaseConfigured()) {
+        supabaseService.saveProApplicationsData(updatedProApps).catch(console.warn);
+      }
       return newState;
     }
 
@@ -419,16 +481,20 @@ export function AppProvider({ children }) {
         if (currentState.citiesList?.length > 0) {
           await supabaseService.saveCitiesData(currentState.citiesList).catch(console.warn);
         }
+        if (currentState.professionalApplications?.length > 0) {
+          await supabaseService.saveProApplicationsData(currentState.professionalApplications).catch(console.warn);
+        }
         pushWeekendPickDataToCloud();
       }
 
-      const [remoteMovies, remoteReviews, remoteUsers, remoteTheaters, remoteCities] = await Promise.all([
+      const [remoteMovies, remoteReviews, remoteUsers, remoteTheaters, remoteCities, , remoteProApps] = await Promise.all([
         supabaseService.getMovies(),
         supabaseService.getReviews(),
         supabaseService.getUsers(),
         supabaseService.getTheatersData(),
         supabaseService.getCitiesData(),
         syncWeekendPickDataFromCloud({ force: forcePush }),
+        supabaseService.getProApplicationsData(),
       ]);
 
       let moviesCount = 0;
@@ -468,21 +534,19 @@ export function AppProvider({ children }) {
 
       if (remoteUsers && remoteUsers.length > 0) {
         // Remote wins for matching users; keep local-only users for offline accounts
-        const remoteUserMap = new Map(remoteUsers.map(u => [u.email ? u.email.toLowerCase() : u.id, u]));
         const currentLocalUsers = loadStorage('cinemascope_users', initialUsers);
-        const localOnlyUsers = (Array.isArray(currentLocalUsers) ? currentLocalUsers : []).filter(u => {
-          const key = u.email ? u.email.toLowerCase() : u.id;
-          return !remoteUserMap.has(key);
-        });
-        const mergedUsers = [...remoteUsers, ...localOnlyUsers];
+        const mergedUsers = deduplicateUsers([
+          ...remoteUsers,
+          ...(Array.isArray(currentLocalUsers) ? currentLocalUsers : [])
+        ]);
         dispatch({ type: 'SET_USERS', payload: mergedUsers });
-        // If local has users not yet in cloud, push them up
-        if (localOnlyUsers.length > 0) {
-          supabaseService.saveUsersData(mergedUsers).catch(console.warn);
-        }
+        // Save cleaned deduplicated users list back to cloud
+        supabaseService.saveUsersData(mergedUsers).catch(console.warn);
       } else if (currentState.users?.length > 0) {
-        // Cloud has no users yet — seed it with current local users
-        supabaseService.saveUsersData(currentState.users).catch(console.warn);
+        // Cloud has no users yet — seed it with current deduplicated local users
+        const cleanUsers = deduplicateUsers(currentState.users);
+        dispatch({ type: 'SET_USERS', payload: cleanUsers });
+        supabaseService.saveUsersData(cleanUsers).catch(console.warn);
       }
 
       if (remoteReviews && remoteReviews.length > 0) {
@@ -552,6 +616,26 @@ export function AppProvider({ children }) {
         supabaseService.saveCitiesData(currentLocalCities).catch(console.warn);
       }
 
+      // Pro Reviewer Applications Synchronization across all devices
+      const currentLocalProApps = currentState.professionalApplications || [];
+      if (remoteProApps && Array.isArray(remoteProApps) && remoteProApps.length > 0) {
+        const remoteAppMap = new Map(remoteProApps.map(a => [a.userId, a]));
+        let hasLocalAppChanges = false;
+        const mergedProApps = [...remoteProApps];
+        currentLocalProApps.forEach(loc => {
+          if (!remoteAppMap.has(loc.userId)) {
+            mergedProApps.push(loc);
+            hasLocalAppChanges = true;
+          }
+        });
+        dispatch({ type: 'SET_PRO_APPLICATIONS', payload: mergedProApps });
+        if (hasLocalAppChanges) {
+          supabaseService.saveProApplicationsData(mergedProApps).catch(console.warn);
+        }
+      } else if (currentLocalProApps.length > 0) {
+        supabaseService.saveProApplicationsData(currentLocalProApps).catch(console.warn);
+      }
+
       // Sync personal movie library if a user is logged in
       if (currentState.currentUser && currentState.currentUser.id) {
         await syncUserLibraryWithCloud(currentState.currentUser.id).catch(console.warn);
@@ -580,6 +664,23 @@ export function AppProvider({ children }) {
   // Run initial cloud sync once on load
   useEffect(() => {
     refreshData();
+
+    const handleProAppsUpdate = (e) => {
+      if (e?.detail && Array.isArray(e.detail)) {
+        dispatch({ type: 'SET_PRO_APPLICATIONS', payload: e.detail });
+      }
+    };
+    const handleStatsUpdate = (e) => {
+      if (e?.detail?.userId && e?.detail?.stats) {
+        dispatch({ type: 'UPDATE_USER_STATS', payload: e.detail });
+      }
+    };
+    window.addEventListener('cinemascope_pro_applications_updated', handleProAppsUpdate);
+    window.addEventListener('cinemascope_user_stats_updated', handleStatsUpdate);
+    return () => {
+      window.removeEventListener('cinemascope_pro_applications_updated', handleProAppsUpdate);
+      window.removeEventListener('cinemascope_user_stats_updated', handleStatsUpdate);
+    };
   }, []);
 
   // Supabase Auth listener for Google OAuth sign-in / sign-up

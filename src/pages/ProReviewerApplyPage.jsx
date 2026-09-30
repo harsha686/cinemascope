@@ -1,7 +1,7 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../AppContext";
-import { submitApplication, getUserApplication, SPECIALIZATIONS, PROFESSIONS } from "../services/proReviewerService";
+import { submitApplication, getUserApplication, syncProApplicationsFromCloud, SPECIALIZATIONS, PROFESSIONS } from "../services/proReviewerService";
 import { ShieldCheck, ChevronRight, ChevronLeft, Check, AlertCircle } from "lucide-react";
 
 const STEPS = [
@@ -51,9 +51,15 @@ export default function ProReviewerApplyPage() {
 
   useEffect(() => {
     if (!currentUser) { navigate("/login"); return; }
-    const app = getUserApplication(currentUser.id);
-    if (app && app.status === "APPROVED") { navigate("/profile"); return; }
-    if (app) setExistingApp(app);
+    syncProApplicationsFromCloud().then(apps => {
+      const app = (apps || []).find(a => a.userId === currentUser.id) || getUserApplication(currentUser.id);
+      if (app && app.status === "APPROVED") { navigate("/profile"); return; }
+      if (app) setExistingApp(app);
+    }).catch(() => {
+      const app = getUserApplication(currentUser.id);
+      if (app && app.status === "APPROVED") { navigate("/profile"); return; }
+      if (app) setExistingApp(app);
+    });
   }, [currentUser]);
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));

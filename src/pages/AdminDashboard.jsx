@@ -7,7 +7,7 @@ import XPosterDiscoveryModal from '../components/admin/XPosterDiscoveryModal';
 import AdminTheaterFormModal from '../components/admin/AdminTheaterFormModal';
 import WeekendVotingAdminTab from '../components/admin/WeekendVotingAdminTab';
 import { isSupabaseConfigured, setCustomSupabaseCredentials, supabaseService, getSupabaseClient } from '../services/supabase';
-import { getApplications, updateApplicationStatus } from '../services/proReviewerService';
+import { getApplications, updateApplicationStatus, syncProApplicationsFromCloud } from '../services/proReviewerService';
 import CloudSyncButton from '../components/common/CloudSyncButton';
 
 export default function AdminDashboard() {
@@ -432,7 +432,7 @@ export default function AdminDashboard() {
               { id: 'reviews', label: 'Review Moderation', icon: MessageSquare, count: state.reviews.length },
               { id: 'users', label: 'Users', icon: Users, count: allDisplayUsers.length },
               { id: 'cities', label: 'Cities', icon: MapPin, count: allCities.length },
-              { id: 'pro-reviewers', label: 'Pro Reviewers', icon: ShieldCheck, count: getApplications().length },
+              { id: 'pro-reviewers', label: 'Pro Reviewers', icon: ShieldCheck, count: (state.professionalApplications?.length || getApplications().length) },
               { id: 'database', label: 'Cloud Database', icon: Database, count: isSupabaseConfigured() ? 'Live' : 'Local' },
             ].map(tab => {
               const Icon = tab.icon;
@@ -1672,22 +1672,68 @@ CREATE POLICY "Public all collections" ON public.collections FOR ALL USING (true
 
 // ─── Pro Reviewers Panel ───────────────────────────────────────────────────
 function ProReviewersPanel({ dispatch, currentUser }) {
-  const [apps, setApps] = React.useState(() => getApplications());
+  const { state } = useApp();
+  const [apps, setApps] = React.useState(() => state.professionalApplications || getApplications());
   const [statusFilter, setStatusFilter] = React.useState('all');
   const [expandedId, setExpandedId] = React.useState(null);
   const [adminNote, setAdminNote] = React.useState('');
   const [rejectReason, setRejectReason] = React.useState('');
+  const [isSyncing, setIsSyncing] = React.useState(false);
 
-  const reload = () => setApps(getApplications());
+  const reload = async () => {
+    setIsSyncing(true);
+    try {
+      const cloudApps = await syncProApplicationsFromCloud();
+      if (Array.isArray(cloudApps) && cloudApps.length > 0) {
+        setApps(cloudApps);
+        dispatch({ type: 'SET_PRO_APPLICATIONS', payload: cloudApps });
+      } else {
+        setApps(getApplications());
+      }
+    } catch (e) {
+      console.warn('Reload pro applications error:', e);
+      setApps(getApplications());
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  React.useEffect(() => {
+    // Initial fetch from cloud
+    reload();
+
+    const handleUpdate = (e) => {
+      if (e?.detail && Array.isArray(e.detail)) {
+        setApps(e.detail);
+      } else {
+        setApps(getApplications());
+      }
+    };
+
+    window.addEventListener('cinemascope_pro_applications_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('cinemascope_pro_applications_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (state.professionalApplications && state.professionalApplications.length > 0) {
+      setApps(state.professionalApplications);
+    }
+  }, [state.professionalApplications]);
 
   const filtered = statusFilter === 'all' ? apps : apps.filter(a => a.status === statusFilter);
 
-  const handleAction = (appId, status) => {
-    updateApplicationStatus(appId, status, adminNote, rejectReason, currentUser?.id || 'admin');
-    dispatch({ type: 'UPDATE_PRO_APPLICATION', payload: { id: appId, status, adminNote, rejectionReason: rejectReason, reviewedAt: new Date().toISOString() } });
-    reload();
+  const handleAction = async (appId, status) => {
+    const updated = updateApplicationStatus(appId, status, adminNote, rejectReason, currentUser?.id || 'admin');
+    if (updated) {
+      dispatch({ type: 'UPDATE_PRO_APPLICATION', payload: updated });
+    }
     setAdminNote('');
     setRejectReason('');
+    reload();
   };
 
   const STATUS_COLORS = {
@@ -1703,8 +1749,21 @@ function ProReviewersPanel({ dispatch, currentUser }) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)' }}>Professional Reviewer Applications</h2>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{apps.length} total application{apps.length !== 1 ? 's' : ''}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', margin: 0 }}>Professional Reviewer Applications</h2>
+            <button
+              type="button"
+              onClick={reload}
+              disabled={isSyncing}
+              className="btn btn-ghost btn-sm"
+              style={{ padding: '4px 8px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 5, color: 'var(--gold)' }}
+              title="Sync latest reviewer applications from cloud database"
+            >
+              <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} style={{ animation: isSyncing ? 'spin 1s linear infinite' : 'none' }} />
+              <span>{isSyncing ? 'Syncing...' : 'Sync Cloud'}</span>
+            </button>
+          </div>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{apps.length} total application{apps.length !== 1 ? 's' : ''}</p>
         </div>
         <select
           style={{ padding: '6px 12px', borderRadius: 6, background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontSize: 12 }}

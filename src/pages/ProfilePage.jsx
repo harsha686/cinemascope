@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
-import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, ChevronDown, ChevronUp, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2 } from 'lucide-react';
+import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, ChevronDown, ChevronUp, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2, Users } from 'lucide-react';
 import { useApp } from '../AppContext';
 import ReviewCard from '../components/reviews/ReviewCard';
 import ProfessionalRatingBadge from '../components/reviews/ProfessionalRatingBadge';
@@ -16,31 +16,38 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const { state, dispatch, getMovie, getTheater, isVerifiedPro } = useApp();
 
-  // If userId param is provided, try to find that user; otherwise use currentUser
-  const targetUser = useMemo(() => {
-    if (userId) {
-      const found = state.users?.find(u => u.id === userId || u.email === userId);
-      if (found) return found;
-      if (state.currentUser && (state.currentUser.id === userId || state.currentUser.email === userId)) {
-        return state.currentUser;
-      }
-      return { id: userId, displayName: 'User', email: '' };
-    }
-    return state.currentUser;
-  }, [userId, state.users, state.currentUser]);
+  // The currently logged in visitor
+  const viewerUser = state.currentUser;
 
-  const currentUser = targetUser;
-  const isOwnProfile = !userId || (state.currentUser && state.currentUser.id === currentUser?.id);
+  // The user whose profile is being displayed
+  const profileUser = useMemo(() => {
+    if (userId) {
+      const found = state.users?.find(
+        u => u.id === userId || (u.email && u.email.toLowerCase() === userId.toLowerCase())
+      );
+      if (found) return found;
+      if (viewerUser && (viewerUser.id === userId || (viewerUser.email && viewerUser.email.toLowerCase() === userId.toLowerCase()))) {
+        return viewerUser;
+      }
+      return { id: userId, displayName: 'Cinema Member', email: '', role: 'USER' };
+    }
+    return viewerUser;
+  }, [userId, state.users, viewerUser]);
+
+  // Is the logged in user viewing their own profile?
+  const isOwnProfile = Boolean(
+    !userId || (viewerUser && profileUser && (viewerUser.id === profileUser.id || (viewerUser.email && profileUser.email && viewerUser.email.toLowerCase() === profileUser.email.toLowerCase())))
+  );
 
   const [libStats, setLibStats] = useState({ totalWatchlist: 0, totalWatched: 0, totalFavorites: 0, totalRated: 0, avgRating: 0 });
   const [diaryStats, setDiaryStats] = useState({ totalEntries: 0, thisYearCount: 0, thisMonthCount: 0, rewatches: 0 });
   const [collectionsCount, setCollectionsCount] = useState(0);
   const [weekendVotingStats, setWeekendVotingStats] = useState({ totalVotes: 0, distinctRounds: 0, distinctGenres: 0, winnersVotedCount: 0 });
   const [userPastVotes, setUserPastVotes] = useState([]);
-  const [showOurComments, setShowOurComments] = useState(false);
+  const [showComments, setShowComments] = useState(false);
 
   useEffect(() => {
-    if (!currentUser) {
+    if (!profileUser?.id) {
       setLibStats({ totalWatchlist: 0, totalWatched: 0, totalFavorites: 0, totalRated: 0, avgRating: 0 });
       setDiaryStats({ totalEntries: 0, thisYearCount: 0, thisMonthCount: 0, rewatches: 0 });
       setCollectionsCount(0);
@@ -48,31 +55,68 @@ export default function ProfilePage() {
       setUserPastVotes([]);
       return;
     }
-    const load = async () => {
-      const [ls, ds, cols] = await Promise.all([
-        LibService.getLibraryStats(currentUser.id),
-        LibService.getDiaryStats(currentUser.id),
-        LibService.getCollections(currentUser.id),
-      ]);
-      setLibStats(ls);
-      setDiaryStats(ds);
-      setCollectionsCount(cols.length);
-      setWeekendVotingStats(getUserVotingStats(currentUser.id));
-      setUserPastVotes(getUserVotes(currentUser.id));
-    };
-    load();
-  }, [currentUser]);
 
+    let isMounted = true;
+    const load = async () => {
+      try {
+        const [ls, ds, cols] = await Promise.all([
+          LibService.getLibraryStats(profileUser.id),
+          isOwnProfile ? LibService.getDiaryStats(profileUser.id) : Promise.resolve({ totalEntries: 0, thisYearCount: 0, thisMonthCount: 0, rewatches: 0 }),
+          LibService.getCollections(profileUser.id),
+        ]);
+
+        if (!isMounted) return;
+
+        // If viewing another user and remote library is 0, check user's synced stats
+        let finalWatched = ls?.totalWatched || 0;
+        let finalWatchlist = ls?.totalWatchlist || 0;
+        let finalFavorites = ls?.totalFavorites || 0;
+        let finalRating = ls?.avgRating || 0;
+
+        if (!isOwnProfile && finalWatched === 0 && profileUser.stats?.watchedCount) {
+          finalWatched = profileUser.stats.watchedCount;
+        }
+
+        setLibStats({
+          totalWatchlist: finalWatchlist,
+          totalWatched: finalWatched,
+          totalFavorites: finalFavorites,
+          totalRated: finalWatched,
+          avgRating: finalRating,
+        });
+        setDiaryStats(ds || { totalEntries: 0, thisYearCount: 0, thisMonthCount: 0, rewatches: 0 });
+        setCollectionsCount(cols ? cols.length : 0);
+        setWeekendVotingStats(getUserVotingStats(profileUser.id));
+        setUserPastVotes(getUserVotes(profileUser.id));
+      } catch (e) {
+        console.warn('Error loading profile stats:', e);
+      }
+    };
+
+    load();
+    return () => { isMounted = false; };
+  }, [profileUser?.id, isOwnProfile, profileUser?.stats]);
+
+  // Published reviews by this profile user
   const userReviews = useMemo(() => {
-    if (!currentUser) return [];
-    return state.reviews.filter(r => r.userId === currentUser.id);
-  }, [state.reviews, currentUser]);
+    if (!profileUser) return [];
+    return (state.reviews || []).filter(r => r.userId === profileUser.id && r.status === 'PUBLISHED');
+  }, [state.reviews, profileUser]);
+
+  // Calculate composite Cinema Points matching leaderboard
+  // Score = (watched * 5) + (reviews * 15) + (votes * 10)
+  const cinemaScore = useMemo(() => {
+    return (libStats.totalWatched * 5) + (userReviews.length * 15) + (weekendVotingStats.totalVotes * 10);
+  }, [libStats.totalWatched, userReviews.length, weekendVotingStats.totalVotes]);
 
   // Pro reviewer status
-  const proApplication = useMemo(() => currentUser ? getUserApplication(currentUser.id) : null, [currentUser, state.professionalApplications]);
-  const isPro = currentUser ? isVerifiedPro(currentUser.id) : false;
+  const proApplication = useMemo(
+    () => (profileUser && isOwnProfile ? getUserApplication(profileUser.id) : null),
+    [profileUser, isOwnProfile, state.professionalApplications]
+  );
+  const isPro = profileUser ? isVerifiedPro(profileUser.id) : false;
 
-  if (!currentUser) {
+  if (!profileUser) {
     return (
       <div style={{ padding: '80px 24px', textAlign: 'center' }}>
         <h1 style={{ fontFamily: 'var(--font-serif)', color: 'var(--gold)' }}>Access Restricted</h1>
@@ -91,18 +135,21 @@ export default function ProfilePage() {
 
   const formatDate = (iso) => {
     if (!iso) return 'Recent Member';
-    try { return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }); }
-    catch (e) { return 'Recent Member'; }
+    try {
+      return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    } catch (e) {
+      return 'Recent Member';
+    }
   };
 
   const statCards = [
-    { label: 'Movies Watched', value: libStats.totalWatched, icon: <Film size={18} color="var(--gold)" />, link: '/library/watched' },
-    { label: 'Watchlist', value: libStats.totalWatchlist, icon: <Bookmark size={18} color="var(--gold)" />, link: '/watchlist' },
-    { label: 'Favorites', value: libStats.totalFavorites, icon: <Heart size={18} color="var(--gold)" />, link: '/library/favorites' },
+    { label: 'Movies Watched', value: libStats.totalWatched, icon: <Film size={18} color="var(--gold)" />, link: isOwnProfile ? '/library/watched' : null },
+    { label: 'Watchlist', value: libStats.totalWatchlist, icon: <Bookmark size={18} color="var(--gold)" />, link: isOwnProfile ? '/watchlist' : null },
+    { label: 'Favorites', value: libStats.totalFavorites, icon: <Heart size={18} color="var(--gold)" />, link: isOwnProfile ? '/library/favorites' : null },
     { label: 'Weekend Votes', value: weekendVotingStats.totalVotes, icon: <Trophy size={18} color="var(--gold)" />, link: '/weekend' },
-    { label: 'Diary Entries', value: diaryStats.totalEntries, icon: <BookOpen size={18} color="var(--gold)" />, link: '/diary' },
-    { label: 'Collections', value: collectionsCount, icon: <Folder size={18} color="var(--gold)" />, link: '/library/collections' },
-    { label: 'Reviews Written', value: userReviews.length, icon: <MessageSquare size={18} color="var(--gold)" />, link: '/profile' },
+    { label: 'Diary Entries', value: diaryStats.totalEntries, icon: <BookOpen size={18} color="var(--gold)" />, link: isOwnProfile ? '/diary' : null },
+    { label: 'Collections', value: collectionsCount, icon: <Folder size={18} color="var(--gold)" />, link: isOwnProfile ? '/library/collections' : null },
+    { label: 'Reviews Written', value: userReviews.length, icon: <MessageSquare size={18} color="var(--gold)" />, link: null, action: () => setShowComments(true) },
   ];
 
   return (
@@ -111,11 +158,12 @@ export default function ProfilePage() {
       <div style={{ padding: '60px 24px 40px', borderBottom: '1px solid var(--border-subtle)', background: 'linear-gradient(to bottom, rgba(220,182,91,0.03), transparent)' }}>
         <div className="container" style={{ maxWidth: 900 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+            {/* Avatar & User Details */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-              {currentUser.avatarUrl ? (
+              {profileUser.avatarUrl ? (
                 <img
-                  src={currentUser.avatarUrl}
-                  alt={currentUser.displayName}
+                  src={profileUser.avatarUrl}
+                  alt={profileUser.displayName}
                   style={{
                     width: 72,
                     height: 72,
@@ -131,15 +179,15 @@ export default function ProfilePage() {
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 28, fontFamily: 'var(--font-serif)', fontWeight: 700, color: 'var(--gold)',
                 }}>
-                  {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'U'}
+                  {profileUser.displayName ? profileUser.displayName.charAt(0).toUpperCase() : 'U'}
                 </div>
               )}
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 26, color: 'var(--text-primary)' }}>
-                    {currentUser.displayName}
+                  <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 26, color: 'var(--text-primary)', margin: 0 }}>
+                    {profileUser.displayName}
                   </h1>
-                  {currentUser.role === 'ADMIN' && (
+                  {profileUser.role === 'ADMIN' && (
                     <span className="badge badge-gold" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <ShieldAlert size={10} /> ADMIN
                     </span>
@@ -148,52 +196,103 @@ export default function ProfilePage() {
                     <ProfessionalRatingBadge
                       size="sm"
                       interactive
-                      onClick={() => navigate(`/reviewer/${currentUser.id}`)}
-                      title="Click to view your public verified professional profile"
+                      onClick={() => navigate(`/reviewer/${profileUser.id}`)}
+                      title="Click to view verified critic profile"
                     />
                   )}
+                  {isOwnProfile && (
+                    <span className="badge badge-gold" style={{ fontSize: 9 }}>YOU</span>
+                  )}
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                  Member since {formatDate(currentUser.createdAt)} · <span style={{ color: 'var(--text-secondary)' }}>{currentUser.email}</span>
+
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span>Member since {formatDate(profileUser.createdAt)}</span>
+                  {isOwnProfile && profileUser.email && (
+                    <>
+                      <span>·</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{profileUser.email}</span>
+                    </>
+                  )}
+                  {!isOwnProfile && (
+                    <>
+                      <span>·</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>Community Cinephile</span>
+                    </>
+                  )}
                 </div>
-                {libStats.avgRating > 0 && (
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                    Avg rating: <span style={{ color: 'var(--gold)' }}>★ {libStats.avgRating}</span>
-                    {diaryStats.rewatches > 0 && ` · ${diaryStats.rewatches} rewatches`}
-                    {diaryStats.thisYearCount > 0 && ` · ${diaryStats.thisYearCount} films this year`}
+
+                {/* Score & Rating Pill */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '3px 10px',
+                    borderRadius: 16,
+                    background: 'rgba(220,182,91,0.12)',
+                    border: '1px solid var(--gold-dim)',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: 'var(--gold)',
+                  }}>
+                    <Trophy size={13} />
+                    <span>{cinemaScore} Cinema Points</span>
                   </div>
-                )}
+
+                  {libStats.avgRating > 0 && (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                      Avg Rating: <span style={{ color: 'var(--gold)', fontWeight: 600 }}>★ {libStats.avgRating}</span>
+                      {diaryStats.rewatches > 0 && ` · ${diaryStats.rewatches} rewatches`}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+
+            {/* Action Buttons: Own Profile vs Visitor Mode */}
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              {/* Share My Movie Stats Button */}
               <ShareButton
                 contentType={SOCIAL_CONTENT_TYPES.USER_STATS}
                 data={{
                   stats: {
+                    displayName: profileUser.displayName,
                     totalWatched: libStats.totalWatched,
                     totalRated: libStats.totalRated,
                     totalWatchlist: libStats.totalWatchlist,
                     avgRating: libStats.avgRating,
                     weekendVotes: weekendVotingStats.totalVotes,
+                    cinemaScore,
                   },
                 }}
                 variant="primary"
                 size="sm"
-                customLabel="✨ Share My Stats"
+                customLabel={isOwnProfile ? "✨ Share My Stats" : "✨ Share Profile"}
               />
 
-              <Link to="/library" className="btn btn-outline btn-sm">
-                <Film size={14} /> My Library
-              </Link>
-              {currentUser.role === 'ADMIN' && (
-                <Link to="/admin" className="btn btn-outline btn-sm">
-                  <ShieldAlert size={14} /> Admin Dashboard
-                </Link>
+              {isOwnProfile ? (
+                <>
+                  <Link to="/library" className="btn btn-outline btn-sm">
+                    <Film size={14} /> My Library
+                  </Link>
+                  {profileUser.role === 'ADMIN' && (
+                    <Link to="/admin" className="btn btn-outline btn-sm">
+                      <ShieldAlert size={14} /> Admin Dashboard
+                    </Link>
+                  )}
+                  <button type="button" onClick={handleLogout} className="btn btn-ghost btn-sm" style={{ color: '#f87171' }}>
+                    <LogOut size={14} /> Log Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link to="/leaderboard" className="btn btn-outline btn-sm" style={{ borderColor: 'var(--gold-dim)', color: 'var(--gold)' }}>
+                    <Trophy size={14} /> Leaderboard
+                  </Link>
+                  <Link to="/users" className="btn btn-ghost btn-sm">
+                    <Users size={14} /> Find Members
+                  </Link>
+                </>
               )}
-              <button type="button" onClick={handleLogout} className="btn btn-ghost btn-sm" style={{ color: '#f87171' }}>
-                <LogOut size={14} /> Log Out
-              </button>
             </div>
           </div>
         </div>
@@ -202,71 +301,148 @@ export default function ProfilePage() {
       {/* Stats Grid */}
       <div className="container" style={{ maxWidth: 900, padding: '32px 24px 0' }}>
         <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 14, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>
-          My Movie Archive
+          {isOwnProfile ? 'My Movie Archive' : `${profileUser.displayName}'s Movie Archive`}
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12, marginBottom: 40 }}>
-          {statCards.map(card => (
-            <Link key={card.label} to={card.link} style={{ padding: '16px 12px', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', textAlign: 'center', textDecoration: 'none', borderRadius: 4, transition: 'border-color 0.15s' }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--gold-dim)'}
-              onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
-            >
-              <div style={{ marginBottom: 6 }}>{card.icon}</div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--gold)', fontWeight: 700 }}>
-                {card.value}
+          {statCards.map(card => {
+            const cardContent = (
+              <>
+                <div style={{ marginBottom: 6 }}>{card.icon}</div>
+                <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--gold)', fontWeight: 700 }}>
+                  {card.value}
+                </div>
+                <div style={{ fontSize: 10, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 4 }}>
+                  {card.label}
+                </div>
+              </>
+            );
+
+            if (card.link) {
+              return (
+                <Link
+                  key={card.label}
+                  to={card.link}
+                  style={{
+                    padding: '16px 12px',
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-subtle)',
+                    textAlign: 'center',
+                    textDecoration: 'none',
+                    borderRadius: 4,
+                    transition: 'border-color 0.15s, transform 0.15s',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'var(--gold-dim)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  {cardContent}
+                </Link>
+              );
+            }
+
+            return (
+              <div
+                key={card.label}
+                onClick={card.action ? card.action : undefined}
+                style={{
+                  padding: '16px 12px',
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border-subtle)',
+                  textAlign: 'center',
+                  borderRadius: 4,
+                  cursor: card.action ? 'pointer' : 'default',
+                  transition: 'border-color 0.15s',
+                }}
+                onMouseEnter={e => {
+                  if (card.action) e.currentTarget.style.borderColor = 'var(--gold-dim)';
+                }}
+                onMouseLeave={e => {
+                  if (card.action) e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                }}
+              >
+                {cardContent}
               </div>
-              <div style={{ fontSize: 10, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 4 }}>
-                {card.label}
-              </div>
-            </Link>
-          ))}
+            );
+          })}
         </div>
 
         {/* Quick Actions */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 40, flexWrap: 'wrap' }}>
           <Link to="/discover" className="btn btn-primary btn-sm">Discover Movies</Link>
-          <Link to="/library" className="btn btn-outline btn-sm">My Library</Link>
-          <Link to="/diary" className="btn btn-outline btn-sm">Movie Diary</Link>
-          <Link to="/watchlist" className="btn btn-outline btn-sm">Watchlist</Link>
           <Link to="/leaderboard" className="btn btn-outline btn-sm" style={{ borderColor: 'var(--gold-dim)', color: 'var(--gold)' }}>
             <Trophy size={14} /> Community Leaderboard
           </Link>
+          <Link to="/weekend" className="btn btn-outline btn-sm">Weekend Picks</Link>
+          {isOwnProfile && (
+            <>
+              <Link to="/library" className="btn btn-outline btn-sm">My Library</Link>
+              <Link to="/diary" className="btn btn-outline btn-sm">Movie Diary</Link>
+              <Link to="/watchlist" className="btn btn-outline btn-sm">Watchlist</Link>
+            </>
+          )}
+          {!isOwnProfile && (
+            <Link to="/users" className="btn btn-outline btn-sm">
+              <Users size={14} /> Find Members
+            </Link>
+          )}
           <button
             type="button"
-            onClick={() => setShowOurComments(prev => !prev)}
+            onClick={() => setShowComments(prev => !prev)}
             className="btn btn-outline btn-sm"
             style={{
-              borderColor: showOurComments ? 'var(--gold)' : 'var(--border-subtle)',
-              background: showOurComments ? 'var(--gold-faint)' : 'transparent',
-              color: showOurComments ? 'var(--gold)' : 'var(--text-primary)',
+              borderColor: showComments ? 'var(--gold)' : 'var(--border-subtle)',
+              background: showComments ? 'var(--gold-faint)' : 'transparent',
+              color: showComments ? 'var(--gold)' : 'var(--text-primary)',
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
             }}
           >
             <MessageSquare size={14} color="var(--gold)" />
-            <span>Our Comments ({userReviews.length})</span>
-            {showOurComments ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            <span>{isOwnProfile ? 'My Reviews' : `${profileUser.displayName}'s Reviews`} ({userReviews.length})</span>
+            {showComments ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
         </div>
 
         {/* Professional Reviewer Status */}
-        <div style={{ marginBottom: 40 }}>
-          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 14, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>
-            Professional Reviewer
-          </h2>
-          <ApplicationStatusBanner application={proApplication} />
-          {isPro && (
-            <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)' }}>
-              As a verified reviewer, your reviews on movie pages will appear in the dedicated <strong style={{ color: '#10b981' }}>Professional Reviews</strong> section with a ✓ badge.
+        {isOwnProfile && (
+          <div style={{ marginBottom: 40 }}>
+            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 14, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>
+              Professional Reviewer Application
+            </h2>
+            <ApplicationStatusBanner application={proApplication} />
+            {isPro && (
+              <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)' }}>
+                As a verified reviewer, your reviews on movie pages will appear in the dedicated <strong style={{ color: '#10b981' }}>Professional Reviews</strong> section with a ✓ badge.
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isOwnProfile && isPro && (
+          <div style={{ marginBottom: 40, padding: 18, background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 'var(--radius-sm)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <CheckCircle2 size={18} color="#10b981" />
+              <div>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>Verified Professional Critic</h3>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
+                  {profileUser.displayName} is a verified cinema reviewer on CinemaScope. Their reviews feature comprehensive multi-attribute technical evaluations.
+                </p>
+              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Weekend Voting Activity */}
         <div style={{ marginBottom: 40 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
             <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 14, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Trophy size={14} color="var(--gold)" /> Weekend Pick Voting Activity
+              <Trophy size={14} color="var(--gold)" /> {isOwnProfile ? 'Weekend Pick Voting Activity' : `${profileUser.displayName}'s Weekend Voting Activity`}
             </h2>
             <Link to="/weekend" className="btn btn-outline btn-sm" style={{ padding: '4px 10px', fontSize: 11 }}>
               Go to Weekend Voting →
@@ -308,7 +484,9 @@ export default function ProfilePage() {
 
             {userPastVotes.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-muted)', fontSize: 13 }}>
-                You haven't voted in any weekend rounds yet. Cast your vote this weekend to support your favorite movies &amp; series!
+                {isOwnProfile
+                  ? "You haven't voted in any weekend rounds yet. Cast your vote this weekend to support your favorite movies & series!"
+                  : `${profileUser.displayName} hasn't voted in any weekend rounds yet.`}
               </div>
             ) : (
               <div>
@@ -344,21 +522,21 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Collapsible "Our Comments" Menu */}
+        {/* Collapsible Reviews & Comments Menu */}
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
           <button
             type="button"
-            onClick={() => setShowOurComments(prev => !prev)}
+            onClick={() => setShowComments(prev => !prev)}
             style={{
               width: '100%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '18px 20px',
-              background: showOurComments ? 'rgba(220,182,91,0.06)' : 'transparent',
+              background: showComments ? 'rgba(220,182,91,0.06)' : 'transparent',
               border: 'none',
               cursor: 'pointer',
-              borderBottom: showOurComments ? '1px solid var(--border-subtle)' : 'none',
+              borderBottom: showComments ? '1px solid var(--border-subtle)' : 'none',
               textAlign: 'left',
               transition: 'background 0.15s ease',
             }}
@@ -379,17 +557,17 @@ export default function ProfilePage() {
               </div>
               <div>
                 <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', margin: 0 }}>
-                  Our Comments &amp; Reviews
+                  {isOwnProfile ? 'My Reviews & Comments' : `${profileUser.displayName}'s Reviews & Comments`}
                 </h3>
                 <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 0' }}>
-                  {userReviews.length} {userReviews.length === 1 ? 'review written' : 'reviews written'} · Click to {showOurComments ? 'hide' : 'view'} all
+                  {userReviews.length} {userReviews.length === 1 ? 'review written' : 'reviews written'} · Click to {showComments ? 'hide' : 'view'} all
                 </p>
               </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span className="badge badge-gold" style={{ fontSize: 11, padding: '3px 10px' }}>
-                {userReviews.length} {userReviews.length === 1 ? 'Comment' : 'Comments'}
+                {userReviews.length} {userReviews.length === 1 ? 'Review' : 'Reviews'}
               </span>
               <div
                 style={{
@@ -403,22 +581,28 @@ export default function ProfilePage() {
                   color: 'var(--text-secondary)',
                 }}
               >
-                {showOurComments ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                {showComments ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </div>
             </div>
           </button>
 
           {/* Collapsible Content */}
-          {showOurComments && (
+          {showComments && (
             <div style={{ padding: 20 }}>
               {userReviews.length === 0 ? (
                 <div style={{ padding: '36px 20px', background: 'rgba(0,0,0,0.2)', border: '1px dashed var(--border-subtle)', textAlign: 'center', borderRadius: 4 }}>
                   <MessageSquare size={28} color="var(--text-muted)" style={{ marginBottom: 10 }} />
-                  <h4 style={{ fontFamily: 'var(--font-serif)', color: 'var(--text-secondary)', marginBottom: 6 }}>No comments or reviews written yet</h4>
-                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>Browse films &amp; theaters to rate and leave your comments!</p>
-                  <button onClick={() => navigate('/discover')} className="btn btn-primary btn-sm">
-                    Explore Movies
-                  </button>
+                  <h4 style={{ fontFamily: 'var(--font-serif)', color: 'var(--text-secondary)', marginBottom: 6 }}>
+                    {isOwnProfile ? 'No comments or reviews written yet' : `${profileUser.displayName} hasn't written any reviews yet`}
+                  </h4>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
+                    {isOwnProfile ? 'Browse films & theaters to rate and leave your comments!' : 'Check back after more cinema screenings.'}
+                  </p>
+                  {isOwnProfile && (
+                    <button onClick={() => navigate('/discover')} className="btn btn-primary btn-sm">
+                      Explore Movies
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -428,7 +612,6 @@ export default function ProfilePage() {
                     const targetTheater = isTheater ? getTheater(rev.theaterId) : null;
                     const targetUrl = isTheater ? `/theater/${rev.theaterId}` : `/movie/${rev.movieId}`;
                     
-                    // Fallback title resolution
                     let targetTitle = isTheater
                       ? (targetTheater?.name || rev.theaterName || 'Theater')
                       : (targetMovie?.title || rev.movieTitle || rev.parameterRatings?.movieTitle);
@@ -456,8 +639,8 @@ export default function ProfilePage() {
                         </div>
                         <ReviewCard
                           review={rev}
-                          onEdit={() => navigate(targetUrl)}
-                          onDelete={(id) => dispatch({ type: 'DELETE_REVIEW', payload: id })}
+                          onEdit={isOwnProfile ? () => navigate(targetUrl) : undefined}
+                          onDelete={isOwnProfile ? (id) => dispatch({ type: 'DELETE_REVIEW', payload: id }) : undefined}
                         />
                       </div>
                     );

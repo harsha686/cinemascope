@@ -1,3 +1,5 @@
+import { supabaseService, isSupabaseConfigured } from "./supabase";
+
 const PRO_APPLICATIONS_KEY = "cinemascope_pro_applications";
 
 export const DEFAULT_PRO_APPLICATIONS = [
@@ -54,6 +56,46 @@ export function saveApplications(apps) {
   localStorage.setItem(PRO_APPLICATIONS_KEY, JSON.stringify(apps));
 }
 
+export async function syncProApplicationsFromCloud() {
+  if (!isSupabaseConfigured()) return getApplications();
+  try {
+    const remoteApps = await supabaseService.getProApplicationsData();
+    const localApps = getApplications();
+    if (Array.isArray(remoteApps) && remoteApps.length > 0) {
+      const remoteMap = new Map(remoteApps.map(a => [a.userId, a]));
+      let hasLocalChanges = false;
+      const merged = [...remoteApps];
+
+      // Preserve local-only applications that might not be in cloud yet
+      localApps.forEach(loc => {
+        if (!remoteMap.has(loc.userId)) {
+          merged.push(loc);
+          hasLocalChanges = true;
+        }
+      });
+
+      // Save merged to localStorage
+      saveApplications(merged);
+
+      if (hasLocalChanges) {
+        supabaseService.saveProApplicationsData(merged).catch(console.warn);
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cinemascope_pro_applications_updated', { detail: merged }));
+      }
+      return merged;
+    } else if (localApps.length > 0) {
+      // Cloud is empty, seed with local applications
+      await supabaseService.saveProApplicationsData(localApps).catch(console.warn);
+    }
+    return localApps;
+  } catch (e) {
+    console.warn('syncProApplicationsFromCloud error:', e);
+    return getApplications();
+  }
+}
+
 export function getUserApplication(userId) {
   const apps = getApplications();
   return apps.find(a => a.userId === userId) || null;
@@ -94,13 +136,26 @@ export function submitApplication(userId, formData) {
     viewingProofUrl: formData.viewingProofUrl || "",
     viewingProofNote: formData.viewingProofNote || "",
   };
+  let resultingApp;
   if (existing >= 0) {
-    apps[existing] = { ...apps[existing], ...newApp, id: apps[existing].id };
+    resultingApp = { ...apps[existing], ...newApp, id: apps[existing].id };
+    apps[existing] = resultingApp;
   } else {
-    apps.push(newApp);
+    resultingApp = newApp;
+    apps.push(resultingApp);
   }
   saveApplications(apps);
-  return newApp;
+
+  // Sync to cloud immediately
+  if (isSupabaseConfigured()) {
+    supabaseService.appendProApplicationToCloud(resultingApp).catch(console.warn);
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('cinemascope_pro_applications_updated', { detail: apps }));
+  }
+
+  return resultingApp;
 }
 
 export function updateApplicationStatus(appId, status, adminNote = "", rejectionReason = "", reviewedBy = "") {
@@ -116,6 +171,16 @@ export function updateApplicationStatus(appId, status, adminNote = "", rejection
       reviewedBy,
     };
     saveApplications(apps);
+
+    // Sync to cloud immediately
+    if (isSupabaseConfigured()) {
+      supabaseService.saveProApplicationsData(apps).catch(console.warn);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('cinemascope_pro_applications_updated', { detail: apps }));
+    }
+
     return apps[idx];
   }
   return null;
@@ -132,6 +197,15 @@ export function revokeVerification(userId, reason = "") {
       reviewedAt: new Date().toISOString(),
     };
     saveApplications(apps);
+
+    if (isSupabaseConfigured()) {
+      supabaseService.saveProApplicationsData(apps).catch(console.warn);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('cinemascope_pro_applications_updated', { detail: apps }));
+    }
+
     return apps[idx];
   }
   return null;
