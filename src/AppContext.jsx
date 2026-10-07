@@ -129,6 +129,19 @@ const rawReviews = loadStorage('cinemascope_reviews', initialReviews);
 const sanitizedReviews = sanitizeReviews(Array.isArray(rawReviews) ? rawReviews : initialReviews);
 saveStorage('cinemascope_reviews', sanitizedReviews);
 
+const rawMovies = loadStorage('cinemascope_movies', initialMovies);
+const sanitizedMovies = (Array.isArray(rawMovies) ? rawMovies : initialMovies).map(m => {
+  const initMatch = initialMovies.find(im => im.id === m.id);
+  return {
+    ...initMatch,
+    ...m,
+    ottPlatform: m.ottPlatform || initMatch?.ottPlatform || '',
+    ottReleaseDate: m.ottReleaseDate || initMatch?.ottReleaseDate || '',
+    ottUrl: m.ottUrl || initMatch?.ottUrl || '',
+  };
+});
+saveStorage('cinemascope_movies', sanitizedMovies);
+
 const initialState = {
   selectedCity: null,
   selectedTheater: null,
@@ -143,7 +156,7 @@ const initialState = {
   isExperienceMode: false,
   userLocation: null,
   // Persistent data state
-  movies: loadStorage('cinemascope_movies', initialMovies),
+  movies: sanitizedMovies,
   reviews: sanitizedReviews,
   users: sanitizedUsers,
   reports: loadStorage('cinemascope_reports', []),
@@ -526,28 +539,36 @@ export function AppProvider({ children }) {
       let reviewsCount = 0;
 
       if (remoteMovies && remoteMovies.length > 0) {
-        const formatted = remoteMovies.map(m => ({
-          id: m.id,
-          title: m.title,
-          originalTitle: m.original_title || m.title,
-          posterUrl: m.poster_url,
-          posterSource: m.poster_source,
-          posterSourceType: m.poster_source_type,
-          backdropUrl: m.backdrop_url,
-          language: m.language,
-          runtime: m.runtime,
-          releaseDate: m.release_date,
-          genres: m.genres || [],
-          overview: m.overview,
-          cast: m.cast_list || [],
-          director: m.director,
-          certificate: m.certificate,
-          trailerUrl: m.trailer_url,
-          aspectRatio: m.aspect_ratio,
-          status: m.status,
-          cities: m.cities || ['visakhapatnam'],
-          theaters: m.theaters || [],
-        }));
+        const formatted = remoteMovies.map(m => {
+          const initMatch = initialMovies.find(im => im.id === m.id);
+          return {
+            id: m.id,
+            title: m.title,
+            originalTitle: m.original_title || m.title,
+            posterUrl: m.poster_url || initMatch?.posterUrl,
+            posterSource: m.poster_source || initMatch?.posterSource,
+            posterSourceType: m.poster_source_type || initMatch?.posterSourceType,
+            backdropUrl: m.backdrop_url || initMatch?.backdropUrl,
+            language: m.language || initMatch?.language,
+            runtime: m.runtime || initMatch?.runtime,
+            releaseDate: m.release_date || initMatch?.releaseDate,
+            genres: m.genres || initMatch?.genres || [],
+            overview: m.overview || initMatch?.overview,
+            cast: m.cast_list || initMatch?.cast || [],
+            director: m.director || initMatch?.director,
+            certificate: m.certificate || initMatch?.certificate,
+            trailerUrl: m.trailer_url || initMatch?.trailerUrl,
+            aspectRatio: m.aspect_ratio || initMatch?.aspectRatio,
+            status: m.status || initMatch?.status,
+            cities: m.cities || initMatch?.cities || ['visakhapatnam'],
+            theaters: m.theaters || initMatch?.theaters || [],
+            ottPlatform: m.ott_platform || m.ottPlatform || initMatch?.ottPlatform || '',
+            ottReleaseDate: m.ott_release_date || m.ottReleaseDate || initMatch?.ottReleaseDate || '',
+            ottUrl: m.ott_url || m.ottUrl || initMatch?.ottUrl || '',
+            ottPlatforms: m.ott_platforms || m.ottPlatforms || initMatch?.ottPlatforms || [],
+            ottWatchUrl: m.ott_watch_url || m.ottWatchUrl || initMatch?.ottWatchUrl || '',
+          };
+        });
         moviesCount = formatted.length;
         dispatch({ type: 'SET_MOVIES', payload: formatted });
       } else if (currentState.movies && currentState.movies.length > 0) {
