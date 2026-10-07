@@ -39,7 +39,7 @@ export default function MovieDetailPage() {
   const isTmdbMovie = movieId?.startsWith('tmdb-') || movieId?.startsWith('tv-') || isWeekendTv;
   const tmdbId = isTmdbTv 
     ? (movieId.startsWith('tmdb-tv-') ? movieId.replace('tmdb-tv-', 'tv-') : (movieId.startsWith('tv-') ? movieId : `tv-${movieId.replace('tmdb-', '')}`))
-    : (isTmdbMovie ? movieId.replace('tmdb-', '') : null);
+    : (isTmdbMovie ? movieId.replace(/^tmdb-(ott-)?/, '') : null);
 
   const [tmdbMovie, setTmdbMovie] = useState(null);
   const [tmdbLoading, setTmdbLoading] = useState(false);

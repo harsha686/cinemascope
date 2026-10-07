@@ -224,6 +224,27 @@ export default function OttReleasePopupModal() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, ottMovies.length]);
 
+  const [touchStartX, setTouchStartX] = useState(null);
+
+  const handleTouchStart = (e) => {
+    if (e.touches && e.touches[0]) {
+      setTouchStartX(e.touches[0].clientX);
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX === null || !e.changedTouches || !e.changedTouches[0]) return;
+    const diff = touchStartX - e.changedTouches[0].clientX;
+    if (diff > 40 && ottMovies.length > 1) {
+      // Swiped left -> Next movie
+      setCurrentIndex(prev => (prev + 1) % ottMovies.length);
+    } else if (diff < -40 && ottMovies.length > 1) {
+      // Swiped right -> Previous movie
+      setCurrentIndex(prev => (prev - 1 + ottMovies.length) % ottMovies.length);
+    }
+    setTouchStartX(null);
+  };
+
   const handleClose = () => {
     setIsOpen(false);
     sessionStorage.setItem('cinemascope_ott_popup_closed_session', 'true');
@@ -237,7 +258,8 @@ export default function OttReleasePopupModal() {
   const handleNavigateMovie = () => {
     if (!activeMovie) return;
     handleClose();
-    navigate(`/movie/${activeMovie.id}`);
+    const targetId = activeMovie.tmdbId ? `tmdb-${activeMovie.tmdbId}` : activeMovie.id;
+    navigate(`/movie/${targetId}`);
   };
 
   if (!isOpen) return null;
@@ -278,9 +300,21 @@ export default function OttReleasePopupModal() {
 
   if (!activeMovie) return null;
 
+  const fallbackPlatformUrl = () => {
+    const p = (activeMovie.ottPlatform || '').toLowerCase();
+    if (p.includes('netflix')) return 'https://www.netflix.com';
+    if (p.includes('prime') || p.includes('amazon')) return 'https://www.primevideo.com';
+    if (p.includes('hotstar')) return 'https://www.hotstar.com';
+    if (p.includes('zee5')) return 'https://www.zee5.com';
+    if (p.includes('aha')) return 'https://www.aha.video';
+    if (p.includes('sonyliv')) return 'https://www.sonyliv.com';
+    if (p.includes('apple')) return 'https://tv.apple.com';
+    if (p.includes('jio')) return 'https://www.jiocinema.com';
+    return null;
+  };
   const brand = getBrandInfo(activeMovie.ottPlatform);
   const formattedDate = formatReleaseDate(activeMovie.ottReleaseDate);
-  const watchUrl = activeMovie.ottUrl || activeMovie.ottWatchUrl || null;
+  const watchUrl = activeMovie.ottUrl || activeMovie.ottWatchUrl || fallbackPlatformUrl();
 
   return (
     <div
@@ -302,6 +336,8 @@ export default function OttReleasePopupModal() {
       }}
     >
       <div
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         style={{
           background: 'linear-gradient(180deg, #181410 0%, #0d0a08 100%)',
           border: '1px solid rgba(220, 182, 91, 0.4)',
@@ -331,24 +367,27 @@ export default function OttReleasePopupModal() {
             style={{
               position: 'absolute',
               inset: 0,
-              background: 'linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(13,10,8,0.7) 60%, #0d0a08 100%)',
+              background: 'linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(13,10,8,0.7) 60%, #0d0a08 100%)',
             }}
           />
 
           {/* Close Button */}
           <button
             type="button"
-            onClick={handleClose}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClose();
+            }}
             aria-label="Close"
             style={{
               position: 'absolute',
               top: 14,
               right: 14,
-              zIndex: 10,
+              zIndex: 30,
               width: 34,
               height: 34,
               borderRadius: '50%',
-              background: 'rgba(0, 0, 0, 0.7)',
+              background: 'rgba(0, 0, 0, 0.75)',
               border: '1px solid rgba(255, 255, 255, 0.25)',
               color: 'var(--text-primary)',
               display: 'flex',
@@ -362,12 +401,169 @@ export default function OttReleasePopupModal() {
               e.currentTarget.style.borderColor = 'var(--gold)';
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.7)';
+              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.75)';
               e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
             }}
           >
             <X size={18} />
           </button>
+
+          {/* Multiple releases switcher pill at top-right (unblocked by content body) */}
+          {ottMovies.length > 1 && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 14,
+                right: 56,
+                zIndex: 30,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                background: 'rgba(0,0,0,0.78)',
+                padding: '3px 8px',
+                borderRadius: 20,
+                border: '1px solid rgba(220,182,91,0.35)',
+                backdropFilter: 'blur(8px)',
+              }}
+            >
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentIndex(prev => (prev - 1 + ottMovies.length) % ottMovies.length);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  padding: '3px 6px',
+                  borderRadius: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background 150ms ease',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                title="Previous OTT title"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span style={{ fontSize: 11, color: 'var(--gold)', fontFamily: 'var(--font-serif)', fontWeight: 700, padding: '0 4px', userSelect: 'none' }}>
+                {currentIndex + 1} / {ottMovies.length}
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentIndex(prev => (prev + 1) % ottMovies.length);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  padding: '3px 6px',
+                  borderRadius: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background 150ms ease',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                title="Next OTT title"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+
+          {/* Prominent Side Navigation Arrows */}
+          {ottMovies.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentIndex(prev => (prev - 1 + ottMovies.length) % ottMovies.length);
+                }}
+                aria-label="Previous movie"
+                style={{
+                  position: 'absolute',
+                  left: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  zIndex: 25,
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: 'rgba(0,0,0,0.65)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  backdropFilter: 'blur(6px)',
+                  transition: 'all 150ms ease',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'rgba(220,182,91,0.3)';
+                  e.currentTarget.style.borderColor = 'var(--gold)';
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1.08)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'rgba(0,0,0,0.65)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                }}
+              >
+                <ChevronLeft size={20} />
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentIndex(prev => (prev + 1) % ottMovies.length);
+                }}
+                aria-label="Next movie"
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  zIndex: 25,
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: 'rgba(0,0,0,0.65)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  backdropFilter: 'blur(6px)',
+                  transition: 'all 150ms ease',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'rgba(220,182,91,0.3)';
+                  e.currentTarget.style.borderColor = 'var(--gold)';
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1.08)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'rgba(0,0,0,0.65)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                }}
+              >
+                <ChevronRight size={20} />
+              </button>
+            </>
+          )}
 
           {/* Top Live Badge */}
           <div
@@ -378,6 +574,7 @@ export default function OttReleasePopupModal() {
               display: 'flex',
               alignItems: 'center',
               gap: 8,
+              zIndex: 20,
             }}
           >
             <span
@@ -431,45 +628,6 @@ export default function OttReleasePopupModal() {
               {isLiveData ? 'Live · Last 30 Days' : 'Streaming Now'}
             </span>
           </div>
-
-
-          {/* Multiple releases switcher dots if > 1 */}
-          {ottMovies.length > 1 && (
-            <div
-              style={{
-                position: 'absolute',
-                bottom: 12,
-                right: 18,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                background: 'rgba(0,0,0,0.65)',
-                padding: '4px 8px',
-                borderRadius: 14,
-                border: '1px solid rgba(255,255,255,0.15)',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setCurrentIndex(prev => (prev - 1 + ottMovies.length) % ottMovies.length)}
-                style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 0, display: 'flex' }}
-                title="Previous OTT title"
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-serif)', fontWeight: 600 }}>
-                {currentIndex + 1} / {ottMovies.length}
-              </span>
-              <button
-                type="button"
-                onClick={() => setCurrentIndex(prev => (prev + 1) % ottMovies.length)}
-                style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 0, display: 'flex' }}
-                title="Next OTT title"
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Content Body */}
@@ -659,17 +817,17 @@ export default function OttReleasePopupModal() {
             </label>
 
             {ottMovies.length > 1 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                {ottMovies.slice(0, 6).map((m, idx) => (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                {ottMovies.map((m, idx) => (
                   <button
                     key={m.id || idx}
                     type="button"
                     onClick={() => setCurrentIndex(idx)}
                     style={{
-                      width: idx === currentIndex ? 16 : 6,
-                      height: 6,
-                      borderRadius: 3,
-                      background: idx === currentIndex ? 'var(--gold)' : 'rgba(255,255,255,0.2)',
+                      width: idx === currentIndex ? 18 : 7,
+                      height: 7,
+                      borderRadius: 4,
+                      background: idx === currentIndex ? 'var(--gold)' : 'rgba(255,255,255,0.25)',
                       border: 'none',
                       padding: 0,
                       cursor: 'pointer',
