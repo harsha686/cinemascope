@@ -29,6 +29,7 @@ import WeekendWinnersArchivePage from './pages/WeekendWinnersArchivePage';
 import PublicReviewPage from './pages/PublicReviewPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import UserSearchPage from './pages/UserSearchPage';
+import OttReleasePopupModal from './components/movies/OttReleasePopupModal';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -85,6 +86,7 @@ export default function App() {
           </main>
           <Footer />
           <MobileBottomNav />
+          <OttReleasePopupModal />
         </div>
       </HashRouter>
     </AppProvider>

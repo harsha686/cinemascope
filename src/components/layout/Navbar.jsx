@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Film, Menu, X, ChevronRight, ChevronDown, User, LogOut, ShieldAlert, MapPin, Bookmark, Calendar } from 'lucide-react';
+import { Film, Menu, X, ChevronRight, ChevronDown, User, LogOut, ShieldAlert, MapPin, Bookmark, Calendar, Tv } from 'lucide-react';
 import { useApp } from '../../AppContext';
 
 export default function Navbar() {
@@ -253,6 +253,35 @@ export default function Navbar() {
                     {item.label}
                   </Link>
                 ))}
+                <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMoreDropdown(false);
+                    window.dispatchEvent(new CustomEvent('open-ott-popup'));
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: 12,
+                    color: 'var(--gold)',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    background: 'none',
+                    border: 'none',
+                    width: '100%',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'background var(--transition-fast)',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(220,182,91,0.1)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                >
+                  <Tv size={13} color="var(--gold)" />
+                  Latest OTT Release
+                </button>
               </div>
             )}
           </div>
@@ -620,6 +649,36 @@ export default function Navbar() {
               </Link>
             );
           })}
+
+          <button
+            type="button"
+            onClick={() => {
+              setMenuOpen(false);
+              window.dispatchEvent(new CustomEvent('open-ott-popup'));
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '9px 4px',
+              fontSize: 13,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              color: 'var(--gold)',
+              background: 'none',
+              border: 'none',
+              borderBottom: '1px solid var(--border-subtle)',
+              width: '100%',
+              textAlign: 'left',
+              cursor: 'pointer',
+            }}
+          >
+            <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7 }}>
+              <Tv size={14} color="var(--gold)" />
+              Latest OTT Release
+            </span>
+            <ChevronRight size={13} color="var(--gold)" />
+          </button>
 
           {currentUser?.role === 'ADMIN' && (
             <Link
