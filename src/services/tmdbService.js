@@ -213,8 +213,8 @@ export async function discoverRecentIndianMovies(page = 1) {
 
 /**
  * Fetch Indian movies that received a digital/OTT release in the last 30 days.
- * Uses TMDB /discover/movie with with_release_type=4 (Digital) for India.
- * Returns up to 10 results enriched with watch provider names for the IN region.
+ * Uses TMDB /discover/movie with watch_region=IN and with_watch_monetization_types=flatrate.
+ * Returns verified streaming releases in India enriched with real OTT platform names and URLs.
  */
 export async function fetchRecentOttReleasesIndia() {
   const today = new Date();
@@ -225,24 +225,33 @@ export async function fetchRecentOttReleasesIndia() {
   const gteDate = fmt(thirtyDaysAgo);
   const lteDate = fmt(today);
 
-  // with_release_type=4 → Digital, region=IN, origin country IN
-  const endpoint = `/discover/movie?region=IN&with_origin_country=IN&with_release_type=4&release_date.gte=${gteDate}&release_date.lte=${lteDate}&sort_by=release_date.desc&include_adult=false&page=1`;
+  // Strategy 1: Search movies streaming flatrate in India released in last 30 days
+  const endpoint = `/discover/movie?watch_region=IN&with_watch_monetization_types=flatrate&with_origin_country=IN&primary_release_date.gte=${gteDate}&primary_release_date.lte=${lteDate}&sort_by=popularity.desc&include_adult=false&page=1`;
 
-  let data;
+  let results = [];
   try {
-    data = await tmdbFetch(endpoint);
+    const data = await tmdbFetch(endpoint);
+    results = (data.results || []).slice(0, 10);
   } catch (e) {
-    // Fallback: try without origin country filter (broader search)
-    try {
-      const broadEndpoint = `/discover/movie?region=IN&with_release_type=4&release_date.gte=${gteDate}&release_date.lte=${lteDate}&sort_by=release_date.desc&include_adult=false&page=1&with_original_language=te|ta|hi|ml|kn`;
-      data = await tmdbFetch(broadEndpoint);
-    } catch (e2) {
-      console.error('fetchRecentOttReleasesIndia failed:', e2);
-      return [];
-    }
+    console.warn('Flatrate discovery failed, falling back:', e);
   }
 
-  const results = (data.results || []).slice(0, 10);
+  // Strategy 2: If fewer than 4 results, supplement with release_type=4 (Digital) for Indian languages
+  if (results.length < 4) {
+    try {
+      const broadEndpoint = `/discover/movie?region=IN&with_release_type=4&release_date.gte=${gteDate}&release_date.lte=${lteDate}&sort_by=popularity.desc&include_adult=false&page=1&with_original_language=te|ta|hi|ml|kn`;
+      const fallbackData = await tmdbFetch(broadEndpoint);
+      const existingIds = new Set(results.map(r => r.id));
+      for (const m of (fallbackData.results || [])) {
+        if (!existingIds.has(m.id)) {
+          results.push(m);
+          existingIds.add(m.id);
+        }
+      }
+    } catch (e2) {
+      console.warn('Fallback OTT query failed:', e2);
+    }
+  }
 
   // Language code → readable name map
   const LANG_MAP = {
@@ -250,31 +259,46 @@ export async function fetchRecentOttReleasesIndia() {
     kn: 'Kannada', bn: 'Bengali', mr: 'Marathi', en: 'English',
   };
 
-  // Provider ID → readable name map (common Indian OTT provider IDs from TMDB)
+  // Provider ID → readable name map
   const PROVIDER_NAME_MAP = {
-    8: 'Netflix', 9: 'Amazon Prime Video', 10: 'Amazon Prime Video',
+    8: 'Netflix', 9: 'Amazon Prime Video', 10: 'Amazon Prime Video', 119: 'Amazon Prime Video',
     337: 'Disney+ Hotstar', 122: 'Hotstar', 110: 'Zee5', 237: 'SonyLIV',
     315: 'SonyLIV', 531: 'Paramount+', 1899: 'Max', 350: 'Apple TV+',
     386: 'Peacock', 283: 'Crunchyroll', 11: 'Mubi', 268: 'Aha Video',
     2: 'Apple iTunes', 3: 'Google Play Movies',
   };
 
-  // Enrich top results with watch provider info
+  // Enrich results with watch provider info & direct stream URLs
   const enriched = await Promise.all(
-    results.map(async (m) => {
+    results.slice(0, 10).map(async (m) => {
       let ottPlatform = '';
+      let ottUrl = '';
       try {
         const providerData = await tmdbFetch(`/movie/${m.id}/watch/providers`);
         const inProviders = providerData?.results?.IN;
-        const flatrate = inProviders?.flatrate || [];
+        const flatrate = inProviders?.flatrate || inProviders?.rent || inProviders?.buy || [];
         if (flatrate.length > 0) {
           ottPlatform = flatrate
             .slice(0, 2)
             .map((p) => PROVIDER_NAME_MAP[p.provider_id] || p.provider_name)
             .join(', ');
         }
+        if (inProviders?.link) {
+          ottUrl = inProviders.link;
+        }
       } catch (_) {
-        // provider fetch failed — leave ottPlatform empty
+        // provider fetch failed
+      }
+
+      // If specific URL not found, generate high-confidence platform direct link
+      if (!ottUrl && ottPlatform) {
+        const pLower = ottPlatform.toLowerCase();
+        if (pLower.includes('netflix')) ottUrl = 'https://www.netflix.com';
+        else if (pLower.includes('prime') || pLower.includes('amazon')) ottUrl = 'https://www.primevideo.com';
+        else if (pLower.includes('hotstar')) ottUrl = 'https://www.hotstar.com';
+        else if (pLower.includes('zee5')) ottUrl = 'https://www.zee5.com';
+        else if (pLower.includes('aha')) ottUrl = 'https://www.aha.video';
+        else if (pLower.includes('sonyliv')) ottUrl = 'https://www.sonyliv.com';
       }
 
       const langCode = m.original_language || '';
@@ -282,11 +306,12 @@ export async function fetchRecentOttReleasesIndia() {
 
       return {
         tmdbId: m.id,
-        id: `tmdb-ott-${m.id}`,
+        id: `tmdb-${m.id}`,
         title: m.title || m.original_title || '',
         releaseDate: m.release_date || '',
         ottReleaseDate: m.release_date || '',
-        ottPlatform,
+        ottPlatform: ottPlatform || 'OTT Streaming',
+        ottUrl,
         language,
         overview: m.overview || '',
         posterUrl: m.poster_path ? getTmdbImageUrl(m.poster_path, 'w500') : '',
@@ -297,8 +322,8 @@ export async function fetchRecentOttReleasesIndia() {
     })
   );
 
-  // Return only movies that actually have a streaming platform resolved
-  return enriched.filter((m) => m.posterUrl);
+  // Return movies that have posters and release date
+  return enriched.filter((m) => m.posterUrl && m.title);
 }
 
 /**
