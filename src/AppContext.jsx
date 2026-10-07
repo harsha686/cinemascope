@@ -40,14 +40,34 @@ const loadedTheaters = loadStorage('cinemascope_theaters', theaterDB.theaters);
 const sanitizedTheaters = Array.isArray(loadedTheaters) && loadedTheaters.length > 0 ? loadedTheaters : theaterDB.theaters;
 saveStorage('cinemascope_theaters', sanitizedTheaters);
 
+export function sanitizeReviews(reviewsList) {
+  if (!Array.isArray(reviewsList)) return [];
+  return reviewsList.map(r => {
+    if (r && r.userDisplayName && r.userDisplayName.includes('(Admin)')) {
+      return {
+        ...r,
+        userDisplayName: r.userDisplayName.replace(/\s*\(Admin\)/gi, '').trim()
+      };
+    }
+    return r;
+  });
+}
+
 export function deduplicateUsers(usersList) {
   if (!Array.isArray(usersList)) return [];
   const seenIds = new Set();
   const seenNames = new Map();
 
   const result = [];
-  for (const user of usersList) {
-    if (!user || !user.id) continue;
+  for (const rawUser of usersList) {
+    if (!rawUser || !rawUser.id) continue;
+    const user = {
+      ...rawUser,
+      displayName: (rawUser.displayName || '').replace(/\s*\(Admin\)/gi, '').trim() || rawUser.displayName,
+    };
+    if (user.id === 'admin-1' || user.email === 'harshavardhanmellof41@gmail.com') {
+      user.displayName = 'Harshavardhan';
+    }
     const id = String(user.id).trim();
     const email = user.email && user.email !== '—' ? user.email.trim().toLowerCase() : null;
     const name = (user.displayName || '').trim().toLowerCase();
@@ -77,7 +97,7 @@ export function deduplicateUsers(usersList) {
 const rawUsers = loadStorage('cinemascope_users', initialUsers);
 const processedUsers = (Array.isArray(rawUsers) ? rawUsers : initialUsers).map(u => {
   if (u.role === 'ADMIN' || u.id === 'admin-1' || u.email === 'admin@cinema.com') {
-    return { ...u, email: 'harshavardhanmellof41@gmail.com', displayName: 'Harshavardhan (Admin)', role: 'ADMIN' };
+    return { ...u, email: 'harshavardhanmellof41@gmail.com', displayName: 'Harshavardhan', role: 'ADMIN' };
   }
   return u;
 });
@@ -85,7 +105,7 @@ if (!processedUsers.some(u => u.email === 'harshavardhanmellof41@gmail.com')) {
   processedUsers.push({
     id: 'admin-1',
     email: 'harshavardhanmellof41@gmail.com',
-    displayName: 'Harshavardhan (Admin)',
+    displayName: 'Harshavardhan',
     role: 'ADMIN',
     createdAt: new Date().toISOString(),
   });
@@ -99,11 +119,15 @@ if (loadedCurrentUser && (loadedCurrentUser.role === 'ADMIN' || loadedCurrentUse
   sanitizedCurrentUser = {
     ...loadedCurrentUser,
     email: 'harshavardhanmellof41@gmail.com',
-    displayName: 'Harshavardhan (Admin)',
+    displayName: 'Harshavardhan',
     role: 'ADMIN'
   };
   saveStorage('cinemascope_currentUser', sanitizedCurrentUser);
 }
+
+const rawReviews = loadStorage('cinemascope_reviews', initialReviews);
+const sanitizedReviews = sanitizeReviews(Array.isArray(rawReviews) ? rawReviews : initialReviews);
+saveStorage('cinemascope_reviews', sanitizedReviews);
 
 const initialState = {
   selectedCity: null,
@@ -120,7 +144,7 @@ const initialState = {
   userLocation: null,
   // Persistent data state
   movies: loadStorage('cinemascope_movies', initialMovies),
-  reviews: loadStorage('cinemascope_reviews', initialReviews),
+  reviews: sanitizedReviews,
   users: sanitizedUsers,
   reports: loadStorage('cinemascope_reports', []),
   helpfulVotes: loadStorage('cinemascope_helpful_votes', []),
@@ -252,8 +276,9 @@ function reducer(state, action) {
 
     // --- REVIEW ACTIONS ---
     case 'SET_REVIEWS':
-      newState = { ...state, reviews: action.payload };
-      saveStorage('cinemascope_reviews', action.payload);
+      const sanitizedPayload = sanitizeReviews(action.payload);
+      newState = { ...state, reviews: sanitizedPayload };
+      saveStorage('cinemascope_reviews', sanitizedPayload);
       return newState;
 
     case 'ADD_REVIEW':
@@ -557,7 +582,7 @@ export function AppProvider({ children }) {
         const localOnlyEntries = (Array.isArray(currentLocal) ? currentLocal : []).filter(
           loc => !remoteMap.has(loc.id)
         );
-        const mergedList = [...remoteReviews, ...localOnlyEntries];
+        const mergedList = sanitizeReviews([...remoteReviews, ...localOnlyEntries]);
         reviewsCount = mergedList.length;
         dispatch({ type: 'SET_REVIEWS', payload: mergedList });
       }

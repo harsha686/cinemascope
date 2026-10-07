@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { LogIn, Key, Mail, ShieldAlert } from 'lucide-react';
+import { LogIn, Key, Mail } from 'lucide-react';
 import { useApp } from '../AppContext';
 import GoogleAuthButton from '../components/auth/GoogleAuthButton';
 
@@ -42,24 +42,6 @@ export default function LoginPage() {
     navigate(from);
   };
 
-  const handleQuickAdminLogin = () => {
-    const adminUser = state.users.find(u => u.role === 'ADMIN') || {
-      id: 'admin-1',
-      email: 'harshavardhanmellof41@gmail.com',
-      displayName: 'Harshavardhan (Admin)',
-      role: 'ADMIN',
-      createdAt: new Date().toISOString(),
-    };
-    dispatch({ type: 'SET_CURRENT_USER', payload: adminUser });
-    navigate('/admin');
-  };
-
-  const handleQuickUserLogin = () => {
-    const demoUser = state.users.find(u => u.email === 'harsha@cinema.com') || state.users[0];
-    if (!demoUser) { setError('No demo users available.'); return; }
-    dispatch({ type: 'SET_CURRENT_USER', payload: demoUser });
-    navigate(from);
-  };
 
   return (
     <div className="page-enter" style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
@@ -147,17 +129,6 @@ export default function LoginPage() {
             Log In
           </button>
         </form>
-
-        {/* Quick Demo Login Buttons */}
-        <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <p style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Quick Demo Access</p>
-          <button type="button" onClick={handleQuickUserLogin} className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', fontSize: 11 }}>
-            Demo User Login
-          </button>
-          <button type="button" onClick={handleQuickAdminLogin} className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', fontSize: 11, color: 'var(--gold)', borderColor: 'var(--gold-dim)' }}>
-            <ShieldAlert size={13} /> Admin Demo Login
-          </button>
-        </div>
 
         {/* Footer Link */}
         <div style={{ marginTop: 20, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)' }}>
