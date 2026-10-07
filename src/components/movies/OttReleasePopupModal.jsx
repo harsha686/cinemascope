@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Tv, ExternalLink, Film, Calendar, ChevronLeft, ChevronRight, Sparkles, Play } from 'lucide-react';
+import { X, Tv, ExternalLink, Film, Calendar, ChevronLeft, ChevronRight, Sparkles, Play, Loader2 } from 'lucide-react';
 import { useApp } from '../../AppContext';
 
 // High-confidence, verified latest OTT releases fallback
@@ -133,37 +133,47 @@ export default function OttReleasePopupModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [dontShowToday, setDontShowToday] = useState(false);
+  const [ottMovies, setOttMovies] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLiveData, setIsLiveData] = useState(false);
 
-  // Combine state.movies with verified default OTT releases
-  const ottMovies = useMemo(() => {
-    const stateList = (state.movies || []).filter(m => {
-      return Boolean(m.ottPlatform || m.ottReleaseDate || m.ottUrl || (m.ottPlatforms && m.ottPlatforms.length > 0));
-    });
+  // Fetch live TMDB OTT releases (last 30 days) on mount
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLiveOttReleases() {
+      setIsLoading(true);
+      try {
+        const { fetchRecentOttReleasesIndia } = await import('../../services/tmdbService');
+        const liveMovies = await fetchRecentOttReleasesIndia();
+        if (cancelled) return;
 
-    // Merge by id, giving priority to stateList but filling in from DEFAULT_OTT_RELEASES
-    const map = new Map();
-    DEFAULT_OTT_RELEASES.forEach(m => map.set(m.id, m));
-    stateList.forEach(m => {
-      const def = map.get(m.id) || {};
-      map.set(m.id, {
-        ...def,
-        ...m,
-        posterUrl: m.posterUrl && !m.posterUrl.includes('error') ? m.posterUrl : def.posterUrl,
-        backdropUrl: m.backdropUrl || def.backdropUrl,
-        ottPlatform: m.ottPlatform || def.ottPlatform,
-        ottReleaseDate: m.ottReleaseDate || def.ottReleaseDate,
-        ottUrl: m.ottUrl || def.ottUrl,
-      });
-    });
-
-    const combined = Array.from(map.values());
-
-    return combined.sort((a, b) => {
-      const dateA = new Date(a.ottReleaseDate || a.releaseDate || 0).getTime();
-      const dateB = new Date(b.ottReleaseDate || b.releaseDate || 0).getTime();
-      return dateB - dateA;
-    });
-  }, [state.movies]);
+        if (liveMovies && liveMovies.length > 0) {
+          // Sort descending by OTT release date (most recent first)
+          const sorted = [...liveMovies].sort((a, b) => {
+            const da = new Date(a.ottReleaseDate || a.releaseDate || 0).getTime();
+            const db = new Date(b.ottReleaseDate || b.releaseDate || 0).getTime();
+            return db - da;
+          });
+          setOttMovies(sorted);
+          setIsLiveData(true);
+        } else {
+          // No live results within 30 days — use fallback
+          setOttMovies(DEFAULT_OTT_RELEASES);
+          setIsLiveData(false);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.warn('OTT popup: live fetch failed, using fallback', err);
+          setOttMovies(DEFAULT_OTT_RELEASES);
+          setIsLiveData(false);
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+    loadLiveOttReleases();
+    return () => { cancelled = true; };
+  }, []);
 
   const activeMovie = ottMovies[currentIndex] || ottMovies[0] || DEFAULT_OTT_RELEASES[0];
 
@@ -230,7 +240,43 @@ export default function OttReleasePopupModal() {
     navigate(`/movie/${activeMovie.id}`);
   };
 
-  if (!isOpen || !activeMovie) return null;
+  if (!isOpen) return null;
+
+  // While fetching live data, show a loading overlay
+  if (isLoading) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9999,
+          background: 'rgba(0,0,0,0.75)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <div style={{
+          background: 'linear-gradient(180deg, #181410 0%, #0d0a08 100%)',
+          border: '1px solid rgba(220,182,91,0.35)',
+          borderRadius: 14,
+          padding: '40px 56px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 14,
+        }}>
+          <Loader2 size={36} color="var(--gold)" style={{ animation: 'spin 1s linear infinite' }} />
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0, fontFamily: 'var(--font-serif)', letterSpacing: '0.05em' }}>
+            Fetching latest OTT releases…
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!activeMovie) return null;
 
   const brand = getBrandInfo(activeMovie.ottPlatform);
   const formattedDate = formatReleaseDate(activeMovie.ottReleaseDate);
@@ -362,10 +408,10 @@ export default function OttReleasePopupModal() {
                 alignItems: 'center',
                 gap: 5,
                 padding: '4px 9px',
-                background: 'rgba(16, 185, 129, 0.18)',
-                border: '1px solid rgba(16, 185, 129, 0.45)',
+                background: isLiveData ? 'rgba(16, 185, 129, 0.18)' : 'rgba(220,182,91,0.12)',
+                border: `1px solid ${isLiveData ? 'rgba(16, 185, 129, 0.45)' : 'rgba(220,182,91,0.35)'}`,
                 borderRadius: 20,
-                color: '#34d399',
+                color: isLiveData ? '#34d399' : 'var(--gold)',
                 fontSize: 10,
                 fontWeight: 700,
                 letterSpacing: '0.06em',
@@ -377,14 +423,15 @@ export default function OttReleasePopupModal() {
                   width: 6,
                   height: 6,
                   borderRadius: '50%',
-                  background: '#34d399',
-                  boxShadow: '0 0 8px #34d399',
+                  background: isLiveData ? '#34d399' : 'var(--gold)',
+                  boxShadow: isLiveData ? '0 0 8px #34d399' : '0 0 6px var(--gold)',
                   display: 'inline-block',
                 }}
               />
-              Streaming Now
+              {isLiveData ? 'Live · Last 30 Days' : 'Streaming Now'}
             </span>
           </div>
+
 
           {/* Multiple releases switcher dots if > 1 */}
           {ottMovies.length > 1 && (

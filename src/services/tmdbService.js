@@ -212,6 +212,96 @@ export async function discoverRecentIndianMovies(page = 1) {
 }
 
 /**
+ * Fetch Indian movies that received a digital/OTT release in the last 30 days.
+ * Uses TMDB /discover/movie with with_release_type=4 (Digital) for India.
+ * Returns up to 10 results enriched with watch provider names for the IN region.
+ */
+export async function fetchRecentOttReleasesIndia() {
+  const today = new Date();
+  const thirtyDaysAgo = new Date(today);
+  thirtyDaysAgo.setDate(today.getDate() - 30);
+
+  const fmt = (d) => d.toISOString().split('T')[0];
+  const gteDate = fmt(thirtyDaysAgo);
+  const lteDate = fmt(today);
+
+  // with_release_type=4 → Digital, region=IN, origin country IN
+  const endpoint = `/discover/movie?region=IN&with_origin_country=IN&with_release_type=4&release_date.gte=${gteDate}&release_date.lte=${lteDate}&sort_by=release_date.desc&include_adult=false&page=1`;
+
+  let data;
+  try {
+    data = await tmdbFetch(endpoint);
+  } catch (e) {
+    // Fallback: try without origin country filter (broader search)
+    try {
+      const broadEndpoint = `/discover/movie?region=IN&with_release_type=4&release_date.gte=${gteDate}&release_date.lte=${lteDate}&sort_by=release_date.desc&include_adult=false&page=1&with_original_language=te|ta|hi|ml|kn`;
+      data = await tmdbFetch(broadEndpoint);
+    } catch (e2) {
+      console.error('fetchRecentOttReleasesIndia failed:', e2);
+      return [];
+    }
+  }
+
+  const results = (data.results || []).slice(0, 10);
+
+  // Language code → readable name map
+  const LANG_MAP = {
+    te: 'Telugu', ta: 'Tamil', hi: 'Hindi', ml: 'Malayalam',
+    kn: 'Kannada', bn: 'Bengali', mr: 'Marathi', en: 'English',
+  };
+
+  // Provider ID → readable name map (common Indian OTT provider IDs from TMDB)
+  const PROVIDER_NAME_MAP = {
+    8: 'Netflix', 9: 'Amazon Prime Video', 10: 'Amazon Prime Video',
+    337: 'Disney+ Hotstar', 122: 'Hotstar', 110: 'Zee5', 237: 'SonyLIV',
+    315: 'SonyLIV', 531: 'Paramount+', 1899: 'Max', 350: 'Apple TV+',
+    386: 'Peacock', 283: 'Crunchyroll', 11: 'Mubi', 268: 'Aha Video',
+    2: 'Apple iTunes', 3: 'Google Play Movies',
+  };
+
+  // Enrich top results with watch provider info
+  const enriched = await Promise.all(
+    results.map(async (m) => {
+      let ottPlatform = '';
+      try {
+        const providerData = await tmdbFetch(`/movie/${m.id}/watch/providers`);
+        const inProviders = providerData?.results?.IN;
+        const flatrate = inProviders?.flatrate || [];
+        if (flatrate.length > 0) {
+          ottPlatform = flatrate
+            .slice(0, 2)
+            .map((p) => PROVIDER_NAME_MAP[p.provider_id] || p.provider_name)
+            .join(', ');
+        }
+      } catch (_) {
+        // provider fetch failed — leave ottPlatform empty
+      }
+
+      const langCode = m.original_language || '';
+      const language = LANG_MAP[langCode] || langCode.toUpperCase() || 'Indian';
+
+      return {
+        tmdbId: m.id,
+        id: `tmdb-ott-${m.id}`,
+        title: m.title || m.original_title || '',
+        releaseDate: m.release_date || '',
+        ottReleaseDate: m.release_date || '',
+        ottPlatform,
+        language,
+        overview: m.overview || '',
+        posterUrl: m.poster_path ? getTmdbImageUrl(m.poster_path, 'w500') : '',
+        backdropUrl: m.backdrop_path ? getTmdbImageUrl(m.backdrop_path, 'original') : '',
+        voteAverage: m.vote_average ? Math.round((m.vote_average / 2) * 10) / 10 : 0,
+        genres: [],
+      };
+    })
+  );
+
+  // Return only movies that actually have a streaming platform resolved
+  return enriched.filter((m) => m.posterUrl);
+}
+
+/**
  * Fetches Full Movie Details + Credits + Multiple Poster Images
  * GET /3/movie/{movie_id}?append_to_response=credits,images,external_ids
  */
