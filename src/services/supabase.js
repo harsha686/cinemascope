@@ -652,6 +652,11 @@ export const supabaseService = {
       } else {
         currentList.push(app);
       }
+      return this.saveProApplicationsData(currentList);
+    } catch (e) {
+      console.warn('appendProApplicationToCloud error:', e);
+      return false;
+    }
   },
 
   // Notifications Cloud Sync across all devices

@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
-import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, ChevronDown, ChevronUp, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2, Users } from 'lucide-react';
+import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, ChevronDown, ChevronUp, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2, Users, Bell } from 'lucide-react';
 import { useApp } from '../AppContext';
 import ReviewCard from '../components/reviews/ReviewCard';
 import ProfessionalRatingBadge from '../components/reviews/ProfessionalRatingBadge';
@@ -45,6 +45,7 @@ export default function ProfilePage() {
   const [weekendVotingStats, setWeekendVotingStats] = useState({ totalVotes: 0, distinctRounds: 0, distinctGenres: 0, winnersVotedCount: 0 });
   const [userPastVotes, setUserPastVotes] = useState([]);
   const [showComments, setShowComments] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     if (!profileUser?.id) {
@@ -116,6 +117,22 @@ export default function ProfilePage() {
   );
   const isPro = profileUser ? isVerifiedPro(profileUser.id) : false;
 
+  // Notifications for profile user
+  const userNotifications = useMemo(() => {
+    if (!profileUser?.id) return [];
+    return (state.notifications || [])
+      .filter(n => n.recipientId === profileUser.id)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [state.notifications, profileUser?.id]);
+
+  const unreadNotifCount = useMemo(() => {
+    return userNotifications.filter(n => !n.isRead).length;
+  }, [userNotifications]);
+
+  const totalLikesReceived = useMemo(() => {
+    return userReviews.reduce((sum, r) => sum + (r.likesCount || 0), 0);
+  }, [userReviews]);
+
   if (!profileUser) {
     return (
       <div style={{ padding: '80px 24px', textAlign: 'center' }}>
@@ -146,10 +163,11 @@ export default function ProfilePage() {
     { label: 'Movies Watched', value: libStats.totalWatched, icon: <Film size={18} color="var(--gold)" />, link: isOwnProfile ? '/library/watched' : null },
     { label: 'Watchlist', value: libStats.totalWatchlist, icon: <Bookmark size={18} color="var(--gold)" />, link: isOwnProfile ? '/watchlist' : null },
     { label: 'Favorites', value: libStats.totalFavorites, icon: <Heart size={18} color="var(--gold)" />, link: isOwnProfile ? '/library/favorites' : null },
+    { label: 'Helpful Likes', value: totalLikesReceived, icon: <Heart size={18} color="#ef4444" />, link: null, action: isOwnProfile ? () => setShowNotifications(prev => !prev) : null },
+    { label: 'Reviews Written', value: userReviews.length, icon: <MessageSquare size={18} color="var(--gold)" />, link: null, action: () => setShowComments(true) },
     { label: 'Weekend Votes', value: weekendVotingStats.totalVotes, icon: <Trophy size={18} color="var(--gold)" />, link: '/weekend' },
     { label: 'Diary Entries', value: diaryStats.totalEntries, icon: <BookOpen size={18} color="var(--gold)" />, link: isOwnProfile ? '/diary' : null },
     { label: 'Collections', value: collectionsCount, icon: <Folder size={18} color="var(--gold)" />, link: isOwnProfile ? '/library/collections' : null },
-    { label: 'Reviews Written', value: userReviews.length, icon: <MessageSquare size={18} color="var(--gold)" />, link: null, action: () => setShowComments(true) },
   ];
 
   return (
@@ -390,6 +408,30 @@ export default function ProfilePage() {
               <Users size={14} /> Find Members
             </Link>
           )}
+          {isOwnProfile && (
+            <button
+              type="button"
+              onClick={() => setShowNotifications(prev => !prev)}
+              className="btn btn-outline btn-sm"
+              style={{
+                borderColor: showNotifications ? 'var(--gold)' : unreadNotifCount > 0 ? 'var(--gold-dim)' : 'var(--border-subtle)',
+                background: showNotifications ? 'var(--gold-faint)' : unreadNotifCount > 0 ? 'rgba(220,182,91,0.08)' : 'transparent',
+                color: (showNotifications || unreadNotifCount > 0) ? 'var(--gold)' : 'var(--text-primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <Bell size={14} color="var(--gold)" />
+              <span>Notifications</span>
+              {unreadNotifCount > 0 && (
+                <span className="badge badge-gold" style={{ fontSize: 10, padding: '1px 6px' }}>
+                  {unreadNotifCount} new
+                </span>
+              )}
+              {showNotifications ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setShowComments(prev => !prev)}
@@ -521,6 +563,170 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
+
+        {/* Notifications & Helpful Votes Section (for own profile) */}
+        {isOwnProfile && (
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', marginBottom: 20 }}>
+            <button
+              type="button"
+              onClick={() => setShowNotifications(prev => !prev)}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '18px 20px',
+                background: showNotifications ? 'rgba(220,182,91,0.06)' : 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                borderBottom: showNotifications ? '1px solid var(--border-subtle)' : 'none',
+                textAlign: 'left',
+                transition: 'background 0.15s ease',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    background: 'var(--gold-faint)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Bell size={18} color="var(--gold)" />
+                </div>
+                <div>
+                  <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', margin: 0 }}>
+                    Review Likes & Notifications
+                  </h3>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 0' }}>
+                    {userNotifications.length} {userNotifications.length === 1 ? 'notification' : 'notifications'} · {unreadNotifCount} unread
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {unreadNotifCount > 0 && (
+                  <span className="badge badge-gold" style={{ fontSize: 11, padding: '3px 10px' }}>
+                    {unreadNotifCount} New
+                  </span>
+                )}
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.05)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  {showNotifications ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </div>
+              </div>
+            </button>
+
+            {showNotifications && (
+              <div style={{ padding: 20 }}>
+                {userNotifications.length === 0 ? (
+                  <div style={{ padding: '36px 20px', background: 'rgba(0,0,0,0.2)', border: '1px dashed var(--border-subtle)', textAlign: 'center', borderRadius: 4 }}>
+                    <Heart size={28} color="var(--text-muted)" style={{ marginBottom: 10 }} />
+                    <h4 style={{ fontFamily: 'var(--font-serif)', color: 'var(--text-secondary)', marginBottom: 6 }}>
+                      No notifications yet
+                    </h4>
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 0 }}>
+                      When community members find your reviews helpful, you'll see alerts here!
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {unreadNotifCount > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+                        <button
+                          type="button"
+                          onClick={() => dispatch({ type: 'MARK_ALL_NOTIFICATIONS_READ', payload: profileUser.id })}
+                          style={{
+                            fontSize: 11,
+                            color: 'var(--gold)',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Mark all as read
+                        </button>
+                      </div>
+                    )}
+                    {userNotifications.map(notif => {
+                      const isUnread = !notif.isRead;
+                      const targetUrl = notif.targetType === 'THEATER' ? `/theater/${notif.targetId}` : `/movie/${notif.targetId}`;
+                      return (
+                        <div
+                          key={notif.id}
+                          onClick={() => {
+                            if (isUnread) dispatch({ type: 'MARK_NOTIFICATION_READ', payload: notif.id });
+                            navigate(targetUrl);
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '12px 16px',
+                            background: isUnread ? 'rgba(220,182,91,0.06)' : 'rgba(0,0,0,0.2)',
+                            border: `1px solid ${isUnread ? 'rgba(220,182,91,0.3)' : 'var(--border-subtle)'}`,
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                            transition: 'border-color 0.15s ease',
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--gold)'}
+                          onMouseLeave={e => e.currentTarget.style.borderColor = isUnread ? 'rgba(220,182,91,0.3)' : 'var(--border-subtle)'}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{
+                              width: 34, height: 34, borderRadius: '50%',
+                              background: 'var(--gold-faint)', border: '1px solid var(--gold-dim)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              color: 'var(--gold)', fontWeight: 700, fontSize: 13, flexShrink: 0,
+                            }}>
+                              {(notif.actorName || 'A').charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>
+                                <strong style={{ color: 'var(--gold)' }}>{notif.actorName}</strong>
+                                {' '}liked your review on{' '}
+                                <strong style={{ color: 'var(--text-primary)' }}>{notif.targetTitle}</strong>
+                              </div>
+                              {notif.reviewSnippet && (
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>
+                                  "{notif.reviewSnippet}"
+                                </div>
+                              )}
+                              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
+                                {new Date(notif.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {isUnread && (
+                              <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--gold)' }} />
+                            )}
+                            <ChevronRight size={16} color="var(--text-muted)" />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Collapsible Reviews & Comments Menu */}
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
