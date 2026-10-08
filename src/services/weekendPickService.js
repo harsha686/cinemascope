@@ -102,9 +102,30 @@ export async function syncWeekendPickDataFromCloud({ force = false } = {}) {
       return false;
     }
 
-    // Apply cloud data to local storage
+    // Apply cloud data to local storage while safely preserving candidate lists
     if (cloud.rounds && Array.isArray(cloud.rounds)) {
-      saveStorage(ROUNDS_KEY, cloud.rounds);
+      const localRounds = loadStorage(ROUNDS_KEY, []);
+      const mergedRounds = cloud.rounds.map(cloudRound => {
+        const localMatch = localRounds.find(lr => lr.id === cloudRound.id);
+        if (!localMatch || !localMatch.genreRounds) return cloudRound;
+
+        const mergedGenreRounds = { ...(cloudRound.genreRounds || {}) };
+        Object.entries(localMatch.genreRounds).forEach(([gId, localGenreRound]) => {
+          const cloudCandidates = mergedGenreRounds[gId]?.candidates;
+          const localCandidates = localGenreRound?.candidates;
+          if ((!cloudCandidates || cloudCandidates.length === 0) && localCandidates && localCandidates.length > 0) {
+            mergedGenreRounds[gId] = {
+              ...(mergedGenreRounds[gId] || localGenreRound),
+              candidates: localCandidates,
+            };
+          }
+        });
+        return {
+          ...cloudRound,
+          genreRounds: mergedGenreRounds,
+        };
+      });
+      saveStorage(ROUNDS_KEY, mergedRounds);
     }
     if (cloud.genres && Array.isArray(cloud.genres)) {
       saveStorage(GENRES_KEY, cloud.genres);
@@ -1158,16 +1179,59 @@ export function declareWinnersForRound(roundId, tieBreakerOption = 'highest_perc
   const updatedWinners = [...declaredWinners, ...existingWinners];
   saveWinners(updatedWinners);
 
-  // Update round status to WINNER_DECLARED
-  updateRound(roundId, { status: 'WINNER_DECLARED' });
+  // Update round status to WINNER_DECLARED while explicitly preserving all candidate movies & series in all genres
+  updateRound(roundId, {
+    status: 'WINNER_DECLARED',
+    genreRounds: round.genreRounds || {},
+  });
 
   return declaredWinners;
 }
 
 /**
- * Reset polling for a specific round (clears all user votes, removes declared winners, sets round to ACTIVE)
+ * Start fresh voting cycle for a round after declaring winners:
+ * - Keeps all declared winners in the Winner Archive
+ * - Resets user vote counts for this round to 0
+ * - Retains 100% of candidate movies and series across all genres
+ * - Re-opens voting (status: ACTIVE)
  */
-export function resetRoundPolling(roundId, resetSeeds = false) {
+export function startFreshVotingKeepCandidates(roundId) {
+  if (!roundId) return false;
+  const round = getRoundById(roundId);
+  if (!round) return false;
+
+  // 1. Clear user votes for this round
+  const allVotes = getAllVotes();
+  const remainingVotes = allVotes.filter(v => v.roundId !== roundId);
+  saveVotes(remainingVotes);
+
+  // 2. Keep genreRounds and all candidate movies/series intact (reset seed baselines to 0 for a clean new cycle)
+  const updatedGenreRounds = JSON.parse(JSON.stringify(round.genreRounds || {}));
+  Object.keys(updatedGenreRounds).forEach(gId => {
+    if (Array.isArray(updatedGenreRounds[gId]?.candidates)) {
+      updatedGenreRounds[gId].candidates = updatedGenreRounds[gId].candidates.map(c => ({
+        ...c,
+        initialVoteSeed: 0,
+      }));
+    }
+  });
+
+  // 3. Set round status back to ACTIVE
+  updateRound(roundId, {
+    status: 'ACTIVE',
+    genreRounds: updatedGenreRounds,
+  });
+
+  notifyWeekendUpdates();
+  pushWeekendPickDataToCloud();
+  return true;
+}
+
+/**
+ * Reset polling for a specific round (clears user votes, optionally keeps declared winners, sets round to ACTIVE)
+ * Candidate movies and series in all genres are preserved intact.
+ */
+export function resetRoundPolling(roundId, resetSeeds = false, keepArchiveWinners = true) {
   if (!roundId) return false;
 
   // 1. Remove all user votes for this round
@@ -1175,12 +1239,14 @@ export function resetRoundPolling(roundId, resetSeeds = false) {
   const remainingVotes = allVotes.filter(v => v.roundId !== roundId);
   saveVotes(remainingVotes);
 
-  // 2. Remove any declared winners for this round
-  const allWinners = getAllWinners();
-  const remainingWinners = allWinners.filter(w => w.roundId !== roundId);
-  saveWinners(remainingWinners);
+  // 2. Remove any declared winners for this round ONLY if keepArchiveWinners is false
+  if (!keepArchiveWinners) {
+    const allWinners = getAllWinners();
+    const remainingWinners = allWinners.filter(w => w.roundId !== roundId);
+    saveWinners(remainingWinners);
+  }
 
-  // 3. Reset seed baseline votes on candidates if requested
+  // 3. Reset seed baseline votes on candidates if requested (candidates themselves remain intact)
   const round = getRoundById(roundId);
   if (round) {
     const updatedGenreRounds = JSON.parse(JSON.stringify(round.genreRounds || {}));
@@ -1207,6 +1273,8 @@ export function resetRoundPolling(roundId, resetSeeds = false) {
     window.dispatchEvent(new Event('storage'));
   } catch (e) {}
 
+  notifyWeekendUpdates();
+  pushWeekendPickDataToCloud();
   return true;
 }
 

@@ -412,7 +412,9 @@ export default function WeekendPickPage() {
               <span>{genreObj.name} Contenders</span>
             </h2>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>
-              {userVote
+              {isWinnersDeclared
+                ? '🏆 Community winners have been declared. Contenders and final standings are shown below.'
+                : userVote
                 ? `You voted for "${userVote.title}". Results will be finalized at the end of the round.`
                 : 'Select one candidate to cast your vote for this weekend.'}
             </p>

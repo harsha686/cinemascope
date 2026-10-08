@@ -256,12 +256,12 @@ export default function CandidateVoteCard({
           </p>
         </div>
 
-        {/* Live Vote Progress Bar (Shown ONLY when user has voted in this genre) */}
-        {hasVotedInGenre && candidate.votePercentage !== undefined ? (
+        {/* Live Vote Progress Bar (Shown when user has voted in this genre OR round is closed/winners declared) */}
+        {(hasVotedInGenre || !isRoundActive || showLiveResults) && candidate.votePercentage !== undefined ? (
           <div style={{ marginBottom: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>
               <span>{candidate.totalVotes?.toLocaleString() || 0} votes</span>
-              <span style={{ fontWeight: 700, color: isUserPick ? 'var(--gold)' : 'var(--text-primary)' }}>
+              <span style={{ fontWeight: 700, color: isUserPick ? 'var(--gold)' : (isLeader && !isRoundActive) ? 'var(--gold)' : 'var(--text-primary)' }}>
                 {candidate.votePercentage}%
               </span>
             </div>
@@ -413,6 +413,21 @@ export default function CandidateVoteCard({
             >
               <Trophy size={12} /> Vote
             </button>
+          ) : !isRoundActive ? (
+            <div style={{
+              fontSize: 10,
+              fontWeight: isLeader ? 700 : 500,
+              color: isLeader ? 'var(--gold)' : 'var(--text-muted)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              background: isLeader ? 'var(--gold-faint)' : 'transparent',
+              padding: isLeader ? '4px 8px' : '0',
+              borderRadius: 3,
+              border: isLeader ? '1px solid var(--gold)' : 'none',
+            }}>
+              {isLeader ? '🏆 Winner' : 'Voting Closed'}
+            </div>
           ) : (
             <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
               Voting Closed

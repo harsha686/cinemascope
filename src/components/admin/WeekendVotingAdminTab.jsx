@@ -27,6 +27,7 @@ import {
   updateRound,
   deleteRound,
   declareWinnersForRound,
+  startFreshVotingKeepCandidates,
   getLiveAdminAnalytics,
   calculateGenreResults,
   TIE_BREAKER_OPTIONS,
@@ -120,15 +121,26 @@ export default function WeekendVotingAdminTab() {
     tieBreakerRule: 'highest_percentage',
     showLiveResults: true,
   });
+  const [carryOverCandidates, setCarryOverCandidates] = useState(true);
 
   const handleCreateRoundSubmit = (e) => {
     e.preventDefault();
     const activeGenresObj = {};
     genres.forEach(g => {
+      // Inherit candidate movies and series from current round if carryOverCandidates is enabled
+      const existingCandidates = currentRound?.genreRounds?.[g.id]?.candidates || [];
+      const carriedCandidates = carryOverCandidates
+        ? existingCandidates.map(c => ({
+            ...c,
+            id: `cand-${g.id}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+            initialVoteSeed: 0,
+          }))
+        : [];
+
       activeGenresObj[g.id] = {
         genreId: g.id,
         genreName: g.name,
-        candidates: [],
+        candidates: carriedCandidates,
       };
     });
 
@@ -143,15 +155,40 @@ export default function WeekendVotingAdminTab() {
 
   const handleStatusChange = (roundId, newStatus) => {
     if (newStatus === 'WINNER_DECLARED') {
-      if (window.confirm('Calculate results and declare winners for all active genres in this round?')) {
+      const isConfirmed = window.confirm(
+        '🏆 Declare Community Winners for All Active Genres?\n\n' +
+        '• Community winners will be calculated and crowned into the Winner Archive.\n' +
+        '• All movies and series across all genres will remain intact.\n' +
+        '• Candidate lists will NOT be reset or removed unless you delete candidates manually.\n\n' +
+        'Do you want to proceed?'
+      );
+      if (isConfirmed) {
         declareWinnersForRound(roundId, currentRound.tieBreakerRule);
         reloadData();
+        alert('🏆 Winners declared and crowned successfully!\n\nAll candidate movies and series across all genres have been kept intact.');
       }
       return;
     }
 
     updateRound(roundId, { status: newStatus });
     reloadData();
+  };
+
+  const handleStartFreshVoting = (roundId) => {
+    if (!currentRound) return;
+    const isConfirmed = window.confirm(
+      `🔄 START FRESH VOTING CYCLE for "${currentRound.name}"?\n\n` +
+      `• Crowned winners will remain safely preserved in the Winner Archive.\n` +
+      `• User votes for this round will reset to 0 so everyone can vote afresh.\n` +
+      `• All candidate movies and series across all genres WILL BE KEPT intact.\n` +
+      `• Voting status will be set back to ACTIVE.\n\n` +
+      `Do you want to proceed?`
+    );
+    if (!isConfirmed) return;
+
+    startFreshVotingKeepCandidates(roundId);
+    reloadData();
+    alert(`🎉 Fresh voting is now ACTIVE for "${currentRound.name}"!\n\nAll movies and series across all genres have been preserved.`);
   };
 
   const handleDeleteRound = (roundId) => {
@@ -166,7 +203,8 @@ export default function WeekendVotingAdminTab() {
     const isConfirmed = window.confirm(
       `Are you sure you want to RESET POLLING for "${currentRound.name}"?\n\n` +
       `• All submitted user votes for this round will be cleared to 0.\n` +
-      `• Any declared winners for this round will be reset.\n` +
+      `• Crowned winners remain safely saved in the Winner Archive.\n` +
+      `• All candidate movies and series will remain intact.\n` +
       `• Round status will be reset back to ACTIVE.\n\n` +
       `Do you want to proceed?`
     );
@@ -178,9 +216,9 @@ export default function WeekendVotingAdminTab() {
       `• Click [Cancel] to keep the default baseline counts.`
     );
 
-    resetRoundPolling(roundId, resetSeedsToo);
+    resetRoundPolling(roundId, resetSeedsToo, true);
     reloadData();
-    alert(`Polling for "${currentRound.name}" has been successfully reset!`);
+    alert(`Polling for "${currentRound.name}" has been successfully reset!\n\nAll movies and series in all genres have been kept intact.`);
   };
 
   const handleResetGenrePolling = (genreId) => {
@@ -523,15 +561,27 @@ export default function WeekendVotingAdminTab() {
               className="btn btn-primary btn-sm"
               style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}
             >
-              <Trophy size={12} /> Declare Winners
+              <Trophy size={12} /> {currentRound.status === 'WINNER_DECLARED' ? 'Re-calculate Winners' : 'Declare Winners'}
             </button>
+
+            {currentRound.status === 'WINNER_DECLARED' && (
+              <button
+                type="button"
+                onClick={() => handleStartFreshVoting(currentRound.id)}
+                className="btn btn-outline btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, borderColor: '#10b981', color: '#10b981', background: 'rgba(16,185,129,0.08)' }}
+                title="Preserve crowned winners in archive, reset votes for new cycle, and keep all candidate movies and series intact"
+              >
+                <RotateCcw size={12} /> Start Fresh Voting (Keep Candidates)
+              </button>
+            )}
 
             <button
               type="button"
               onClick={() => handleResetPolling(currentRound.id)}
               className="btn btn-outline btn-sm"
               style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, borderColor: '#f97316', color: '#f97316' }}
-              title="Reset all user votes and winner status for this round"
+              title="Reset all user votes for this round while preserving candidate lists"
             >
               <RotateCcw size={12} /> Reset Polling
             </button>
@@ -907,6 +957,31 @@ export default function WeekendVotingAdminTab() {
                   value={newRoundForm.description}
                   onChange={e => setNewRoundForm({ ...newRoundForm, description: e.target.value })}
                 />
+              </div>
+
+              {/* Carry over candidate movies & series checkbox */}
+              <div style={{
+                background: 'rgba(201,168,76,0.08)',
+                border: '1px solid rgba(201,168,76,0.25)',
+                borderRadius: 4,
+                padding: '12px 14px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
+              }}>
+                <input
+                  type="checkbox"
+                  id="carryOverCandidatesCheck"
+                  checked={carryOverCandidates}
+                  onChange={e => setCarryOverCandidates(e.target.checked)}
+                  style={{ marginTop: 2, accentColor: 'var(--gold)', cursor: 'pointer' }}
+                />
+                <label htmlFor="carryOverCandidatesCheck" style={{ fontSize: 12, color: 'var(--text-primary)', cursor: 'pointer' }}>
+                  <strong style={{ color: 'var(--gold)' }}>Carry over all movies &amp; series across all genres</strong> (Recommended)
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>
+                    Preserves your full curated candidate lists in every genre into the new round with fresh 0-vote baselines. Candidate titles stay until you manually delete them.
+                  </div>
+                </label>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
