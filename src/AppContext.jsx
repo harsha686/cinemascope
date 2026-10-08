@@ -826,9 +826,84 @@ export function AppProvider({ children }) {
     };
     window.addEventListener('cinemascope_pro_applications_updated', handleProAppsUpdate);
     window.addEventListener('cinemascope_user_stats_updated', handleStatsUpdate);
+
+    // Cross-tab automatic sync (same browser, multiple tabs)
+    const handleStorageChange = (e) => {
+      if (e.key === 'cinemascope_notifications' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            dispatch({ type: 'SET_NOTIFICATIONS', payload: parsed });
+          }
+        } catch (_) {}
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    // Auto-sync when user switches back to the tab/app
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        supabaseService.getNotificationsData().then((remoteNotifs) => {
+          if (remoteNotifs && Array.isArray(remoteNotifs)) {
+            dispatch({ type: 'SET_NOTIFICATIONS', payload: remoteNotifs });
+          }
+        }).catch(() => {});
+      }
+    };
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    // Background interval auto-poll every 15 seconds
+    const intervalTimer = setInterval(() => {
+      supabaseService.getNotificationsData().then((remoteNotifs) => {
+        if (remoteNotifs && Array.isArray(remoteNotifs)) {
+          dispatch({ type: 'SET_NOTIFICATIONS', payload: remoteNotifs });
+        }
+      }).catch(() => {});
+    }, 15000);
+
     return () => {
       window.removeEventListener('cinemascope_pro_applications_updated', handleProAppsUpdate);
       window.removeEventListener('cinemascope_user_stats_updated', handleStatsUpdate);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      clearInterval(intervalTimer);
+    };
+  }, []);
+
+  // Supabase Real-Time Channel for instant notification delivery across all devices
+  useEffect(() => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel('system_notifications_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'collections',
+          filter: 'id=eq.system_notifications_data',
+        },
+        (payload) => {
+          if (payload.new && payload.new.description) {
+            try {
+              const remoteNotifs = JSON.parse(payload.new.description);
+              if (Array.isArray(remoteNotifs)) {
+                dispatch({ type: 'SET_NOTIFICATIONS', payload: remoteNotifs });
+              }
+            } catch (err) {
+              console.warn('Realtime parse notifications error:', err);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
     };
   }, []);
 

@@ -137,10 +137,11 @@ export default function OttReleasePopupModal() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLiveData, setIsLiveData] = useState(false);
   const filmstripRef = useRef(null);
+  const isTouchingFilmstrip = useRef(false);
 
-  // Auto-scroll active thumbnail into view in filmstrip
+  // Auto-scroll active thumbnail into view in filmstrip (only when not actively touched)
   useEffect(() => {
-    if (!filmstripRef.current) return;
+    if (!filmstripRef.current || isTouchingFilmstrip.current) return;
     const activeEl = filmstripRef.current.querySelector('[data-active="true"]');
     if (activeEl) {
       activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
@@ -237,18 +238,23 @@ export default function OttReleasePopupModal() {
   const [touchStartX, setTouchStartX] = useState(null);
 
   const handleTouchStart = (e) => {
+    if (e.target && e.target.closest && e.target.closest('.ott-filmstrip-scroll')) return;
     if (e.touches && e.touches[0]) {
       setTouchStartX(e.touches[0].clientX);
     }
   };
 
   const handleTouchEnd = (e) => {
+    if (e.target && e.target.closest && e.target.closest('.ott-filmstrip-scroll')) {
+      setTouchStartX(null);
+      return;
+    }
     if (touchStartX === null || !e.changedTouches || !e.changedTouches[0]) return;
     const diff = touchStartX - e.changedTouches[0].clientX;
-    if (diff > 40 && ottMovies.length > 1) {
+    if (diff > 50 && ottMovies.length > 1) {
       // Swiped left -> Next movie
       setCurrentIndex(prev => (prev + 1) % ottMovies.length);
-    } else if (diff < -40 && ottMovies.length > 1) {
+    } else if (diff < -50 && ottMovies.length > 1) {
       // Swiped right -> Previous movie
       setCurrentIndex(prev => (prev - 1 + ottMovies.length) % ottMovies.length);
     }
@@ -346,8 +352,6 @@ export default function OttReleasePopupModal() {
       }}
     >
       <div
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
         style={{
           background: 'linear-gradient(180deg, #181410 0%, #0d0a08 100%)',
           border: '1px solid rgba(220, 182, 91, 0.4)',
@@ -362,6 +366,8 @@ export default function OttReleasePopupModal() {
       >
         {/* Top Hero Banner with Backdrop */}
         <div
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
           style={{
             height: 210,
             position: 'relative',
@@ -809,31 +815,83 @@ export default function OttReleasePopupModal() {
                 <span style={{ fontSize: 11, color: 'var(--gold)', fontFamily: 'var(--font-serif)', fontWeight: 700, letterSpacing: '0.04em' }}>
                   All Latest OTT Releases ({ottMovies.length})
                 </span>
-                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                  Scroll or tap to view
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      filmstripRef.current?.scrollBy({ left: -220, behavior: 'smooth' });
+                    }}
+                    style={{
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.18)',
+                      color: '#fff',
+                      borderRadius: 12,
+                      padding: '2px 6px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    title="Scroll left"
+                  >
+                    <ChevronLeft size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      filmstripRef.current?.scrollBy({ left: 220, behavior: 'smooth' });
+                    }}
+                    style={{
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.18)',
+                      color: '#fff',
+                      borderRadius: 12,
+                      padding: '2px 6px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    title="Scroll right"
+                  >
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
               </div>
               <div
                 ref={filmstripRef}
+                className="ott-filmstrip-scroll"
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  isTouchingFilmstrip.current = true;
+                }}
+                onTouchMove={(e) => {
+                  e.stopPropagation();
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  setTimeout(() => {
+                    isTouchingFilmstrip.current = false;
+                  }, 350);
+                }}
                 style={{
                   display: 'flex',
                   gap: 8,
                   overflowX: 'auto',
                   padding: '4px 2px 8px',
-                  scrollbarWidth: 'thin',
-                  WebkitOverflowScrolling: 'touch',
                 }}
               >
                 {ottMovies.map((m, idx) => (
                   <button
                     key={m.id || idx}
                     type="button"
+                    className="ott-filmstrip-item"
                     data-active={idx === currentIndex}
                     onClick={() => setCurrentIndex(idx)}
                     style={{
                       flexShrink: 0,
-                      width: 46,
-                      height: 66,
+                      width: 48,
+                      height: 68,
                       borderRadius: 6,
                       overflow: 'hidden',
                       border: idx === currentIndex ? '2px solid var(--gold)' : '1px solid rgba(255,255,255,0.18)',

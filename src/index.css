@@ -900,3 +900,26 @@ main > article {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* OTT Filmstrip smooth touch scroll & hidden scrollbars */
+.ott-filmstrip-scroll {
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  touch-action: pan-x !important;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+}
+
+.ott-filmstrip-scroll::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.ott-filmstrip-item {
+  scroll-snap-align: center;
+  flex-shrink: 0;
+}
+

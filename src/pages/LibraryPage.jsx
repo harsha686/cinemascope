@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Film, CheckCircle, Bookmark, Heart, BookOpen, Folder, Plus, Search, LayoutGrid, List as ListIcon, X, RefreshCw, Share2 } from 'lucide-react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Film, CheckCircle, Bookmark, Heart, BookOpen, Folder, Plus, Search, LayoutGrid, List as ListIcon, X, RefreshCw, Share2, ArrowLeft } from 'lucide-react';
 import { useApp } from '../AppContext';
 import * as LibService from '../services/movieLibraryService';
+import { getUserPublicArchive } from '../services/showcaseArchiveService';
 import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
 import GlobalMovieCard from '../components/discovery/GlobalMovieCard';
 import ShareCollectionModal from '../components/library/ShareCollectionModal';
@@ -12,6 +13,20 @@ export default function LibraryPage() {
   const currentUser = state.currentUser;
   const navigate = useNavigate();
   const { section: sectionParam } = useParams();
+  const [searchParams] = useSearchParams();
+  const requestedUserId = searchParams.get('user');
+
+  const targetUser = useMemo(() => {
+    if (requestedUserId) {
+      const match = state.users?.find(u => u.id === requestedUserId || (u.email && u.email.toLowerCase() === requestedUserId.toLowerCase()));
+      if (match) return match;
+      if (currentUser && (currentUser.id === requestedUserId || currentUser.email === requestedUserId)) return currentUser;
+      return { id: requestedUserId, displayName: 'Cinema Member' };
+    }
+    return currentUser;
+  }, [requestedUserId, state.users, currentUser]);
+
+  const isOwnLibrary = !requestedUserId || (currentUser && targetUser && currentUser.id === targetUser.id);
 
   const [activeSection, setActiveSection] = useState(sectionParam || 'all');
   const [library, setLibrary] = useState({});
@@ -30,23 +45,49 @@ export default function LibraryPage() {
   const [newCollectionDesc, setNewCollectionDesc] = useState('');
 
   const loadData = useCallback(async () => {
-    if (!currentUser) {
+    if (!targetUser?.id) {
       setLibrary({});
       setStats({ totalWatchlist: 0, totalWatched: 0, totalFavorites: 0, totalRated: 0, avgRating: 0 });
       setCollections([]);
       setDiaryStats({ totalEntries: 0 });
       return;
     }
-    const [lib, s, cols, ds] = await Promise.all([
-      LibService.getLibrary(currentUser.id),
-      LibService.getLibraryStats(currentUser.id),
-      LibService.getCollections(currentUser.id),
-      LibService.getDiaryStats(currentUser.id),
+    const [lib, s, cols, ds, archive] = await Promise.all([
+      LibService.getLibrary(targetUser.id),
+      LibService.getLibraryStats(targetUser.id),
+      LibService.getCollections(targetUser.id),
+      LibService.getDiaryStats(targetUser.id),
+      getUserPublicArchive(targetUser.id, targetUser),
     ]);
-    setLibrary(lib);
-    setStats(s);
-    setCollections(cols);
-    setDiaryStats(ds);
+
+    // If local library is empty and viewing another user, use archive items
+    let finalLib = { ...lib };
+    if (!isOwnLibrary && Object.keys(finalLib).length === 0 && archive?.all?.length > 0) {
+      archive.all.forEach(item => {
+        finalLib[item.tmdbId] = {
+          title: item.title,
+          posterUrl: item.posterUrl,
+          releaseYear: item.releaseYear,
+          rating: item.rating,
+          watched: item.watched,
+          favorite: item.favorite,
+          watchlist: item.watchlist,
+          watchCount: item.watchCount,
+          type: item.type,
+        };
+      });
+    }
+
+    setLibrary(finalLib);
+    setStats({
+      totalWatchlist: archive?.stats?.totalWatchlist || s?.totalWatchlist || 0,
+      totalWatched: archive?.stats?.totalWatched || s?.totalWatched || 0,
+      totalFavorites: archive?.stats?.totalFavorites || s?.totalFavorites || 0,
+      totalRated: s?.totalRated || 0,
+      avgRating: s?.avgRating || 0,
+    });
+    setCollections(cols || []);
+    setDiaryStats(ds || { totalEntries: 0 });
 
     // Pre-populate moviesData with any metadata already cached in library records
     const prefilled = {};
@@ -271,7 +312,14 @@ export default function LibraryPage() {
       <div style={{ padding: '40px 24px 0', borderBottom: '1px solid var(--border-subtle)' }}>
         <div className="container" style={{ maxWidth: 1200, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
           <div>
-            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 6 }}>My Movie Library</h1>
+            {!isOwnLibrary && (
+              <Link to={`/profile/${targetUser.id}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--gold)', textDecoration: 'none', marginBottom: 8 }}>
+                <ArrowLeft size={13} /> Back to {targetUser.displayName}'s Profile
+              </Link>
+            )}
+            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 6 }}>
+              {isOwnLibrary ? 'My Movie Library' : `${targetUser.displayName}'s Movie Library`}
+            </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 24 }}>
               {stats.totalWatched} watched · {stats.totalWatchlist} in watchlist · {stats.totalFavorites} favorites · {diaryStats.totalEntries} diary entries
             </p>
@@ -284,7 +332,7 @@ export default function LibraryPage() {
         {/* Sidebar */}
         <aside style={{ flex: '0 0 210px', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4, padding: '20px 16px', position: 'sticky', top: 80 }}>
           <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-muted)', marginBottom: 14, paddingBottom: 10, borderBottom: '1px solid var(--border-subtle)' }}>
-            MY LIBRARY
+            {isOwnLibrary ? 'MY LIBRARY' : `${(targetUser.displayName || 'MEMBER').toUpperCase()}'S LIBRARY`}
           </div>
           <button style={sidebarBtn('all')} onClick={() => setActiveSection('all')}>
             <Film size={15} /> All Movies

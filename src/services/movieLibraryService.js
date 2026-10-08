@@ -106,8 +106,39 @@ export function getMovieStatusSync(tmdbId, userId) {
 }
 
 export async function getLibrary(userId) {
-  const key = getLibStorageKey(userId);
-  return JSON.parse(localStorage.getItem(key) || '{}');
+  const uid = getActiveUserId(userId);
+  const key = getLibStorageKey(uid);
+  let lib = {};
+  try {
+    lib = JSON.parse(localStorage.getItem(key) || '{}');
+  } catch (e) {
+    lib = {};
+  }
+
+  // If local library is empty and Supabase is configured, pull from remote user_movies
+  if (Object.keys(lib).length === 0 && isSupabaseConfigured() && uid && uid !== 'guest') {
+    try {
+      const remote = await supabaseService.getUserMovies(uid);
+      if (remote && Array.isArray(remote) && remote.length > 0) {
+        remote.forEach(rm => {
+          const cleanId = String(rm.tmdb_id).replace(/^tmdb-/, '');
+          lib[cleanId] = {
+            watchlist: !!rm.in_watchlist,
+            watched: !!rm.is_watched,
+            favorite: !!rm.is_favorite,
+            rating: rm.personal_rating ?? null,
+            notes: rm.notes || '',
+            watchCount: rm.watch_count || 1,
+          };
+        });
+        localStorage.setItem(key, JSON.stringify(lib));
+      }
+    } catch (e) {
+      console.warn('Could not fetch remote user movies in getLibrary:', e);
+    }
+  }
+
+  return lib;
 }
 
 export async function saveLibrary(lib, userId) {
@@ -473,8 +504,27 @@ export async function getLibraryStats(userId) {
 
 // Diary
 export async function getDiary(userId) {
-  const key = getDiaryStorageKey(userId);
-  const raw = JSON.parse(localStorage.getItem(key) || '[]');
+  const uid = getActiveUserId(userId);
+  const key = getDiaryStorageKey(uid);
+  let raw = [];
+  try {
+    raw = JSON.parse(localStorage.getItem(key) || '[]');
+  } catch (e) {
+    raw = [];
+  }
+
+  // If local diary is empty and Supabase is configured, pull from remote
+  if ((!raw || raw.length === 0) && isSupabaseConfigured() && uid && uid !== 'guest') {
+    try {
+      const remote = await supabaseService.getUserDiary(uid);
+      if (remote && Array.isArray(remote) && remote.length > 0) {
+        raw = remote;
+        localStorage.setItem(key, JSON.stringify(raw));
+      }
+    } catch (e) {
+      console.warn('Could not fetch remote diary in getDiary:', e);
+    }
+  }
   const sanitized = raw.map(e => {
     let tmdb_id = e.tmdb_id || e.tmdbId;
     if (!tmdb_id && e['0'] !== undefined) {
@@ -602,8 +652,30 @@ export async function registerPublicCollection(collection) {
 }
 
 export async function getCollections(userId) {
-  const key = getCollectionsStorageKey(userId);
-  return JSON.parse(localStorage.getItem(key) || '[]');
+  const uid = getActiveUserId(userId);
+  const key = getCollectionsStorageKey(uid);
+  let cols = [];
+  try {
+    cols = JSON.parse(localStorage.getItem(key) || '[]');
+  } catch (e) {
+    cols = [];
+  }
+
+  // If local collections empty and Supabase is configured, pull from remote
+  if ((!cols || cols.length === 0) && isSupabaseConfigured() && uid && uid !== 'guest') {
+    try {
+      const remote = await supabaseService.getUserCollections(uid);
+      if (remote && Array.isArray(remote) && remote.length > 0) {
+        cols = remote;
+        localStorage.setItem(key, JSON.stringify(cols));
+        cols.forEach(c => registerPublicCollection(c));
+      }
+    } catch (e) {
+      console.warn('Could not fetch remote collections in getCollections:', e);
+    }
+  }
+
+  return cols;
 }
 
 export async function saveCollections(cols, userId) {
