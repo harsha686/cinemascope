@@ -213,8 +213,9 @@ export async function discoverRecentIndianMovies(page = 1) {
 
 /**
  * Fetch Indian movies that received a digital/OTT release in the last 30 days.
- * Uses TMDB /discover/movie with watch_region=IN and with_watch_monetization_types=flatrate.
- * Returns verified streaming releases in India enriched with real OTT platform names and URLs.
+ * Primary: with_release_type=4 (Digital) for Indian languages — accurate OTT dates.
+ * Secondary: flatrate watch_region=IN to supplement and get streaming platforms.
+ * Returns verified streaming releases enriched with real OTT platform names and URLs.
  */
 export async function fetchRecentOttReleasesIndia() {
   const today = new Date();
@@ -225,31 +226,40 @@ export async function fetchRecentOttReleasesIndia() {
   const gteDate = fmt(thirtyDaysAgo);
   const lteDate = fmt(today);
 
-  // Strategy 1: Search movies streaming flatrate in India released in last 30 days
-  const endpoint = `/discover/movie?watch_region=IN&with_watch_monetization_types=flatrate&with_origin_country=IN&primary_release_date.gte=${gteDate}&primary_release_date.lte=${lteDate}&sort_by=popularity.desc&include_adult=false&page=1`;
-
   let results = [];
+  const seenIds = new Set();
+
+  // Strategy 1 (PRIMARY): Digital release type=4 for Indian languages in last 30 days
+  // This uses the ACTUAL OTT release date, not theatrical
   try {
-    const data = await tmdbFetch(endpoint);
-    results = (data.results || []).slice(0, 10);
+    const ep1 = `/discover/movie?region=IN&with_release_type=4&release_date.gte=${gteDate}&release_date.lte=${lteDate}&sort_by=popularity.desc&include_adult=false&page=1&with_original_language=te|ta|hi|ml|kn`;
+    const d1 = await tmdbFetch(ep1);
+    for (const m of (d1.results || [])) {
+      if (!seenIds.has(m.id)) {
+        results.push(m);
+        seenIds.add(m.id);
+      }
+    }
   } catch (e) {
-    console.warn('Flatrate discovery failed, falling back:', e);
+    console.warn('OTT release_type=4 query failed:', e);
   }
 
-  // Strategy 2: If fewer than 4 results, supplement with release_type=4 (Digital) for Indian languages
-  if (results.length < 4) {
+  // Strategy 2 (SUPPLEMENT): Movies currently streaming flatrate in India, broader 60-day window
+  // to catch films whose OTT date differs from theatrical
+  if (results.length < 8) {
     try {
-      const broadEndpoint = `/discover/movie?region=IN&with_release_type=4&release_date.gte=${gteDate}&release_date.lte=${lteDate}&sort_by=popularity.desc&include_adult=false&page=1&with_original_language=te|ta|hi|ml|kn`;
-      const fallbackData = await tmdbFetch(broadEndpoint);
-      const existingIds = new Set(results.map(r => r.id));
-      for (const m of (fallbackData.results || [])) {
-        if (!existingIds.has(m.id)) {
+      const sixtyDaysAgo = new Date(today);
+      sixtyDaysAgo.setDate(today.getDate() - 60);
+      const ep2 = `/discover/movie?watch_region=IN&with_watch_monetization_types=flatrate&with_original_language=te|ta|hi|ml|kn&primary_release_date.gte=${fmt(sixtyDaysAgo)}&primary_release_date.lte=${lteDate}&sort_by=popularity.desc&include_adult=false&page=1`;
+      const d2 = await tmdbFetch(ep2);
+      for (const m of (d2.results || [])) {
+        if (!seenIds.has(m.id)) {
           results.push(m);
-          existingIds.add(m.id);
+          seenIds.add(m.id);
         }
       }
     } catch (e2) {
-      console.warn('Fallback OTT query failed:', e2);
+      console.warn('Flatrate supplement query failed:', e2);
     }
   }
 
