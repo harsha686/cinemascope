@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, ChevronDown, ChevronUp, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2, Users, Bell, Search, Tv, X, Sparkles, SlidersHorizontal } from 'lucide-react';
 import { useApp } from '../AppContext';
@@ -6,6 +6,7 @@ import ReviewCard from '../components/reviews/ReviewCard';
 import ProfessionalRatingBadge from '../components/reviews/ProfessionalRatingBadge';
 import * as LibService from '../services/movieLibraryService';
 import { getUserPublicArchive } from '../services/showcaseArchiveService';
+import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
 import ApplicationStatusBanner from '../components/pro/ApplicationStatusBanner';
 import { getUserApplication } from '../services/proReviewerService';
 import { getUserVotingStats, getUserVotes } from '../services/weekendPickService';
@@ -120,6 +121,117 @@ export default function ProfilePage() {
     load();
     return () => { isMounted = false; };
   }, [profileUser?.id, isOwnProfile, profileUser?.stats]);
+
+  const profileAttemptedIdsRef = useRef(new Set());
+  const isEnrichingProfileRef = useRef(false);
+
+  // Progressive TMDB batch enricher for any items with missing poster or placeholder title
+  useEffect(() => {
+    if (!archiveData?.all || archiveData.all.length === 0) return;
+
+    const unattempted = archiveData.all.filter(item => {
+      const cleanId = String(item.tmdbId || item.id || '').replace(/^tmdb-/, '');
+      if (!cleanId || profileAttemptedIdsRef.current.has(cleanId)) return false;
+      const isPlaceholderTitle = !item.title || /^Title #\d+$/i.test(item.title) || item.title === 'Movie';
+      const isMissingPoster = !item.posterUrl;
+      return isPlaceholderTitle || isMissingPoster;
+    });
+
+    if (unattempted.length === 0 || isEnrichingProfileRef.current) return;
+
+    let isCancelled = false;
+    isEnrichingProfileRef.current = true;
+
+    const runProfileEnricher = async () => {
+      const CHUNK_SIZE = 8;
+      const metadataToPersist = {};
+
+      for (let i = 0; i < unattempted.length; i += CHUNK_SIZE) {
+        if (isCancelled) break;
+        const chunk = unattempted.slice(i, i + CHUNK_SIZE);
+        chunk.forEach(item => {
+          const cleanId = String(item.tmdbId || item.id).replace(/^tmdb-/, '');
+          profileAttemptedIdsRef.current.add(cleanId);
+        });
+
+        const fetchedResults = await Promise.all(
+          chunk.map(async (item) => {
+            const cleanId = String(item.tmdbId || item.id).replace(/^tmdb-/, '');
+            try {
+              const details = await fetchFullTmdbMovieDetails(cleanId);
+              return { item, details };
+            } catch (err) {
+              return { item, details: null };
+            }
+          })
+        );
+
+        if (isCancelled) break;
+
+        const patchMap = {};
+        fetchedResults.forEach(({ item, details }) => {
+          if (details) {
+            const cleanId = String(item.tmdbId || item.id).replace(/^tmdb-/, '');
+            const enriched = {
+              title: details.title || details.originalTitle || item.title,
+              posterUrl: details.posterUrl || item.posterUrl,
+              releaseYear: details.releaseYear || (details.releaseDate ? details.releaseDate.split('-')[0] : item.releaseYear),
+              mediaType: details.isTv ? 'tv' : (item.mediaType || 'movie'),
+              isTv: details.isTv || item.isTv,
+              type: details.isTv ? 'SERIES' : 'MOVIE',
+              rating: item.rating || (details.voteAverage ? details.voteAverage : null),
+            };
+            patchMap[cleanId] = enriched;
+            patchMap[item.id] = enriched;
+            metadataToPersist[cleanId] = {
+              title: enriched.title,
+              posterUrl: enriched.posterUrl,
+              releaseYear: enriched.releaseYear,
+              type: enriched.type,
+            };
+          }
+        });
+
+        if (Object.keys(patchMap).length > 0) {
+          setArchiveData(prev => {
+            const updateItem = (it) => {
+              const key = String(it.tmdbId || it.id).replace(/^tmdb-/, '');
+              const patch = patchMap[key] || patchMap[it.id];
+              return patch ? { ...it, ...patch } : it;
+            };
+
+            return {
+              ...prev,
+              all: (prev.all || []).map(updateItem),
+              watched: (prev.watched || []).map(updateItem),
+              favorites: (prev.favorites || []).map(updateItem),
+              watchlist: (prev.watchlist || []).map(updateItem),
+            };
+          });
+        }
+
+        // Polite pacing to prevent hitting rate limits
+        if (i + CHUNK_SIZE < unattempted.length) {
+          await new Promise(r => setTimeout(r, 120));
+        }
+      }
+
+      if (profileUser?.id && Object.keys(metadataToPersist).length > 0) {
+        LibService.updateLibraryMetadataBatch(metadataToPersist, profileUser.id).catch(console.warn);
+      }
+
+      if (!isCancelled) {
+        isEnrichingProfileRef.current = false;
+      }
+    };
+
+    runProfileEnricher();
+
+    return () => {
+      isCancelled = true;
+      isEnrichingProfileRef.current = false;
+    };
+  }, [archiveData?.all?.length, profileUser?.id]);
 
   // Published reviews by this profile user
   const userReviews = useMemo(() => {
@@ -923,6 +1035,13 @@ export default function ProfilePage() {
                               src={item.posterUrl}
                               alt={item.title}
                               loading="lazy"
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.style.display = 'none';
+                                if (e.currentTarget.nextElementSibling) {
+                                  e.currentTarget.nextElementSibling.style.display = 'flex';
+                                }
+                              }}
                               style={{
                                 position: 'absolute',
                                 top: 0,
@@ -932,11 +1051,37 @@ export default function ProfilePage() {
                                 objectFit: 'cover',
                               }}
                             />
-                          ) : (
-                            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-                              <Film size={28} />
-                            </div>
-                          )}
+                          ) : null}
+                          <div
+                            style={{
+                              position: 'absolute',
+                              inset: 0,
+                              display: item.posterUrl ? 'none' : 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: 10,
+                              textAlign: 'center',
+                              background: 'linear-gradient(135deg, rgba(220,182,91,0.08), rgba(18,17,16,0.95))',
+                              color: 'var(--text-muted)',
+                            }}
+                          >
+                            <Film size={26} color="var(--gold-dim)" style={{ marginBottom: 6, opacity: 0.7 }} />
+                            <span
+                              style={{
+                                fontSize: 10,
+                                color: 'var(--text-secondary)',
+                                fontWeight: 600,
+                                lineHeight: 1.2,
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              {item.title}
+                            </span>
+                          </div>
 
                           {/* Top Badges (Media Type & Favorite Indicator) */}
                           <div style={{ position: 'absolute', top: 5, left: 5, right: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none' }}>
@@ -1100,6 +1245,7 @@ export default function ProfilePage() {
                           <img
                             src={entry.poster_url}
                             alt={entry.movie_title}
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
                             style={{ width: 44, height: 64, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
                           />
                         )}
