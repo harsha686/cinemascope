@@ -22,15 +22,38 @@ const LANGUAGES = [
   { id: 'ja', label: 'Japanese', emoji: '🇯🇵' },
 ];
 
+const ROULETTE_PREFS_KEY = 'cinemascope_roulette_preferences';
+
+function getStoredPreferences() {
+  try {
+    const raw = localStorage.getItem(ROULETTE_PREFS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        languages: Array.isArray(parsed.languages) && parsed.languages.length > 0 ? parsed.languages : ['all'],
+        genres: Array.isArray(parsed.genres) && parsed.genres.length > 0 ? parsed.genres : ['all'],
+        type: parsed.type || 'ANY',
+      };
+    }
+  } catch (e) {}
+  return { languages: ['all'], genres: ['all'], type: 'ANY' };
+}
+
+function saveStoredPreferences(prefs) {
+  try {
+    localStorage.setItem(ROULETTE_PREFS_KEY, JSON.stringify(prefs));
+  } catch (e) {}
+}
+
 export default function PickMyWeekendModal({ isOpen, onClose }) {
   const navigate = useNavigate();
   const { state } = useApp();
   const currentUser = state.currentUser;
 
   const [genres, setGenres] = useState(() => getGenreOptions());
-  const [selectedLanguage, setSelectedLanguage] = useState('all');
-  const [selectedGenre, setSelectedGenre] = useState('all');
-  const [selectedType, setSelectedType] = useState('ANY'); // ANY | MOVIE | SERIES
+  const [selectedLanguages, setSelectedLanguages] = useState(() => getStoredPreferences().languages);
+  const [selectedGenres, setSelectedGenres] = useState(() => getStoredPreferences().genres);
+  const [selectedType, setSelectedType] = useState(() => getStoredPreferences().type);
   const [seenTitleIds, setSeenTitleIds] = useState([]);
   const [result, setResult] = useState(null);
   const [isSpinning, setIsSpinning] = useState(false);
@@ -40,8 +63,10 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
   useEffect(() => {
     if (isOpen) {
       setGenres(getGenreOptions());
-      setSelectedLanguage('all');
-      setSelectedGenre('all');
+      const stored = getStoredPreferences();
+      setSelectedLanguages(stored.languages);
+      setSelectedGenres(stored.genres);
+      setSelectedType(stored.type);
       setSeenTitleIds([]);
       setResult(null);
       setIsSpinning(false);
@@ -53,18 +78,58 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
     setSelectedType(newType);
     setSeenTitleIds([]);
     setNoMatchNotice(null);
+    saveStoredPreferences({ languages: selectedLanguages, genres: selectedGenres, type: newType });
   };
 
-  const handleLanguageChange = (newLang) => {
-    setSelectedLanguage(newLang);
+  const handleLanguageToggle = (langId) => {
     setSeenTitleIds([]);
     setNoMatchNotice(null);
+    setSelectedLanguages(prev => {
+      let next;
+      if (langId === 'all') {
+        next = ['all'];
+      } else {
+        const withoutAll = prev.filter(l => l !== 'all');
+        if (withoutAll.includes(langId)) {
+          next = withoutAll.filter(l => l !== langId);
+          if (next.length === 0) next = ['all'];
+        } else {
+          next = [...withoutAll, langId];
+        }
+      }
+      saveStoredPreferences({ languages: next, genres: selectedGenres, type: selectedType });
+      return next;
+    });
   };
 
-  const handleGenreChange = (newGenre) => {
-    setSelectedGenre(newGenre);
+  const handleGenreToggle = (genreId) => {
     setSeenTitleIds([]);
     setNoMatchNotice(null);
+    setSelectedGenres(prev => {
+      let next;
+      if (genreId === 'all') {
+        next = ['all'];
+      } else {
+        const withoutAll = prev.filter(g => g !== 'all');
+        if (withoutAll.includes(genreId)) {
+          next = withoutAll.filter(g => g !== genreId);
+          if (next.length === 0) next = ['all'];
+        } else {
+          next = [...withoutAll, genreId];
+        }
+      }
+      saveStoredPreferences({ languages: selectedLanguages, genres: next, type: selectedType });
+      return next;
+    });
+  };
+
+  const handleResetFilters = () => {
+    setSelectedLanguages(['all']);
+    setSelectedGenres(['all']);
+    setSelectedType('ANY');
+    setSeenTitleIds([]);
+    setNoMatchNotice(null);
+    saveStoredPreferences({ languages: ['all'], genres: ['all'], type: 'ANY' });
   };
 
   useEffect(() => {
@@ -108,8 +173,8 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
     try {
       let pick = await getRandomTitleFromAllAsync({
         appMovies: state.movies,
-        language: selectedLanguage,
-        genreId: selectedGenre,
+        language: selectedLanguages,
+        genreId: selectedGenres,
         type: selectedType,
         excludeIds: seenTitleIds,
       });
@@ -118,8 +183,8 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
       if (!pick && seenTitleIds.length > 0) {
         pick = await getRandomTitleFromAllAsync({
           appMovies: state.movies,
-          language: selectedLanguage,
-          genreId: selectedGenre,
+          language: selectedLanguages,
+          genreId: selectedGenres,
           type: selectedType,
           excludeIds: [],
         });
@@ -133,11 +198,11 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
       }
 
       if (!pick) {
-        const gObj = genres.find(g => g.id === selectedGenre);
-        const lObj = LANGUAGES.find(l => l.id === selectedLanguage);
+        const activeLangs = selectedLanguages.includes('all') ? null : selectedLanguages.map(id => LANGUAGES.find(l => l.id === id)?.label || id).join(', ');
+        const activeGens = selectedGenres.includes('all') ? null : selectedGenres.map(id => genres.find(g => g.id === id)?.name || id).join(', ');
         setNoMatchNotice({
-          language: lObj?.label || (selectedLanguage !== 'all' ? selectedLanguage : null),
-          genre: gObj?.name || (selectedGenre !== 'all' ? selectedGenre : null),
+          languages: activeLangs,
+          genres: activeGens,
           type: selectedType === 'SERIES' ? 'TV Series' : (selectedType === 'MOVIE' ? 'Movies' : 'Titles'),
         });
         setResult(null);
@@ -148,8 +213,8 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
       console.error('Error picking random title:', err);
       const syncPick = getRandomTitleFromAll({
         appMovies: state.movies,
-        language: selectedLanguage,
-        genreId: selectedGenre,
+        language: selectedLanguages,
+        genreId: selectedGenres,
         type: selectedType,
         excludeIds: seenTitleIds,
       });
@@ -158,10 +223,12 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
         setSeenTitleIds(prev => [...prev, pickedId]);
         setResult(syncPick);
       } else {
+        const activeLangs = selectedLanguages.includes('all') ? null : selectedLanguages.map(id => LANGUAGES.find(l => l.id === id)?.label || id).join(', ');
+        const activeGens = selectedGenres.includes('all') ? null : selectedGenres.map(id => genres.find(g => g.id === id)?.name || id).join(', ');
         setNoMatchNotice({
-          language: selectedLanguage !== 'all' ? selectedLanguage : null,
-          genre: selectedGenre !== 'all' ? selectedGenre : null,
-          type: selectedType,
+          languages: activeLangs,
+          genres: activeGens,
+          type: selectedType === 'SERIES' ? 'TV Series' : (selectedType === 'MOVIE' ? 'Movies' : 'Titles'),
         });
       }
     } finally {
@@ -310,17 +377,35 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
 
             {/* 2. Language Preference */}
             <div>
-              <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-                2. Language Preference
-              </label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <label style={{ fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>2. Language Preference</span>
+                  {!selectedLanguages.includes('all') && (
+                    <span style={{ fontSize: 10, color: 'var(--gold)', textTransform: 'none', background: 'var(--gold-faint)', padding: '1px 7px', borderRadius: 10, fontWeight: 700 }}>
+                      {selectedLanguages.length} selected
+                    </span>
+                  )}
+                </label>
+                {!selectedLanguages.includes('all') && (
+                  <button
+                    type="button"
+                    onClick={() => handleLanguageToggle('all')}
+                    style={{ fontSize: 10, color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                  >
+                    Reset to All
+                  </button>
+                )}
+              </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {LANGUAGES.map(l => {
-                  const isSelected = selectedLanguage === l.id;
+                  const isSelected = l.id === 'all'
+                    ? selectedLanguages.includes('all')
+                    : selectedLanguages.includes(l.id);
                   return (
                     <button
                       key={l.id}
                       type="button"
-                      onClick={() => handleLanguageChange(l.id)}
+                      onClick={() => handleLanguageToggle(l.id)}
                       style={{
                         padding: '6px 12px',
                         fontSize: 11,
@@ -328,15 +413,20 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                         border: `1px solid ${isSelected ? 'var(--gold)' : 'var(--border-subtle)'}`,
                         borderRadius: 20,
                         color: isSelected ? 'var(--gold)' : 'var(--text-secondary)',
+                        fontWeight: isSelected ? 600 : 400,
                         cursor: 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 6,
+                        boxShadow: isSelected ? '0 0 10px rgba(220,182,91,0.22)' : 'none',
                         transition: 'all 0.15s ease',
                       }}
                     >
                       <span>{l.emoji}</span>
                       <span>{l.label}</span>
+                      {isSelected && l.id !== 'all' && (
+                        <span style={{ fontSize: 9, opacity: 0.85 }}>✓</span>
+                      )}
                     </button>
                   );
                 })}
@@ -345,53 +435,79 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
 
             {/* 3. Genre Preference */}
             <div>
-              <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-                3. Genre Preference
-              </label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <label style={{ fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>3. Genre Preference</span>
+                  {!selectedGenres.includes('all') && (
+                    <span style={{ fontSize: 10, color: 'var(--gold)', textTransform: 'none', background: 'var(--gold-faint)', padding: '1px 7px', borderRadius: 10, fontWeight: 700 }}>
+                      {selectedGenres.length} selected
+                    </span>
+                  )}
+                </label>
+                {!selectedGenres.includes('all') && (
+                  <button
+                    type="button"
+                    onClick={() => handleGenreToggle('all')}
+                    style={{ fontSize: 10, color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                  >
+                    Reset to All
+                  </button>
+                )}
+              </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 <button
                   type="button"
-                  onClick={() => handleGenreChange('all')}
+                  onClick={() => handleGenreToggle('all')}
                   style={{
                     padding: '6px 12px',
                     fontSize: 11,
-                    background: selectedGenre === 'all' ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
-                    border: `1px solid ${selectedGenre === 'all' ? 'var(--gold)' : 'var(--border-subtle)'}`,
+                    background: selectedGenres.includes('all') ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${selectedGenres.includes('all') ? 'var(--gold)' : 'var(--border-subtle)'}`,
                     borderRadius: 20,
-                    color: selectedGenre === 'all' ? 'var(--gold)' : 'var(--text-secondary)',
+                    color: selectedGenres.includes('all') ? 'var(--gold)' : 'var(--text-secondary)',
+                    fontWeight: selectedGenres.includes('all') ? 600 : 400,
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 6,
+                    boxShadow: selectedGenres.includes('all') ? '0 0 10px rgba(220,182,91,0.22)' : 'none',
                     transition: 'all 0.15s ease',
                   }}
                 >
                   <span>🎲</span>
                   <span>All Genres</span>
                 </button>
-                {cleanGenres.map(g => (
-                  <button
-                    key={g.id}
-                    type="button"
-                    onClick={() => handleGenreChange(g.id)}
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: 11,
-                      background: selectedGenre === g.id ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
-                      border: `1px solid ${selectedGenre === g.id ? 'var(--gold)' : 'var(--border-subtle)'}`,
-                      borderRadius: 20,
-                      color: selectedGenre === g.id ? 'var(--gold)' : 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    <span>{g.emoji}</span>
-                    <span>{g.name}</span>
-                  </button>
-                ))}
+                {cleanGenres.map(g => {
+                  const isSelected = selectedGenres.includes(g.id);
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => handleGenreToggle(g.id)}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: 11,
+                        background: isSelected ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
+                        border: `1px solid ${isSelected ? 'var(--gold)' : 'var(--border-subtle)'}`,
+                        borderRadius: 20,
+                        color: isSelected ? 'var(--gold)' : 'var(--text-secondary)',
+                        fontWeight: isSelected ? 600 : 400,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        boxShadow: isSelected ? '0 0 10px rgba(220,182,91,0.22)' : 'none',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span>{g.emoji}</span>
+                      <span>{g.name}</span>
+                      {isSelected && (
+                        <span style={{ fontSize: 9, opacity: 0.85 }}>✓</span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -409,8 +525,8 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
               }}>
                 <div>
                   No {noMatchNotice.type} found
-                  {noMatchNotice.language ? ` in ${noMatchNotice.language}` : ''}
-                  {noMatchNotice.genre ? ` matching "${noMatchNotice.genre}"` : ''}.
+                  {noMatchNotice.languages ? ` in ${noMatchNotice.languages}` : ''}
+                  {noMatchNotice.genres ? ` matching "${noMatchNotice.genres}"` : ''}.
                   Try loosening your format or filters.
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -431,7 +547,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleLanguageChange('all')}
+                    onClick={() => handleLanguageToggle('all')}
                     style={{
                       padding: '4px 10px',
                       fontSize: 11,
@@ -446,7 +562,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleGenreChange('all')}
+                    onClick={() => handleGenreToggle('all')}
                     style={{
                       padding: '4px 10px',
                       fontSize: 11,
@@ -470,15 +586,22 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
               className="btn btn-primary"
               style={{
                 marginTop: 8,
-                padding: '12px 20px',
+                padding: '13px 20px',
                 fontSize: 13,
+                fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 8,
+                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                border: 'none',
+                color: '#000',
+                borderRadius: 6,
+                boxShadow: '0 4px 15px rgba(245, 158, 11, 0.35)',
+                cursor: isSpinning ? 'not-allowed' : 'pointer',
               }}
             >
-              <Dices size={16} style={{ animation: isSpinning ? 'spin 1s linear infinite' : 'none' }} />
+              <Dices size={17} style={{ animation: isSpinning ? 'spin 1s linear infinite' : 'none' }} />
               {isSpinning ? 'Finding Your Title...' : (selectedType === 'SERIES' ? '🎲 Roll Random TV Series' : (selectedType === 'MOVIE' ? '🎲 Roll Random Movie' : '🎲 Roll Random Title'))}
             </button>
           </div>
@@ -501,6 +624,7 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                 <img
                   src={result.posterUrl}
                   alt={result.title}
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
                   style={{
                     width: 105,
                     height: 155,

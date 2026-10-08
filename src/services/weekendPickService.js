@@ -2105,6 +2105,11 @@ export const UNIVERSAL_TITLES = [
  */
 export function matchesGenreHelper(item, targetGenre, genreOptions = []) {
   if (!targetGenre || targetGenre === 'all') return true;
+  if (Array.isArray(targetGenre)) {
+    const list = targetGenre.filter(g => g && g !== 'all');
+    if (list.length === 0) return true;
+    return list.some(g => matchesGenreHelper(item, g, genreOptions));
+  }
 
   const gId = String(targetGenre).toLowerCase().trim();
   const genreObj = genreOptions.find(g => g.id?.toLowerCase() === gId || g.name?.toLowerCase() === gId);
@@ -2266,6 +2271,10 @@ export function matchesMoodHelper(item, mood) {
  */
 export function getTmdbLanguageCode(langKey) {
   if (!langKey || langKey === 'all') return null;
+  if (Array.isArray(langKey)) {
+    const codes = langKey.map(getTmdbLanguageCode).filter(Boolean);
+    return codes.length > 0 ? codes.join('|') : null;
+  }
   const key = String(langKey).toLowerCase().trim();
   if (key === 'te' || key === 'telugu') return 'te';
   if (key === 'hi' || key === 'hindi') return 'hi';
@@ -2283,21 +2292,25 @@ export function getTmdbLanguageCode(langKey) {
  */
 export function getTmdbGenreId(genreKey, isTv = false) {
   if (!genreKey || genreKey === 'all') return null;
+  if (Array.isArray(genreKey)) {
+    const ids = genreKey.map(g => getTmdbGenreId(g, isTv)).filter(Boolean);
+    return ids.length > 0 ? ids.join('|') : null;
+  }
   const key = String(genreKey).toLowerCase().trim();
 
   if (isTv) {
     if (key.includes('action')) return '10759';
     if (key.includes('comedy')) return '35';
     if (key.includes('sci')) return '10765';
-    if (key.includes('mind')) return '10765,9648';
-    if (key.includes('thrill') || key.includes('suspense')) return '80,9648';
-    if (key.includes('disturb')) return '80,9648';
-    if (key.includes('horror')) return '9648,10765';
+    if (key.includes('mind')) return '10765|9648';
+    if (key.includes('thrill') || key.includes('suspense')) return '80|9648';
+    if (key.includes('disturb')) return '80|9648';
+    if (key.includes('horror')) return '9648|10765';
     if (key.includes('drama')) return '18';
     if (key.includes('anim')) return '16';
     if (key.includes('crime')) return '80';
     if (key.includes('mystery')) return '9648';
-    if (key.includes('romance') || key.includes('love')) return '10766,18';
+    if (key.includes('romance') || key.includes('love')) return '10766|18';
     return null;
   }
 
@@ -2305,9 +2318,9 @@ export function getTmdbGenreId(genreKey, isTv = false) {
   if (key.includes('action')) return '28';
   if (key.includes('comedy')) return '35';
   if (key.includes('horror')) return '27';
-  if (key.includes('mind')) return '878,9648';
-  if (key.includes('disturb')) return '27,53,80';
-  if (key.includes('suspense') || key.includes('thrill')) return '53,9648';
+  if (key.includes('mind')) return '878|9648';
+  if (key.includes('disturb')) return '27|53|80';
+  if (key.includes('suspense') || key.includes('thrill')) return '53|9648';
   if (key.includes('sci')) return '878';
   if (key.includes('drama')) return '18';
   if (key.includes('romance') || key.includes('love')) return '10749';
@@ -2324,6 +2337,11 @@ export function getTmdbGenreId(genreKey, isTv = false) {
  */
 export function matchesLanguageHelper(item, language) {
   if (!language || language === 'all') return true;
+  if (Array.isArray(language)) {
+    const list = language.filter(l => l && l !== 'all');
+    if (list.length === 0) return true;
+    return list.some(l => matchesLanguageHelper(item, l));
+  }
   const targetCode = getTmdbLanguageCode(language);
   if (!targetCode) return true;
 
@@ -2528,10 +2546,20 @@ export async function getRandomTitleFromAllAsync({
     const tmdbGenre = getTmdbGenreId(genreId, isTv);
 
     // Pick random page between 1 and 8 (for regional languages with fewer pages, 1 to 4)
-    const maxPage = ['te', 'ta', 'ml', 'kn'].includes(tmdbLang) ? 4 : 8;
+    const maxPage = tmdbLang && tmdbLang.split('|').some(c => ['te', 'ta', 'ml', 'kn'].includes(c)) ? 4 : 8;
     const randomPage = Math.floor(Math.random() * maxPage) + 1;
 
     let items = [];
+
+    const getGenreLabel = (gVal) => {
+      if (!gVal || gVal === 'all') return isTv ? 'TV Series' : 'Movie';
+      if (Array.isArray(gVal)) {
+        const active = gVal.filter(x => x && x !== 'all');
+        if (active.length === 0) return isTv ? 'TV Series' : 'Movie';
+        return active.map(id => genreOptions.find(g => g.id === id)?.name || id).join(' · ');
+      }
+      return genreOptions.find(g => g.id === gVal)?.name || gVal;
+    };
 
     if (isTv) {
       let tvData;
@@ -2555,14 +2583,23 @@ export async function getRandomTitleFromAllAsync({
         });
       }
 
+      if (!tvData?.results?.length && tmdbGenre) {
+        // Fallback: loosen genre if zero results found
+        tvData = await discoverTv({
+          with_original_language: tmdbLang,
+          sortBy: 'popularity.desc',
+          page: 1,
+        });
+      }
+
       if (tvData?.results?.length) {
         items = tvData.results.map(r => ({
           id: `tv-${r.tmdbId || r.id}`,
           titleId: `tv-${r.tmdbId || r.id}`,
           title: r.title,
           type: 'SERIES',
-          genreId: String(genreId || 'series').toLowerCase(),
-          genreName: genreId !== 'all' ? (genreOptions.find(g => g.id === genreId)?.name || genreId) : 'TV Series',
+          genreId: Array.isArray(genreId) ? genreId[0] : String(genreId || 'series').toLowerCase(),
+          genreName: getGenreLabel(genreId),
           releaseYear: r.releaseYear || (r.firstAirDate ? parseInt(r.firstAirDate.split('-')[0], 10) : 2024),
           rating: r.voteAverage ? Math.round(r.voteAverage * 10) / 10 : 4.8,
           language: getLanguageLabel(r.language),
@@ -2590,14 +2627,23 @@ export async function getRandomTitleFromAllAsync({
         });
       }
 
+      if (!movieData?.results?.length && tmdbGenre) {
+        // Fallback: loosen genre if zero results found
+        movieData = await discoverMovies({
+          with_original_language: tmdbLang,
+          sortBy: 'popularity.desc',
+          page: 1,
+        });
+      }
+
       if (movieData?.results?.length) {
         items = movieData.results.map(r => ({
           id: `tmdb-${r.tmdbId || r.id}`,
           titleId: `tmdb-${r.tmdbId || r.id}`,
           title: r.title,
           type: 'MOVIE',
-          genreId: String(genreId || 'movie').toLowerCase(),
-          genreName: genreId !== 'all' ? (genreOptions.find(g => g.id === genreId)?.name || genreId) : 'Movie',
+          genreId: Array.isArray(genreId) ? genreId[0] : String(genreId || 'movie').toLowerCase(),
+          genreName: getGenreLabel(genreId),
           releaseYear: r.releaseYear || (r.releaseDate ? parseInt(r.releaseDate.split('-')[0], 10) : 2024),
           rating: r.voteAverage ? Math.round(r.voteAverage * 10) / 10 : 4.8,
           language: getLanguageLabel(r.language),
