@@ -420,11 +420,11 @@ export default function AdminDashboard() {
       </div>
 
       {/* Main Admin Dashboard Body */}
-      <div className="container" style={{ padding: '32px 24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 32 }} className="admin-layout">
+      <div className="container admin-container" style={{ padding: '32px 24px' }}>
+        <div className="admin-layout">
           
           {/* Sidebar Tabs */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div className="admin-sidebar-tabs">
             {[
               { id: 'movies', label: 'Movies Catalog', icon: Film, count: state.movies.length },
               { id: 'weekend-picks', label: 'Weekend Picks', icon: Trophy, count: 'Live' },
@@ -441,10 +441,12 @@ export default function AdminDashboard() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
+                  className="admin-tab-btn"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
+                    gap: 8,
                     padding: '12px 16px',
                     fontFamily: 'var(--font-serif)',
                     fontSize: 12,
@@ -1666,6 +1668,42 @@ CREATE POLICY "Public all collections" ON public.collections FOR ALL USING (true
         allCities={allCities}
         defaultCityId={allCities[0]?.id || 'visakhapatnam'}
       />
+      <style>{`
+        .admin-layout {
+          display: grid;
+          grid-template-columns: 220px 1fr;
+          gap: 32px;
+        }
+        .admin-sidebar-tabs {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        @media (max-width: 900px) {
+          .admin-layout {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 20px !important;
+          }
+          .admin-sidebar-tabs {
+            flex-direction: row !important;
+            overflow-x: auto !important;
+            padding-bottom: 8px !important;
+            margin-bottom: 4px !important;
+            -webkit-overflow-scrolling: touch !important;
+            border-bottom: 1px solid var(--border-subtle);
+          }
+          .admin-tab-btn {
+            white-space: nowrap !important;
+            flex-shrink: 0 !important;
+            padding: 8px 14px !important;
+            font-size: 11px !important;
+          }
+          .admin-container {
+            padding: 16px 12px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
