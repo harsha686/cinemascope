@@ -179,6 +179,19 @@ export async function searchTmdbMovies(query, page = 1, region = '') {
 }
 
 /**
+ * Searches TMDB for a keyword ID matching custom genre terms
+ */
+export async function searchTmdbKeywordId(query) {
+  if (!query || !query.trim()) return null;
+  try {
+    const data = await tmdbFetch(`/search/keyword?query=${encodeURIComponent(query.trim())}`);
+    return data?.results?.[0]?.id || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
  * Discover Recent Indian Cinema Releases
  * GET /3/discover/movie?region=IN&with_origin_country=IN&sort_by=popularity.desc
  */
@@ -598,6 +611,7 @@ export async function discoverMovies({
   with_origin_country, 
   with_genres, 
   with_original_language,
+  with_keywords,
   region
 } = {}) {
   let endpoint = `/discover/movie?sort_by=${sortBy}&page=${page}&include_adult=false`;
@@ -607,6 +621,7 @@ export async function discoverMovies({
   if (genres) endpoint += `&with_genres=${genres}`;
   if (year) endpoint += `&primary_release_year=${year}`;
   if (lang) endpoint += `&with_original_language=${lang}`;
+  if (with_keywords) endpoint += `&with_keywords=${with_keywords}`;
   if (with_origin_country) endpoint += `&with_origin_country=${with_origin_country}`;
   if (region) endpoint += `&region=${region}`;
 
@@ -1052,6 +1067,7 @@ export async function discoverTv({
   with_origin_country,
   with_genres,
   with_original_language,
+  with_keywords,
 } = {}) {
   let endpoint = `/discover/tv?sort_by=${sortBy}&page=${page}&include_adult=false`;
   const genres = with_genres || genreId;
@@ -1060,6 +1076,7 @@ export async function discoverTv({
   if (genres) endpoint += `&with_genres=${genres}`;
   if (year) endpoint += `&first_air_date_year=${year}`;
   if (lang) endpoint += `&with_original_language=${lang}`;
+  if (with_keywords) endpoint += `&with_keywords=${with_keywords}`;
   if (with_origin_country) endpoint += `&with_origin_country=${with_origin_country}`;
 
   const data = await tmdbFetch(endpoint);

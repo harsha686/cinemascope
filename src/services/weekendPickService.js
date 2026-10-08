@@ -1,5 +1,5 @@
 import { isSupabaseConfigured, supabaseService } from './supabase';
-import { discoverMovies, discoverTv, fetchTeluguTv } from './tmdbService';
+import { discoverMovies, discoverTv, fetchTeluguTv, searchTmdbKeywordId } from './tmdbService';
 
 const ROUNDS_KEY = 'cinemascope_weekend_rounds';
 const VOTES_KEY = 'cinemascope_weekend_votes';
@@ -2545,6 +2545,17 @@ export async function getRandomTitleFromAllAsync({
     const isTv = targetType === 'SERIES' || (targetType === 'ANY' && Math.random() < 0.35);
     const tmdbGenre = getTmdbGenreId(genreId, isTv);
 
+    // Look up keyword for custom user-entered genres if not recognized as standard TMDB genre
+    let tmdbKeyword = null;
+    const rawCustomGenre = Array.isArray(genreId)
+      ? genreId.find(g => g && g !== 'all' && !getTmdbGenreId(g, isTv))
+      : (!getTmdbGenreId(genreId, isTv) && genreId !== 'all' ? genreId : null);
+    if (rawCustomGenre) {
+      try {
+        tmdbKeyword = await searchTmdbKeywordId(rawCustomGenre);
+      } catch (kwErr) {}
+    }
+
     // Pick random page between 1 and 8 (for regional languages with fewer pages, 1 to 4)
     const maxPage = tmdbLang && tmdbLang.split('|').some(c => ['te', 'ta', 'ml', 'kn'].includes(c)) ? 4 : 8;
     const randomPage = Math.floor(Math.random() * maxPage) + 1;
@@ -2563,12 +2574,13 @@ export async function getRandomTitleFromAllAsync({
 
     if (isTv) {
       let tvData;
-      if (tmdbLang === 'te' && !tmdbGenre) {
+      if (tmdbLang === 'te' && !tmdbGenre && !tmdbKeyword) {
         tvData = await fetchTeluguTv(randomPage);
       } else {
         tvData = await discoverTv({
           with_original_language: tmdbLang,
           with_genres: tmdbGenre,
+          with_keywords: tmdbKeyword,
           sortBy: 'popularity.desc',
           page: randomPage,
         });
@@ -2578,12 +2590,13 @@ export async function getRandomTitleFromAllAsync({
         tvData = await discoverTv({
           with_original_language: tmdbLang,
           with_genres: tmdbGenre,
+          with_keywords: tmdbKeyword,
           sortBy: 'popularity.desc',
           page: 1,
         });
       }
 
-      if (!tvData?.results?.length && tmdbGenre) {
+      if (!tvData?.results?.length && (tmdbGenre || tmdbKeyword)) {
         // Fallback: loosen genre if zero results found
         tvData = await discoverTv({
           with_original_language: tmdbLang,
@@ -2614,6 +2627,7 @@ export async function getRandomTitleFromAllAsync({
       let movieData = await discoverMovies({
         with_original_language: tmdbLang,
         with_genres: tmdbGenre,
+        with_keywords: tmdbKeyword,
         sortBy: 'popularity.desc',
         page: randomPage,
       });
@@ -2622,12 +2636,13 @@ export async function getRandomTitleFromAllAsync({
         movieData = await discoverMovies({
           with_original_language: tmdbLang,
           with_genres: tmdbGenre,
+          with_keywords: tmdbKeyword,
           sortBy: 'popularity.desc',
           page: 1,
         });
       }
 
-      if (!movieData?.results?.length && tmdbGenre) {
+      if (!movieData?.results?.length && (tmdbGenre || tmdbKeyword)) {
         // Fallback: loosen genre if zero results found
         movieData = await discoverMovies({
           with_original_language: tmdbLang,

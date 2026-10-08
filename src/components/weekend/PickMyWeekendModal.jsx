@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { X, Sparkles, Dices, Star, ArrowRight, Bookmark, Heart, Film, Tv, RotateCcw } from 'lucide-react';
+import { X, Sparkles, Dices, Star, ArrowRight, Bookmark, Heart, Film, Tv, RotateCcw, Plus } from 'lucide-react';
 import {
   getGenreOptions,
+  addGenreOption,
+  deleteGenreOption,
   getRandomTitleFromAll,
   getRandomTitleFromAllAsync,
 } from '../../services/weekendPickService';
@@ -59,6 +61,8 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [currentStatus, setCurrentStatus] = useState({});
   const [noMatchNotice, setNoMatchNotice] = useState(null);
+  const [customGenreInput, setCustomGenreInput] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -130,6 +134,66 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
     setSeenTitleIds([]);
     setNoMatchNotice(null);
     saveStoredPreferences({ languages: ['all'], genres: ['all'], type: 'ANY' });
+  };
+
+  const handleAddCustomGenre = (e) => {
+    if (e) e.preventDefault();
+    const trimmed = customGenreInput.trim();
+    if (!trimmed) return;
+
+    const existing = genres.find(g => g.name.toLowerCase() === trimmed.toLowerCase() || g.id.toLowerCase() === trimmed.toLowerCase());
+    let genreIdToSelect;
+
+    if (existing) {
+      genreIdToSelect = existing.id;
+    } else {
+      try {
+        const added = addGenreOption({
+          name: trimmed,
+          emoji: '✨',
+          color: '#eab308',
+        });
+        setGenres(getGenreOptions());
+        genreIdToSelect = added.id;
+      } catch (err) {
+        const added = addGenreOption({
+          id: `custom-${Date.now()}`,
+          name: trimmed,
+          emoji: '✨',
+          color: '#eab308',
+        });
+        setGenres(getGenreOptions());
+        genreIdToSelect = added.id;
+      }
+    }
+
+    setSelectedGenres(prev => {
+      const withoutAll = prev.filter(g => g !== 'all');
+      const next = withoutAll.includes(genreIdToSelect) ? withoutAll : [...withoutAll, genreIdToSelect];
+      saveStoredPreferences({ languages: selectedLanguages, genres: next, type: selectedType });
+      return next;
+    });
+
+    setCustomGenreInput('');
+    setShowCustomInput(false);
+    setSeenTitleIds([]);
+    setNoMatchNotice(null);
+  };
+
+  const handleDeleteCustomGenre = (gId, e) => {
+    if (e) e.stopPropagation();
+    try {
+      deleteGenreOption(gId);
+      setGenres(getGenreOptions());
+      setSelectedGenres(prev => {
+        const next = prev.filter(g => g !== gId);
+        const final = next.length === 0 ? ['all'] : next;
+        saveStoredPreferences({ languages: selectedLanguages, genres: final, type: selectedType });
+        return final;
+      });
+    } catch (err) {
+      console.warn('Could not delete genre:', err);
+    }
   };
 
   useEffect(() => {
@@ -479,36 +543,180 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
                 </button>
                 {cleanGenres.map(g => {
                   const isSelected = selectedGenres.includes(g.id);
+                  const isCustom = !['action', 'comedy', 'horror', 'scifi', 'thriller', 'romance', 'animation', 'drama'].includes(g.id);
                   return (
-                    <button
+                    <div
                       key={g.id}
-                      type="button"
-                      onClick={() => handleGenreToggle(g.id)}
-                      style={{
-                        padding: '6px 12px',
-                        fontSize: 11,
-                        background: isSelected ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
-                        border: `1px solid ${isSelected ? 'var(--gold)' : 'var(--border-subtle)'}`,
-                        borderRadius: 20,
-                        color: isSelected ? 'var(--gold)' : 'var(--text-secondary)',
-                        fontWeight: isSelected ? 600 : 400,
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        boxShadow: isSelected ? '0 0 10px rgba(220,182,91,0.22)' : 'none',
-                        transition: 'all 0.15s ease',
-                      }}
+                      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
                     >
-                      <span>{g.emoji}</span>
-                      <span>{g.name}</span>
-                      {isSelected && (
-                        <span style={{ fontSize: 9, opacity: 0.85 }}>✓</span>
+                      <button
+                        type="button"
+                        onClick={() => handleGenreToggle(g.id)}
+                        style={{
+                          padding: isCustom ? '6px 26px 6px 12px' : '6px 12px',
+                          fontSize: 11,
+                          background: isSelected ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
+                          border: `1px solid ${isSelected ? 'var(--gold)' : 'var(--border-subtle)'}`,
+                          borderRadius: 20,
+                          color: isSelected ? 'var(--gold)' : 'var(--text-secondary)',
+                          fontWeight: isSelected ? 600 : 400,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          boxShadow: isSelected ? '0 0 10px rgba(220,182,91,0.22)' : 'none',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <span>{g.emoji}</span>
+                        <span>{g.name}</span>
+                        {isSelected && (
+                          <span style={{ fontSize: 9, opacity: 0.85 }}>✓</span>
+                        )}
+                      </button>
+                      {isCustom && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteCustomGenre(g.id, e)}
+                          title={`Remove custom genre "${g.name}"`}
+                          style={{
+                            position: 'absolute',
+                            right: 7,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                            padding: 2,
+                            display: 'flex',
+                            alignItems: 'center',
+                            opacity: 0.65,
+                            transition: 'opacity 0.15s ease',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.opacity = '1'; }}
+                          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.opacity = '0.65'; }}
+                        >
+                          <X size={11} />
+                        </button>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
+
+                {/* + Custom Genre Action Chip */}
+                <button
+                  type="button"
+                  onClick={() => setShowCustomInput(prev => !prev)}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: 11,
+                    background: showCustomInput ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
+                    border: `1px dashed ${showCustomInput ? 'var(--gold)' : 'var(--gold-dim)'}`,
+                    borderRadius: 20,
+                    color: 'var(--gold)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    boxShadow: showCustomInput ? '0 0 10px rgba(220,182,91,0.22)' : 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Plus size={12} />
+                  <span>+ Custom Genre</span>
+                </button>
               </div>
+
+              {/* Inline Custom Genre Mention / Add Input Form */}
+              {showCustomInput ? (
+                <form
+                  onSubmit={handleAddCustomGenre}
+                  style={{
+                    marginTop: 10,
+                    display: 'flex',
+                    gap: 6,
+                    alignItems: 'center',
+                    background: 'rgba(0,0,0,0.3)',
+                    border: '1px solid var(--gold-dim)',
+                    borderRadius: 6,
+                    padding: '4px 8px',
+                    animation: 'fadeIn 0.2s ease',
+                  }}
+                >
+                  <Sparkles size={14} color="var(--gold)" style={{ marginLeft: 4, flexShrink: 0 }} />
+                  <input
+                    type="text"
+                    placeholder="Mention your own genre (e.g. Cyberpunk, Zombie, Slasher, Time Travel)..."
+                    value={customGenreInput}
+                    onChange={e => setCustomGenreInput(e.target.value)}
+                    autoFocus
+                    style={{
+                      flex: 1,
+                      background: 'none',
+                      border: 'none',
+                      color: '#fff',
+                      fontSize: 12,
+                      outline: 'none',
+                      padding: '6px 8px',
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!customGenreInput.trim()}
+                    className="btn btn-primary btn-sm"
+                    style={{
+                      padding: '4px 12px',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      borderRadius: 4,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Add &amp; Select
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomInput(false)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      padding: 4,
+                      display: 'flex',
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </form>
+              ) : (
+                <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    Looking for a specific subgenre?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomInput(true)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--gold)',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: 0,
+                      textDecoration: 'underline',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 3,
+                    }}
+                  >
+                    <Plus size={11} /> Mention your own genre
+                  </button>
+                </div>
+              )}
             </div>
 
             {noMatchNotice && (
