@@ -230,43 +230,57 @@ export async function fetchRecentOttReleasesIndia() {
   const seenIds = new Set();
 
   // Strategy 1 (PRIMARY): Digital release type=4 for Indian languages in last 30 days
-  // This uses the ACTUAL OTT release date, not theatrical
+  // Fetch ALL available pages (up to 5 pages, ~70-100 movies)
   try {
-    const ep1 = `/discover/movie?region=IN&with_release_type=4&release_date.gte=${gteDate}&release_date.lte=${lteDate}&sort_by=popularity.desc&include_adult=false&page=1&with_original_language=te|ta|hi|ml|kn`;
-    const d1 = await tmdbFetch(ep1);
-    for (const m of (d1.results || [])) {
+    const baseEp = (p) => `/discover/movie?region=IN&with_release_type=4&release_date.gte=${gteDate}&release_date.lte=${lteDate}&sort_by=popularity.desc&include_adult=false&with_original_language=te|ta|hi|ml|kn&page=${p}`;
+    const firstPage = await tmdbFetch(baseEp(1));
+    (firstPage.results || []).forEach(m => {
       if (!seenIds.has(m.id)) {
         results.push(m);
         seenIds.add(m.id);
       }
+    });
+
+    const totalPages = Math.min(firstPage.total_pages || 1, 5);
+    if (totalPages > 1) {
+      const restPromises = [];
+      for (let p = 2; p <= totalPages; p++) {
+        restPromises.push(tmdbFetch(baseEp(p)).catch(() => null));
+      }
+      const restPages = await Promise.all(restPromises);
+      restPages.forEach(pData => {
+        (pData?.results || []).forEach(m => {
+          if (!seenIds.has(m.id)) {
+            results.push(m);
+            seenIds.add(m.id);
+          }
+        });
+      });
     }
   } catch (e) {
     console.warn('OTT release_type=4 query failed:', e);
   }
 
-  // Strategy 2 (SUPPLEMENT): Movies currently streaming flatrate in India, broader 60-day window
-  // to catch films whose OTT date differs from theatrical
-  if (results.length < 8) {
-    try {
-      const sixtyDaysAgo = new Date(today);
-      sixtyDaysAgo.setDate(today.getDate() - 60);
-      const ep2 = `/discover/movie?watch_region=IN&with_watch_monetization_types=flatrate&with_original_language=te|ta|hi|ml|kn&primary_release_date.gte=${fmt(sixtyDaysAgo)}&primary_release_date.lte=${lteDate}&sort_by=popularity.desc&include_adult=false&page=1`;
-      const d2 = await tmdbFetch(ep2);
-      for (const m of (d2.results || [])) {
-        if (!seenIds.has(m.id)) {
-          results.push(m);
-          seenIds.add(m.id);
-        }
+  // Strategy 2 (SUPPLEMENT): Movies currently streaming flatrate in India, 60-day window
+  try {
+    const sixtyDaysAgo = new Date(today);
+    sixtyDaysAgo.setDate(today.getDate() - 60);
+    const ep2 = `/discover/movie?watch_region=IN&with_watch_monetization_types=flatrate&with_original_language=te|ta|hi|ml|kn&primary_release_date.gte=${fmt(sixtyDaysAgo)}&primary_release_date.lte=${lteDate}&sort_by=popularity.desc&include_adult=false&page=1`;
+    const d2 = await tmdbFetch(ep2);
+    for (const m of (d2.results || [])) {
+      if (!seenIds.has(m.id)) {
+        results.push(m);
+        seenIds.add(m.id);
       }
-    } catch (e2) {
-      console.warn('Flatrate supplement query failed:', e2);
     }
+  } catch (e2) {
+    console.warn('Flatrate supplement query failed:', e2);
   }
 
   // Language code → readable name map
   const LANG_MAP = {
     te: 'Telugu', ta: 'Tamil', hi: 'Hindi', ml: 'Malayalam',
-    kn: 'Kannada', bn: 'Bengali', mr: 'Marathi', en: 'English',
+    kn: 'Kannada', bn: 'Bengali', mr: 'Marathi', en: 'English', pa: 'Punjabi',
   };
 
   // Provider ID → readable name map
@@ -278,62 +292,74 @@ export async function fetchRecentOttReleasesIndia() {
     2: 'Apple iTunes', 3: 'Google Play Movies',
   };
 
-  // Enrich results with watch provider info & direct stream URLs
-  const enriched = await Promise.all(
-    results.slice(0, 10).map(async (m) => {
-      let ottPlatform = '';
-      let ottUrl = '';
-      try {
-        const providerData = await tmdbFetch(`/movie/${m.id}/watch/providers`);
-        const inProviders = providerData?.results?.IN;
-        const flatrate = inProviders?.flatrate || inProviders?.rent || inProviders?.buy || [];
-        if (flatrate.length > 0) {
-          ottPlatform = flatrate
-            .slice(0, 2)
-            .map((p) => PROVIDER_NAME_MAP[p.provider_id] || p.provider_name)
-            .join(', ');
-        }
-        if (inProviders?.link) {
-          ottUrl = inProviders.link;
-        }
-      } catch (_) {
-        // provider fetch failed
-      }
+  const validMovies = results.filter((m) => m.poster_path && (m.title || m.original_title));
 
-      // If specific URL not found, generate high-confidence platform direct link
-      if (!ottUrl && ottPlatform) {
-        const pLower = ottPlatform.toLowerCase();
-        if (pLower.includes('netflix')) ottUrl = 'https://www.netflix.com';
-        else if (pLower.includes('prime') || pLower.includes('amazon')) ottUrl = 'https://www.primevideo.com';
-        else if (pLower.includes('hotstar')) ottUrl = 'https://www.hotstar.com';
-        else if (pLower.includes('zee5')) ottUrl = 'https://www.zee5.com';
-        else if (pLower.includes('aha')) ottUrl = 'https://www.aha.video';
-        else if (pLower.includes('sonyliv')) ottUrl = 'https://www.sonyliv.com';
-      }
+  // Enrich watch providers in parallel batches of 15
+  const providerMap = new Map();
+  const batchSize = 15;
+  for (let i = 0; i < validMovies.length; i += batchSize) {
+    const batch = validMovies.slice(i, i + batchSize);
+    await Promise.all(
+      batch.map(async (m) => {
+        try {
+          const providerData = await tmdbFetch(`/movie/${m.id}/watch/providers`);
+          if (providerData?.results?.IN) {
+            providerMap.set(m.id, providerData.results.IN);
+          }
+        } catch (_) {}
+      })
+    );
+  }
 
-      const langCode = m.original_language || '';
-      const language = LANG_MAP[langCode] || langCode.toUpperCase() || 'Indian';
+  // Enrich all movies with platform names & links
+  const enriched = validMovies.map((m) => {
+    let ottPlatform = '';
+    let ottUrl = '';
 
-      return {
-        tmdbId: m.id,
-        id: `tmdb-${m.id}`,
-        title: m.title || m.original_title || '',
-        releaseDate: m.release_date || '',
-        ottReleaseDate: m.release_date || '',
-        ottPlatform: ottPlatform || 'OTT Streaming',
-        ottUrl,
-        language,
-        overview: m.overview || '',
-        posterUrl: m.poster_path ? getTmdbImageUrl(m.poster_path, 'w500') : '',
-        backdropUrl: m.backdrop_path ? getTmdbImageUrl(m.backdrop_path, 'original') : '',
-        voteAverage: m.vote_average ? Math.round((m.vote_average / 2) * 10) / 10 : 0,
-        genres: [],
-      };
-    })
-  );
+    const inProviders = providerMap.get(m.id);
+    const flatrate = inProviders?.flatrate || inProviders?.rent || inProviders?.buy || [];
+    if (flatrate.length > 0) {
+      ottPlatform = flatrate
+        .slice(0, 2)
+        .map((p) => PROVIDER_NAME_MAP[p.provider_id] || p.provider_name)
+        .join(', ');
+    }
+    if (inProviders?.link) {
+      ottUrl = inProviders.link;
+    }
 
-  // Return movies that have posters and release date
-  return enriched.filter((m) => m.posterUrl && m.title);
+    // High-confidence fallback direct streaming links based on platform or language
+    if (!ottUrl && ottPlatform) {
+      const pLower = ottPlatform.toLowerCase();
+      if (pLower.includes('netflix')) ottUrl = 'https://www.netflix.com';
+      else if (pLower.includes('prime') || pLower.includes('amazon')) ottUrl = 'https://www.primevideo.com';
+      else if (pLower.includes('hotstar')) ottUrl = 'https://www.hotstar.com';
+      else if (pLower.includes('zee5')) ottUrl = 'https://www.zee5.com';
+      else if (pLower.includes('aha')) ottUrl = 'https://www.aha.video';
+      else if (pLower.includes('sonyliv')) ottUrl = 'https://www.sonyliv.com';
+    }
+
+    const langCode = m.original_language || '';
+    const language = LANG_MAP[langCode] || langCode.toUpperCase() || 'Indian';
+
+    return {
+      tmdbId: m.id,
+      id: `tmdb-${m.id}`,
+      title: m.title || m.original_title || '',
+      releaseDate: m.release_date || '',
+      ottReleaseDate: m.release_date || '',
+      ottPlatform: ottPlatform || 'OTT Streaming',
+      ottUrl,
+      language,
+      overview: m.overview || '',
+      posterUrl: m.poster_path ? getTmdbImageUrl(m.poster_path, 'w500') : '',
+      backdropUrl: m.backdrop_path ? getTmdbImageUrl(m.backdrop_path, 'original') : '',
+      voteAverage: m.vote_average ? Math.round((m.vote_average / 2) * 10) / 10 : 0,
+      genres: [],
+    };
+  });
+
+  return enriched;
 }
 
 /**

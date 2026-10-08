@@ -50,7 +50,19 @@ export default function ReviewCard({ review, onEdit, onDelete }) {
 
   const handleHelpfulClick = () => {
     if (!currentUser) { alert('Please log in to vote on reviews.'); return; }
-    dispatch({ type: 'TOGGLE_HELPFUL_VOTE', payload: { userId: currentUser.id, reviewId: review.id } });
+    dispatch({
+      type: 'TOGGLE_HELPFUL_VOTE',
+      payload: {
+        userId: currentUser.id,
+        reviewId: review.id,
+        actorName: currentUser.displayName || 'A cinema lover',
+        reviewAuthorId: review.userId,
+        targetType: review.theaterId ? 'THEATER' : 'MOVIE',
+        targetId: review.movieId || review.theaterId,
+        targetTitle: review.movieTitle || review.theaterName || 'your review',
+        reviewSnippet: (review.reviewText || '').slice(0, 80),
+      }
+    });
   };
 
   const handleReportSubmit = (e) => {

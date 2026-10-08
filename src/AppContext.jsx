@@ -165,6 +165,7 @@ const initialState = {
   theatersList: sanitizedTheaters,
   currentUser: sanitizedCurrentUser, // null or User object
   professionalApplications: loadStorage('cinemascope_pro_applications', DEFAULT_PRO_APPLICATIONS),
+  notifications: loadStorage('cinemascope_notifications', []),
 };
 
 function reducer(state, action) {
@@ -337,16 +338,93 @@ function reducer(state, action) {
       const { userId, reviewId } = action.payload;
       const existing = state.helpfulVotes.find(v => v.userId === userId && v.reviewId === reviewId);
       let updatedVotes, updatedRevs;
+      let updatedNotifs = Array.isArray(state.notifications) ? [...state.notifications] : [];
+
+      const targetReview = state.reviews.find(r => r.id === reviewId);
+      const authorId = targetReview?.userId || action.payload.reviewAuthorId;
+
       if (existing) {
         updatedVotes = state.helpfulVotes.filter(v => !(v.userId === userId && v.reviewId === reviewId));
         updatedRevs = state.reviews.map(r => r.id === reviewId ? { ...r, likesCount: Math.max(0, (r.likesCount || 0) - 1) } : r);
+        // Remove like notification from this user on this review if unliked
+        updatedNotifs = updatedNotifs.filter(n => !(n.actorId === userId && n.reviewId === reviewId));
       } else {
         updatedVotes = [...state.helpfulVotes, { userId, reviewId, createdAt: new Date().toISOString() }];
         updatedRevs = state.reviews.map(r => r.id === reviewId ? { ...r, likesCount: (r.likesCount || 0) + 1 } : r);
+
+        // Notify the author if someone else liked their review
+        if (authorId && authorId !== userId) {
+          const actorUser = state.currentUser || (state.users || []).find(u => u.id === userId);
+          const actorName = action.payload.actorName || actorUser?.displayName || 'A cinema lover';
+          const targetTitle = targetReview?.movieTitle || targetReview?.theaterName || action.payload.targetTitle || 'your review';
+          const targetType = (targetReview?.theaterId || action.payload.targetType === 'THEATER') ? 'THEATER' : 'MOVIE';
+          const targetId = targetReview?.movieId || targetReview?.theaterId || action.payload.targetId || '';
+          const reviewSnippet = (targetReview?.reviewText || action.payload.reviewSnippet || '').slice(0, 80);
+
+          const newNotif = {
+            id: `notif-like-${userId}-${reviewId}-${Date.now()}`,
+            recipientId: authorId,
+            actorId: userId,
+            actorName: actorName,
+            actorAvatar: actorUser?.avatarUrl || '',
+            type: 'REVIEW_LIKE',
+            reviewId: reviewId,
+            targetType: targetType,
+            targetId: targetId,
+            targetTitle: targetTitle,
+            reviewSnippet: reviewSnippet,
+            isRead: false,
+            createdAt: new Date().toISOString(),
+          };
+
+          // Remove any prior like notification for this specific user/review pair, then prepend latest
+          updatedNotifs = [newNotif, ...updatedNotifs.filter(n => !(n.actorId === userId && n.reviewId === reviewId))];
+        }
       }
-      newState = { ...state, helpfulVotes: updatedVotes, reviews: updatedRevs };
+
+      newState = { ...state, helpfulVotes: updatedVotes, reviews: updatedRevs, notifications: updatedNotifs };
       saveStorage('cinemascope_helpful_votes', updatedVotes);
       saveStorage('cinemascope_reviews', updatedRevs);
+      saveStorage('cinemascope_notifications', updatedNotifs);
+      if (isSupabaseConfigured()) {
+        supabaseService.saveNotificationsData(updatedNotifs).catch(console.warn);
+      }
+      return newState;
+    }
+
+    // --- NOTIFICATION ACTIONS ---
+    case 'MARK_NOTIFICATION_READ': {
+      const notifId = action.payload;
+      const updated = (state.notifications || []).map(n => n.id === notifId ? { ...n, isRead: true } : n);
+      newState = { ...state, notifications: updated };
+      saveStorage('cinemascope_notifications', updated);
+      if (isSupabaseConfigured()) supabaseService.saveNotificationsData(updated).catch(console.warn);
+      return newState;
+    }
+
+    case 'MARK_ALL_NOTIFICATIONS_READ': {
+      const recipientId = action.payload;
+      const updated = (state.notifications || []).map(n =>
+        (!recipientId || n.recipientId === recipientId) ? { ...n, isRead: true } : n
+      );
+      newState = { ...state, notifications: updated };
+      saveStorage('cinemascope_notifications', updated);
+      if (isSupabaseConfigured()) supabaseService.saveNotificationsData(updated).catch(console.warn);
+      return newState;
+    }
+
+    case 'CLEAR_NOTIFICATIONS': {
+      const recipientId = action.payload;
+      const updated = recipientId ? (state.notifications || []).filter(n => n.recipientId !== recipientId) : [];
+      newState = { ...state, notifications: updated };
+      saveStorage('cinemascope_notifications', updated);
+      if (isSupabaseConfigured()) supabaseService.saveNotificationsData(updated).catch(console.warn);
+      return newState;
+    }
+
+    case 'SET_NOTIFICATIONS': {
+      newState = { ...state, notifications: action.payload };
+      saveStorage('cinemascope_notifications', action.payload);
       return newState;
     }
 
@@ -522,10 +600,13 @@ export function AppProvider({ children }) {
         if (currentState.professionalApplications?.length > 0) {
           await supabaseService.saveProApplicationsData(currentState.professionalApplications).catch(console.warn);
         }
+        if (currentState.notifications?.length > 0) {
+          await supabaseService.saveNotificationsData(currentState.notifications).catch(console.warn);
+        }
         pushWeekendPickDataToCloud();
       }
 
-      const [remoteMovies, remoteReviews, remoteUsers, remoteTheaters, remoteCities, , remoteProApps] = await Promise.all([
+      const [remoteMovies, remoteReviews, remoteUsers, remoteTheaters, remoteCities, , remoteProApps, remoteNotifs] = await Promise.all([
         supabaseService.getMovies(),
         supabaseService.getReviews(),
         supabaseService.getUsers(),
@@ -533,6 +614,7 @@ export function AppProvider({ children }) {
         supabaseService.getCitiesData(),
         syncWeekendPickDataFromCloud({ force: forcePush }),
         supabaseService.getProApplicationsData(),
+        supabaseService.getNotificationsData(),
       ]);
 
       let moviesCount = 0;
@@ -680,6 +762,27 @@ export function AppProvider({ children }) {
         }
       } else if (currentLocalProApps.length > 0) {
         supabaseService.saveProApplicationsData(currentLocalProApps).catch(console.warn);
+      }
+
+      // Notifications Synchronization across all devices
+      const currentLocalNotifs = currentState.notifications || loadStorage('cinemascope_notifications', []);
+      if (remoteNotifs && Array.isArray(remoteNotifs) && remoteNotifs.length > 0) {
+        const remoteMap = new Map(remoteNotifs.map(n => [n.id, n]));
+        let hasLocalNotifChanges = false;
+        const mergedNotifs = [...remoteNotifs];
+        currentLocalNotifs.forEach(loc => {
+          if (!remoteMap.has(loc.id)) {
+            mergedNotifs.push(loc);
+            hasLocalNotifChanges = true;
+          }
+        });
+        mergedNotifs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        dispatch({ type: 'SET_NOTIFICATIONS', payload: mergedNotifs });
+        if (hasLocalNotifChanges) {
+          supabaseService.saveNotificationsData(mergedNotifs).catch(console.warn);
+        }
+      } else if (currentLocalNotifs.length > 0) {
+        supabaseService.saveNotificationsData(currentLocalNotifs).catch(console.warn);
       }
 
       // Sync personal movie library if a user is logged in
@@ -1030,6 +1133,15 @@ export function AppProvider({ children }) {
       syncStatus,
       syncMessage,
       lastSyncedAt,
+      // Notifications
+      getUserNotifications: (userId) => {
+        if (!userId) return [];
+        return (state.notifications || []).filter(n => n.recipientId === userId);
+      },
+      getUnreadNotificationsCount: (userId) => {
+        if (!userId) return 0;
+        return (state.notifications || []).filter(n => n.recipientId === userId && !n.isRead).length;
+      },
     }}>
       {children}
     </AppContext.Provider>

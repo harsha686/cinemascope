@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Tv, ExternalLink, Film, Calendar, ChevronLeft, ChevronRight, Sparkles, Play, Loader2 } from 'lucide-react';
 import { useApp } from '../../AppContext';
@@ -136,6 +136,16 @@ export default function OttReleasePopupModal() {
   const [ottMovies, setOttMovies] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLiveData, setIsLiveData] = useState(false);
+  const filmstripRef = useRef(null);
+
+  // Auto-scroll active thumbnail into view in filmstrip
+  useEffect(() => {
+    if (!filmstripRef.current) return;
+    const activeEl = filmstripRef.current.querySelector('[data-active="true"]');
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [currentIndex]);
 
   // Fetch live TMDB OTT releases (last 30 days) on mount
   useEffect(() => {
@@ -792,7 +802,64 @@ export default function OttReleasePopupModal() {
             </button>
           </div>
 
-          {/* Footer Bar: Carousel dots & Don't show today checkbox */}
+          {/* Scrollable Filmstrip of All Releases */}
+          {ottMovies.length > 1 && (
+            <div style={{ marginTop: 14, marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontSize: 11, color: 'var(--gold)', fontFamily: 'var(--font-serif)', fontWeight: 700, letterSpacing: '0.04em' }}>
+                  All Latest OTT Releases ({ottMovies.length})
+                </span>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                  Scroll or tap to view
+                </span>
+              </div>
+              <div
+                ref={filmstripRef}
+                style={{
+                  display: 'flex',
+                  gap: 8,
+                  overflowX: 'auto',
+                  padding: '4px 2px 8px',
+                  scrollbarWidth: 'thin',
+                  WebkitOverflowScrolling: 'touch',
+                }}
+              >
+                {ottMovies.map((m, idx) => (
+                  <button
+                    key={m.id || idx}
+                    type="button"
+                    data-active={idx === currentIndex}
+                    onClick={() => setCurrentIndex(idx)}
+                    style={{
+                      flexShrink: 0,
+                      width: 46,
+                      height: 66,
+                      borderRadius: 6,
+                      overflow: 'hidden',
+                      border: idx === currentIndex ? '2px solid var(--gold)' : '1px solid rgba(255,255,255,0.18)',
+                      background: '#1a1612',
+                      cursor: 'pointer',
+                      padding: 0,
+                      position: 'relative',
+                      transform: idx === currentIndex ? 'scale(1.06)' : 'scale(1)',
+                      transition: 'all 150ms ease',
+                      boxShadow: idx === currentIndex ? '0 0 12px rgba(220,182,91,0.55)' : 'none',
+                    }}
+                    title={`${m.title} (${m.language || ''})`}
+                  >
+                    <img
+                      src={m.posterUrl}
+                      alt={m.title}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={(e) => { e.target.src = '/demo-frame.jpg'; }}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Footer Bar: Carousel navigation & Don't show today checkbox */}
           <div
             style={{
               display: 'flex',
@@ -817,25 +884,36 @@ export default function OttReleasePopupModal() {
             </label>
 
             {ottMovies.length > 1 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                {ottMovies.map((m, idx) => (
-                  <button
-                    key={m.id || idx}
-                    type="button"
-                    onClick={() => setCurrentIndex(idx)}
-                    style={{
-                      width: idx === currentIndex ? 18 : 7,
-                      height: 7,
-                      borderRadius: 4,
-                      background: idx === currentIndex ? 'var(--gold)' : 'rgba(255,255,255,0.25)',
-                      border: 'none',
-                      padding: 0,
-                      cursor: 'pointer',
-                      transition: 'all 200ms ease',
-                    }}
-                    title={`View ${m.title}`}
-                  />
-                ))}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  background: 'rgba(255,255,255,0.06)',
+                  padding: '3px 8px',
+                  borderRadius: 14,
+                  border: '1px solid rgba(255,255,255,0.1)',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setCurrentIndex(prev => (prev - 1 + ottMovies.length) % ottMovies.length)}
+                  style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: '2px 4px', display: 'flex' }}
+                  title="Previous"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span style={{ fontSize: 11, color: 'var(--gold)', fontFamily: 'var(--font-serif)', fontWeight: 700, padding: '0 4px', userSelect: 'none' }}>
+                  {currentIndex + 1} of {ottMovies.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentIndex(prev => (prev + 1) % ottMovies.length)}
+                  style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: '2px 4px', display: 'flex' }}
+                  title="Next"
+                >
+                  <ChevronRight size={14} />
+                </button>
               </div>
             )}
           </div>

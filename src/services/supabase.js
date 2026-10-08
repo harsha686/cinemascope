@@ -652,9 +652,49 @@ export const supabaseService = {
       } else {
         currentList.push(app);
       }
-      return this.saveProApplicationsData(currentList);
+  },
+
+  // Notifications Cloud Sync across all devices
+  async getNotificationsData() {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('collections')
+        .select('*')
+        .eq('id', 'system_notifications_data')
+        .maybeSingle();
+
+      if (error || !data || !data.description) return null;
+      const parsed = JSON.parse(data.description);
+      return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
-      console.warn('appendProApplicationToCloud error:', e);
+      console.warn('Supabase getNotificationsData error:', e);
+      return null;
+    }
+  },
+
+  async saveNotificationsData(notificationsList) {
+    const supabase = getSupabaseClient();
+    if (!supabase || !notificationsList) return false;
+    try {
+      const trimmed = Array.isArray(notificationsList) ? notificationsList.slice(0, 150) : [];
+      const { error } = await supabase.from('collections').upsert({
+        id: 'system_notifications_data',
+        user_id: 'system',
+        name: 'notifications_state',
+        description: JSON.stringify(trimmed),
+        visibility: 'public',
+        movie_ids: [],
+        updated_at: new Date().toISOString(),
+      });
+      if (error) {
+        console.warn('Supabase saveNotificationsData error:', error);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.warn('Supabase saveNotificationsData error:', e);
       return false;
     }
   },

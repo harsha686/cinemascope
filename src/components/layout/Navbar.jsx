@@ -1,21 +1,48 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Film, Menu, X, ChevronRight, ChevronDown, User, LogOut, ShieldAlert, MapPin, Bookmark, Calendar, Tv } from 'lucide-react';
+import { Film, Menu, X, ChevronRight, ChevronDown, User, LogOut, ShieldAlert, MapPin, Bookmark, Calendar, Tv, Bell, Heart, Trash2 } from 'lucide-react';
 import { useApp } from '../../AppContext';
+
+function formatTimeAgo(isoString) {
+  if (!isoString) return '';
+  try {
+    const diff = (Date.now() - new Date(isoString).getTime()) / 1000;
+    if (diff < 45) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    if (diff < 86400 * 7) return `${Math.floor(diff / 86400)}d ago`;
+    return new Date(isoString).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  } catch (e) {
+    return '';
+  }
+}
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [userDropdown, setUserDropdown] = useState(false);
   const [moreDropdown, setMoreDropdown] = useState(false);
+  const [notifDropdown, setNotifDropdown] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { state, dispatch, allCities } = useApp();
   const userDropdownRef = useRef(null);
   const moreDropdownRef = useRef(null);
+  const notifDropdownRef = useRef(null);
 
   const currentUser = state.currentUser;
   const activeCity = state.selectedCity || allCities[0];
+
+  const userNotifications = useMemo(() => {
+    if (!currentUser?.id) return [];
+    return (state.notifications || [])
+      .filter(n => n.recipientId === currentUser.id)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [state.notifications, currentUser?.id]);
+
+  const unreadCount = useMemo(() => {
+    return userNotifications.filter(n => !n.isRead).length;
+  }, [userNotifications]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -27,6 +54,7 @@ export default function Navbar() {
     setMenuOpen(false);
     setUserDropdown(false);
     setMoreDropdown(false);
+    setNotifDropdown(false);
   }, [location]);
 
   useEffect(() => {
@@ -36,6 +64,9 @@ export default function Navbar() {
       }
       if (moreDropdownRef.current && !moreDropdownRef.current.contains(e.target)) {
         setMoreDropdown(false);
+      }
+      if (notifDropdownRef.current && !notifDropdownRef.current.contains(e.target)) {
+        setNotifDropdown(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -289,6 +320,324 @@ export default function Navbar() {
 
         {/* Right: User Menu / Auth Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          {currentUser && (
+            <div ref={notifDropdownRef} style={{ position: 'relative', flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => setNotifDropdown(!notifDropdown)}
+                aria-label="Notifications"
+                aria-expanded={notifDropdown}
+                title={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  background: notifDropdown ? 'rgba(220,182,91,0.15)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${notifDropdown ? 'var(--gold-dim)' : 'var(--border-neutral)'}`,
+                  cursor: 'pointer',
+                  color: unreadCount > 0 ? 'var(--gold)' : 'var(--text-secondary)',
+                  transition: 'all var(--transition-fast)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                  e.currentTarget.style.color = 'var(--text-primary)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = notifDropdown ? 'rgba(220,182,91,0.15)' : 'rgba(255,255,255,0.05)';
+                  e.currentTarget.style.color = unreadCount > 0 ? 'var(--gold)' : 'var(--text-secondary)';
+                }}
+              >
+                <Bell size={15} />
+                {unreadCount > 0 && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: -3,
+                      right: -3,
+                      minWidth: 16,
+                      height: 16,
+                      padding: '0 4px',
+                      borderRadius: 8,
+                      background: 'var(--gold)',
+                      color: '#080604',
+                      fontSize: 10,
+                      fontWeight: 800,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 0 8px rgba(220,182,91,0.6)',
+                      lineHeight: 1,
+                    }}
+                  >
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Dropdown Menu */}
+              {notifDropdown && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    width: 340,
+                    maxWidth: '88vw',
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-neutral)',
+                    borderRadius: 'var(--radius-sm)',
+                    boxShadow: 'var(--shadow-card)',
+                    zIndex: 250,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                    animation: 'pageIn 150ms ease forwards',
+                  }}
+                >
+                  {/* Header */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 14px',
+                      borderBottom: '1px solid var(--border-subtle)',
+                      background: 'rgba(255,255,255,0.02)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                        Notifications
+                      </span>
+                      {unreadCount > 0 && (
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: 10,
+                            background: 'var(--gold-faint)',
+                            color: 'var(--gold)',
+                            border: '1px solid var(--gold-dim)',
+                          }}
+                        >
+                          {unreadCount} new
+                        </span>
+                      )}
+                    </div>
+
+                    {unreadCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => dispatch({ type: 'MARK_ALL_NOTIFICATIONS_READ', payload: currentUser.id })}
+                        style={{
+                          fontSize: 11,
+                          color: 'var(--gold)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          padding: 0,
+                        }}
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Notification List */}
+                  <div style={{ maxHeight: 340, overflowY: 'auto' }}>
+                    {userNotifications.length === 0 ? (
+                      <div style={{ padding: '32px 18px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                        <div
+                          style={{
+                            width: 42,
+                            height: 42,
+                            borderRadius: '50%',
+                            background: 'var(--gold-faint)',
+                            border: '1px solid var(--gold-dim)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '0 auto 10px',
+                            color: 'var(--gold)',
+                          }}
+                        >
+                          <Heart size={18} />
+                        </div>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                          No notifications yet
+                        </p>
+                        <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                          When cinema lovers like your reviews, you'll be notified here!
+                        </p>
+                      </div>
+                    ) : (
+                      userNotifications.map((notif) => {
+                        const isUnread = !notif.isRead;
+                        return (
+                          <div
+                            key={notif.id}
+                            onClick={() => {
+                              if (isUnread) {
+                                dispatch({ type: 'MARK_NOTIFICATION_READ', payload: notif.id });
+                              }
+                              setNotifDropdown(false);
+                              if (notif.targetType === 'THEATER') {
+                                navigate(`/theater/${notif.targetId}`);
+                              } else {
+                                navigate(`/movie/${notif.targetId}`);
+                              }
+                            }}
+                            style={{
+                              display: 'flex',
+                              gap: 10,
+                              padding: '11px 14px',
+                              borderBottom: '1px solid var(--border-subtle)',
+                              background: isUnread ? 'rgba(220,182,91,0.06)' : 'transparent',
+                              cursor: 'pointer',
+                              transition: 'background var(--transition-fast)',
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = isUnread ? 'rgba(220,182,91,0.1)' : 'rgba(255,255,255,0.04)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = isUnread ? 'rgba(220,182,91,0.06)' : 'transparent'}
+                          >
+                            {/* Avatar with heart indicator */}
+                            <div style={{ position: 'relative', flexShrink: 0 }}>
+                              {notif.actorAvatar ? (
+                                <img
+                                  src={notif.actorAvatar}
+                                  alt={notif.actorName}
+                                  style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
+                                />
+                              ) : (
+                                <div
+                                  style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: '50%',
+                                    background: 'var(--gold-faint)',
+                                    border: '1px solid var(--gold-dim)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'var(--gold)',
+                                    fontWeight: 700,
+                                    fontSize: 12,
+                                  }}
+                                >
+                                  {(notif.actorName || 'A').charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <span
+                                style={{
+                                  position: 'absolute',
+                                  bottom: -2,
+                                  right: -2,
+                                  width: 14,
+                                  height: 14,
+                                  borderRadius: '50%',
+                                  background: '#ef4444',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  border: '1.5px solid var(--bg-card)',
+                                }}
+                              >
+                                <Heart size={8} color="#fff" fill="#fff" />
+                              </span>
+                            </div>
+
+                            {/* Text content */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.4, marginBottom: 3 }}>
+                                <strong style={{ color: 'var(--gold)', fontWeight: 600 }}>{notif.actorName}</strong>
+                                {' '}liked your review on{' '}
+                                <strong style={{ color: 'var(--text-primary)' }}>{notif.targetTitle}</strong>
+                              </div>
+
+                              {notif.reviewSnippet && (
+                                <div
+                                  style={{
+                                    fontSize: 11,
+                                    color: 'var(--text-muted)',
+                                    background: 'rgba(255,255,255,0.03)',
+                                    padding: '3px 6px',
+                                    borderRadius: 4,
+                                    marginBottom: 4,
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    fontStyle: 'italic',
+                                  }}
+                                >
+                                  "{notif.reviewSnippet}"
+                                </div>
+                              )}
+
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                                  {formatTimeAgo(notif.createdAt)}
+                                </span>
+                                {isUnread && (
+                                  <span
+                                    style={{
+                                      width: 6,
+                                      height: 6,
+                                      borderRadius: '50%',
+                                      background: 'var(--gold)',
+                                      boxShadow: '0 0 6px var(--gold)',
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  {userNotifications.length > 0 && (
+                    <div
+                      style={{
+                        padding: '8px 14px',
+                        borderTop: '1px solid var(--border-subtle)',
+                        background: 'rgba(255,255,255,0.01)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'flex-end',
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => dispatch({ type: 'CLEAR_NOTIFICATIONS', payload: currentUser.id })}
+                        style={{
+                          fontSize: 11,
+                          color: 'var(--text-muted)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-danger)'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+                      >
+                        <Trash2 size={11} /> Clear all
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {currentUser ? (
             <div ref={userDropdownRef} style={{ position: 'relative', flexShrink: 0 }}>
               <button
@@ -742,6 +1091,42 @@ export default function Navbar() {
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{currentUser.email}</div>
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setNotifDropdown(true);
+                }}
+                className="btn btn-outline btn-sm"
+                style={{
+                  justifyContent: 'space-between',
+                  fontSize: 11,
+                  marginTop: 2,
+                  borderColor: unreadCount > 0 ? 'var(--gold-dim)' : 'var(--border-neutral)',
+                  background: unreadCount > 0 ? 'var(--gold-faint)' : 'transparent',
+                  color: unreadCount > 0 ? 'var(--gold)' : 'var(--text-primary)',
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Bell size={13} /> Notifications
+                </span>
+                {unreadCount > 0 && (
+                  <span
+                    style={{
+                      padding: '1px 6px',
+                      borderRadius: 10,
+                      background: 'var(--gold)',
+                      color: '#080604',
+                      fontWeight: 800,
+                      fontSize: 10,
+                    }}
+                  >
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
                 <Link to="/profile" onClick={() => setMenuOpen(false)} className="btn btn-outline btn-sm" style={{ justifyContent: 'center', fontSize: 11 }}>
                   Profile
