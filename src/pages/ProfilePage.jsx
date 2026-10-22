@@ -93,8 +93,9 @@ export default function ProfilePage() {
         let finalFavorites = archive?.stats?.totalFavorites || ls?.totalFavorites || 0;
         let finalRating = ls?.avgRating || 0;
 
-        if (!isOwnProfile && finalWatched === 0 && profileUser.stats?.watchedCount) {
-          finalWatched = profileUser.stats.watchedCount;
+        const profileWatchedStat = Math.max(profileUser?.stats?.watchedCount || 0, profileUser?.stats?.totalWatched || 0);
+        if (profileWatchedStat > finalWatched) {
+          finalWatched = profileWatchedStat;
         }
 
         setLibStats({
@@ -242,8 +243,9 @@ export default function ProfilePage() {
   // Calculate composite Cinema Points matching leaderboard
   // Score = (watched * 5) + (reviews * 15) + (votes * 10)
   const cinemaScore = useMemo(() => {
-    return (libStats.totalWatched * 5) + (userReviews.length * 15) + (weekendVotingStats.totalVotes * 10);
-  }, [libStats.totalWatched, userReviews.length, weekendVotingStats.totalVotes]);
+    const calculated = (libStats.totalWatched * 5) + (userReviews.length * 15) + (weekendVotingStats.totalVotes * 10);
+    return Math.max(profileUser?.stats?.cinemaScore || profileUser?.stats?.points || 0, calculated);
+  }, [libStats.totalWatched, userReviews.length, weekendVotingStats.totalVotes, profileUser?.stats]);
 
   // Pro reviewer status
   const proApplication = useMemo(

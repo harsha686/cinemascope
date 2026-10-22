@@ -393,7 +393,7 @@ export async function getFavoriteMovies(userId) {
 }
 
 /**
- * Synchronizes a user's calculated public stats (watched count, watchlist count, avg rating)
+ * Synchronizes a user's calculated public stats (watched count, watchlist count, avg rating, cinema points)
  * into the community users directory in localStorage and Supabase.
  */
 export async function syncUserPublicStats(userId) {
@@ -406,16 +406,56 @@ export async function syncUserPublicStats(userId) {
     let users = raw ? JSON.parse(raw) : [];
     if (!Array.isArray(users)) users = [];
 
+    // Also get reviews & votes for accurate points computation
+    let reviewCount = 0;
+    try {
+      const rawRevs = localStorage.getItem('cinemascope_reviews');
+      if (rawRevs) {
+        const revs = JSON.parse(rawRevs);
+        reviewCount = (Array.isArray(revs) ? revs : []).filter(r => r.userId === uid && (r.status === 'PUBLISHED' || !r.status)).length;
+      }
+    } catch (_) {}
+
+    let voteCount = 0;
+    try {
+      const rawVotes = localStorage.getItem('cinemascope_weekend_votes');
+      if (rawVotes) {
+        const votes = JSON.parse(rawVotes);
+        voteCount = (Array.isArray(votes) ? votes : []).filter(v => v.userId === uid).length;
+      }
+    } catch (_) {}
+
+    const calculatedScore = (stats.totalWatched * 5) + (reviewCount * 15) + (voteCount * 10);
+
     const idx = users.findIndex(u => u.id === uid);
     if (idx >= 0) {
+      const existingStats = users[idx].stats || {};
+      let finalWatched = Math.max(existingStats.watchedCount || 0, existingStats.totalWatched || 0, stats.totalWatched);
+      let finalVotes = Math.max(existingStats.voteCount || 0, existingStats.totalVotes || 0, voteCount);
+      let finalRevs = Math.max(existingStats.reviewCount || 0, reviewCount);
+      let finalScore = Math.max(existingStats.cinemaScore || existingStats.points || 0, (finalWatched * 5) + (finalRevs * 15) + (finalVotes * 10), calculatedScore);
+
+      // Preserve special points for Konathala Jayavardhan (1745 pts minimum)
+      if (uid === '519d1f74-d4a5-4826-a385-a03fa92a14bb' || (users[idx].displayName && users[idx].displayName.toLowerCase().includes('jayavardhan'))) {
+        finalWatched = Math.max(finalWatched, 329);
+        finalVotes = Math.max(finalVotes, 10);
+        finalScore = Math.max(finalScore, 1745);
+      }
+
       users[idx] = {
         ...users[idx],
         stats: {
-          ...(users[idx].stats || {}),
-          watchedCount: stats.totalWatched,
-          watchlistCount: stats.totalWatchlist,
-          favoritesCount: stats.totalFavorites,
-          avgRating: stats.avgRating,
+          ...existingStats,
+          watchedCount: finalWatched,
+          totalWatched: finalWatched,
+          watchlistCount: Math.max(existingStats.watchlistCount || 0, stats.totalWatchlist),
+          favoritesCount: Math.max(existingStats.favoritesCount || 0, stats.totalFavorites),
+          reviewCount: finalRevs,
+          voteCount: finalVotes,
+          totalVotes: finalVotes,
+          cinemaScore: finalScore,
+          points: finalScore,
+          avgRating: stats.avgRating || existingStats.avgRating || 0,
           updatedAt: new Date().toISOString(),
         }
       };
@@ -426,11 +466,123 @@ export async function syncUserPublicStats(userId) {
       }
 
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('cinemascope_user_stats_updated', { detail: { userId: uid, stats } }));
+        window.dispatchEvent(new CustomEvent('cinemascope_user_stats_updated', { detail: { userId: uid, stats: users[idx].stats } }));
       }
     }
   } catch (e) {
     console.warn('syncUserPublicStats error:', e);
+  }
+}
+
+/**
+ * Reconciles and syncs stats across all community users from Supabase.
+ * Ensures watched count, review count, vote count, and cinema points are accurately
+ * reflected for every user in the community leaderboard.
+ */
+export async function syncAllCommunityUserStats() {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+
+  try {
+    const [usersRes, moviesRes, reviewsRes, wpRes] = await Promise.all([
+      supabase.from('collections').select('description').eq('id', 'system_users_data').maybeSingle(),
+      supabase.from('user_movies').select('user_id, is_watched'),
+      supabase.from('reviews').select('user_id, status'),
+      supabase.from('collections').select('description').eq('id', 'system_weekend_pick_data').maybeSingle(),
+    ]);
+
+    let usersList = [];
+    if (usersRes.data?.description) {
+      try { usersList = JSON.parse(usersRes.data.description); } catch (_) {}
+    }
+    if (!Array.isArray(usersList) || usersList.length === 0) return null;
+
+    // Aggregate watched counts
+    const watchedMap = {};
+    (moviesRes.data || []).forEach(m => {
+      if (m.is_watched && m.user_id) {
+        watchedMap[m.user_id] = (watchedMap[m.user_id] || 0) + 1;
+      }
+    });
+
+    // Aggregate reviews count
+    const revMap = {};
+    (reviewsRes.data || []).forEach(r => {
+      if (r.user_id && (r.status === 'PUBLISHED' || !r.status)) {
+        revMap[r.user_id] = (revMap[r.user_id] || 0) + 1;
+      }
+    });
+
+    // Aggregate votes count
+    const voteMap = {};
+    if (wpRes.data?.description) {
+      try {
+        const wp = JSON.parse(wpRes.data.description);
+        (wp.votes || []).forEach(v => {
+          if (v.userId) {
+            voteMap[v.userId] = (voteMap[v.userId] || 0) + 1;
+          }
+        });
+      } catch (_) {}
+    }
+
+    let hasChanges = false;
+    const updatedUsers = usersList.map(u => {
+      const uid = u.id;
+      const existingStats = u.stats || {};
+
+      const sbWatched = watchedMap[uid] || 0;
+      const sbRevs = revMap[uid] || 0;
+      const sbVotes = voteMap[uid] || 0;
+
+      const curWatched = existingStats.watchedCount || existingStats.totalWatched || 0;
+      const curRevs = existingStats.reviewCount || 0;
+      const curVotes = existingStats.voteCount || existingStats.totalVotes || 0;
+      const curScore = existingStats.cinemaScore || existingStats.points || 0;
+
+      let w = Math.max(curWatched, sbWatched);
+      let r = Math.max(curRevs, sbRevs);
+      let v = Math.max(curVotes, sbVotes);
+      let score = Math.max(curScore, (w * 5) + (r * 15) + (v * 10));
+
+      // Special lock for Konathala Jayavardhan (1745 points minimum)
+      if (uid === '519d1f74-d4a5-4826-a385-a03fa92a14bb' || (u.displayName && u.displayName.toLowerCase().includes('jayavardhan'))) {
+        w = Math.max(w, 329);
+        v = Math.max(v, 10);
+        score = Math.max(score, 1745);
+      }
+
+      if (w !== curWatched || score !== curScore || v !== curVotes || r !== curRevs) {
+        hasChanges = true;
+      }
+
+      return {
+        ...u,
+        stats: {
+          ...existingStats,
+          watchedCount: w,
+          totalWatched: w,
+          reviewCount: r,
+          voteCount: v,
+          totalVotes: v,
+          cinemaScore: score,
+          points: score,
+          updatedAt: existingStats.updatedAt || new Date().toISOString(),
+        }
+      };
+    });
+
+    if (hasChanges) {
+      await supabaseService.saveUsersData(updatedUsers);
+    }
+
+    // Save to localStorage as well
+    localStorage.setItem('cinemascope_users', JSON.stringify(updatedUsers));
+    return updatedUsers;
+  } catch (e) {
+    console.warn('syncAllCommunityUserStats error:', e);
+    return null;
   }
 }
 
@@ -457,10 +609,10 @@ export async function getLibraryStats(userId) {
       if (rawUsers) {
         const uList = JSON.parse(rawUsers);
         const match = Array.isArray(uList) ? uList.find(u => u.id === uid) : null;
-        if (match && match.stats && (match.stats.watchedCount > 0 || match.stats.watchlistCount > 0)) {
-          totalWatched = match.stats.watchedCount || 0;
-          totalWatchlist = match.stats.watchlistCount || 0;
-          totalFavorites = match.stats.favoritesCount || 0;
+        if (match && match.stats && (match.stats.watchedCount > 0 || match.stats.totalWatched > 0 || match.stats.watchlistCount > 0)) {
+          totalWatched = Math.max(match.stats.watchedCount || 0, match.stats.totalWatched || 0);
+          totalWatchlist = match.stats.watchlistCount || match.stats.totalWatchlist || 0;
+          totalFavorites = match.stats.favoritesCount || match.stats.totalFavorites || 0;
           return {
             totalWatchlist,
             totalWatched,

@@ -46,7 +46,7 @@ export default function UserSearchPage() {
       const reviewCount = seed ? Math.max(userReviews.length, seed.reviews) : userReviews.length;
 
       // Watched count: from user.stats, or local storage, or seed for demo accounts
-      let watchedCount = user.stats?.watchedCount !== undefined ? user.stats.watchedCount : 0;
+      let watchedCount = user.stats?.watchedCount ?? user.stats?.totalWatched ?? 0;
       if (watchedCount === 0) {
         try {
           const saved = localStorage.getItem(`cinemascope_user_library_${user.id}`);
@@ -58,19 +58,19 @@ export default function UserSearchPage() {
         } catch (e) {}
       }
 
-      if (seed && watchedCount < seed.watched) {
-        watchedCount = seed.watched;
-      }
-
-      const cinemaScore = (watchedCount * 5) + (reviewCount * 15) + (voteCount * 10);
+      const effectiveWatched = Math.max(watchedCount, user.stats?.watchedCount || 0, user.stats?.totalWatched || 0, seed?.watched || 0);
+      const effectiveReviews = Math.max(userReviews.length, user.stats?.reviewCount || 0, seed?.reviews || 0);
+      const effectiveVotes = Math.max(voteCount, user.stats?.voteCount || 0, user.stats?.totalVotes || 0, seed?.votes || 0);
+      const calculatedScore = (effectiveWatched * 5) + (effectiveReviews * 15) + (effectiveVotes * 10);
+      const cinemaScore = Math.max(user.stats?.cinemaScore || user.stats?.points || 0, calculatedScore);
       const isPro = isVerifiedPro ? isVerifiedPro(user.id) : false;
 
       return {
         ...user,
         displayName: user.displayName || 'Cinema Lover',
-        reviewCount,
-        watchedCount,
-        voteCount,
+        reviewCount: effectiveReviews,
+        watchedCount: effectiveWatched,
+        voteCount: effectiveVotes,
         cinemaScore,
         isPro,
       };

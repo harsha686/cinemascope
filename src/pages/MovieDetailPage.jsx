@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+﻿import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck, Tv, Film, Users, Layers, Share2, Copy, Check, ExternalLink, Send, MessageCircle } from 'lucide-react';
 import { useApp } from '../AppContext';
@@ -1163,7 +1163,7 @@ export default function MovieDetailPage() {
                     </a>
 
                     <a
-                      href={`https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(`Hi! Please send me the movie link for "${movie.title}"`)}`}
+                      href={`https://t.me/harsha921?text=${encodeURIComponent(`Hi! Please send me the movie link for "${movie.title}" (${movie.releaseYear || ''})`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-outline btn-sm"

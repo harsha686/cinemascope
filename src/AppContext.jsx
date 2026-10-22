@@ -72,7 +72,30 @@ export function deduplicateUsers(usersList) {
     const email = user.email && user.email !== '—' ? user.email.trim().toLowerCase() : null;
     const name = (user.displayName || '').trim().toLowerCase();
 
-    if (seenIds.has(id)) continue;
+    if (seenIds.has(id)) {
+      // Merge stats into existing entry if duplicate ID
+      const existing = result.find(r => String(r.id).trim() === id);
+      if (existing && user.stats) {
+        const exWatched = existing.stats?.watchedCount || existing.stats?.totalWatched || 0;
+        const uWatched = user.stats.watchedCount || user.stats.totalWatched || 0;
+        const exScore = existing.stats?.cinemaScore || existing.stats?.points || 0;
+        const uScore = user.stats.cinemaScore || user.stats.points || 0;
+        const exVotes = existing.stats?.voteCount || existing.stats?.totalVotes || 0;
+        const uVotes = user.stats.voteCount || user.stats.totalVotes || 0;
+        existing.stats = {
+          ...(existing.stats || {}),
+          ...(user.stats || {}),
+          watchedCount: Math.max(exWatched, uWatched),
+          totalWatched: Math.max(exWatched, uWatched),
+          voteCount: Math.max(exVotes, uVotes),
+          totalVotes: Math.max(exVotes, uVotes),
+          reviewCount: Math.max(existing.stats?.reviewCount || 0, user.stats?.reviewCount || 0),
+          cinemaScore: Math.max(exScore, uScore),
+          points: Math.max(exScore, uScore),
+        };
+      }
+      continue;
+    }
 
     // Check duplicate by exact DisplayName if both represent the same user
     if (name && seenNames.has(name)) {
@@ -80,9 +103,23 @@ export function deduplicateUsers(usersList) {
       if (existing) {
         if (!existing.avatarUrl && user.avatarUrl) existing.avatarUrl = user.avatarUrl;
         if (!existing.email && email) existing.email = email;
-        if (user.stats && (!existing.stats || (user.stats.watchedCount || 0) > (existing.stats.watchedCount || 0))) {
-          existing.stats = { ...(existing.stats || {}), ...(user.stats || {}) };
-        }
+        const exWatched = existing.stats?.watchedCount || existing.stats?.totalWatched || 0;
+        const uWatched = user.stats?.watchedCount || user.stats?.totalWatched || 0;
+        const exScore = existing.stats?.cinemaScore || existing.stats?.points || 0;
+        const uScore = user.stats?.cinemaScore || user.stats?.points || 0;
+        const exVotes = existing.stats?.voteCount || existing.stats?.totalVotes || 0;
+        const uVotes = user.stats?.voteCount || user.stats?.totalVotes || 0;
+        existing.stats = {
+          ...(existing.stats || {}),
+          ...(user.stats || {}),
+          watchedCount: Math.max(exWatched, uWatched),
+          totalWatched: Math.max(exWatched, uWatched),
+          voteCount: Math.max(exVotes, uVotes),
+          totalVotes: Math.max(exVotes, uVotes),
+          reviewCount: Math.max(existing.stats?.reviewCount || 0, user.stats?.reviewCount || 0),
+          cinemaScore: Math.max(exScore, uScore),
+          points: Math.max(exScore, uScore),
+        };
         continue;
       }
     }
@@ -228,11 +265,23 @@ function reducer(state, action) {
     }
 
     case 'REGISTER_USER': {
+      const normName = (action.payload?.displayName || '').trim().toLowerCase();
+      const existingUser = state.users.find(u =>
+        u.id === action.payload?.id ||
+        (action.payload?.email && action.payload.email !== '—' && u.email?.toLowerCase() === action.payload.email?.toLowerCase()) ||
+        (normName && (u.displayName || '').trim().toLowerCase() === normName)
+      );
+
       const userToRegister = {
+        ...(existingUser || {}),
         ...action.payload,
-        role: action.payload.email?.toLowerCase() === 'harshavardhanmellof41@gmail.com' ? 'ADMIN' : (action.payload.role || 'USER'),
+        role: action.payload?.email?.toLowerCase() === 'harshavardhanmellof41@gmail.com' ? 'ADMIN' : (action.payload?.role || existingUser?.role || 'USER'),
+        stats: {
+          ...(existingUser?.stats || {}),
+          ...(action.payload?.stats || {}),
+        }
       };
-      const normName = (userToRegister.displayName || '').trim().toLowerCase();
+
       const filtered = state.users.filter(u =>
         u.id !== userToRegister.id &&
         (!userToRegister.email || userToRegister.email === '—' || u.email?.toLowerCase() !== userToRegister.email?.toLowerCase()) &&
@@ -668,8 +717,14 @@ export function AppProvider({ children }) {
           ...(Array.isArray(currentLocalUsers) ? currentLocalUsers : [])
         ]);
         dispatch({ type: 'SET_USERS', payload: mergedUsers });
-        // Save cleaned deduplicated users list back to cloud
-        supabaseService.saveUsersData(mergedUsers).catch(console.warn);
+        // Only push back to cloud if there are local-only users not in cloud yet
+        const remoteIds = new Set(remoteUsers.map(u => String(u.id)));
+        const hasNewLocalUsers = (Array.isArray(currentLocalUsers) ? currentLocalUsers : []).some(
+          lu => lu?.id && !remoteIds.has(String(lu.id))
+        );
+        if (hasNewLocalUsers) {
+          supabaseService.saveUsersData(mergedUsers).catch(console.warn);
+        }
       } else if (currentState.users?.length > 0) {
         // Cloud has no users yet — seed it with current deduplicated local users
         const cleanUsers = deduplicateUsers(currentState.users);

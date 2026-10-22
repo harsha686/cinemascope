@@ -907,14 +907,17 @@ export async function getUserPublicArchive(userId, profileUser = null) {
   // 2. Target counts from user's recorded public profile stats or calculated
   const targetWatched = Math.max(
     profileUser?.stats?.watchedCount || 0,
+    profileUser?.stats?.totalWatched || 0,
     [...itemsMap.values()].filter(i => i.watched).length
   );
   const targetFavorites = Math.max(
     profileUser?.stats?.favoritesCount || 0,
+    profileUser?.stats?.totalFavorites || 0,
     [...itemsMap.values()].filter(i => i.favorite).length
   );
   const targetWatchlist = Math.max(
     profileUser?.stats?.watchlistCount || 0,
+    profileUser?.stats?.totalWatchlist || 0,
     [...itemsMap.values()].filter(i => i.watchlist).length
   );
 
