@@ -5,7 +5,7 @@ import initialReviews from './data/reviews.json';
 import initialUsers from './data/users.json';
 import { supabaseService, isSupabaseConfigured, getSupabaseClient } from './services/supabase';
 import { syncWeekendPickDataFromCloud, pushWeekendPickDataToCloud } from './services/weekendPickService';
-import { syncUserLibraryWithCloud } from './services/movieLibraryService';
+import { syncUserLibraryWithCloud, syncUserPublicStats, syncAllCommunityUserStats } from './services/movieLibraryService';
 import { DEFAULT_PRO_APPLICATIONS, getUserApplication as getProAppFromService } from './services/proReviewerService';
 
 const AppContext = createContext(null);
@@ -292,6 +292,8 @@ function reducer(state, action) {
       saveStorage('cinemascope_users', updatedUsers);
       saveStorage('cinemascope_currentUser', userToRegister);
       if (isSupabaseConfigured()) supabaseService.saveUser(userToRegister);
+      syncUserLibraryWithCloud(userToRegister.id).catch(() => {});
+      syncUserPublicStats(userToRegister.id).catch(() => {});
       return newState;
     }
 
@@ -349,6 +351,7 @@ function reducer(state, action) {
       newState = { ...state, reviews: newReviews };
       saveStorage('cinemascope_reviews', newReviews);
       if (isSupabaseConfigured()) supabaseService.saveReview(action.payload);
+      if (action.payload?.userId) syncUserPublicStats(action.payload.userId).catch(() => {});
       return newState;
 
     case 'UPDATE_REVIEW':
@@ -359,13 +362,16 @@ function reducer(state, action) {
         const targetR = updatedRev.find(r => r.id === action.payload.id);
         if (targetR) supabaseService.saveReview(targetR);
       }
+      if (action.payload?.userId) syncUserPublicStats(action.payload.userId).catch(() => {});
       return newState;
 
     case 'DELETE_REVIEW':
+      const targetToDelete = state.reviews.find(r => r.id === action.payload);
       const remainingRev = state.reviews.filter(r => r.id !== action.payload);
       newState = { ...state, reviews: remainingRev };
       saveStorage('cinemascope_reviews', remainingRev);
       if (isSupabaseConfigured()) supabaseService.deleteReview(action.payload);
+      if (targetToDelete?.userId) syncUserPublicStats(targetToDelete.userId).catch(() => {});
       return newState;
 
     case 'MODERATE_REVIEW':
@@ -843,7 +849,15 @@ export function AppProvider({ children }) {
       // Sync personal movie library if a user is logged in
       if (currentState.currentUser && currentState.currentUser.id) {
         await syncUserLibraryWithCloud(currentState.currentUser.id).catch(console.warn);
+        await syncUserPublicStats(currentState.currentUser.id).catch(console.warn);
       }
+
+      // Reconcile and synchronize community leaderboard stats
+      await syncAllCommunityUserStats().then(updatedUsers => {
+        if (updatedUsers && updatedUsers.length > 0) {
+          dispatch({ type: 'SET_USERS', payload: updatedUsers });
+        }
+      }).catch(console.warn);
 
       const now = new Date().toISOString();
       setLastSyncedAt(now);

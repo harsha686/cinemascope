@@ -6,13 +6,7 @@ import * as LibService from '../services/movieLibraryService';
 import { getUserVotingStats } from '../services/weekendPickService';
 
 // Default mock stats for demonstration users so the leaderboard is immediately rich & engaging
-const SEED_USER_STATS = {
-  'user-1': { watched: 18, reviews: 4, votes: 12, avgRating: 4.6 },
-  'user-2': { watched: 14, reviews: 3, votes: 8, avgRating: 4.2 },
-  'user-3': { watched: 22, reviews: 5, votes: 15, avgRating: 4.5 },
-  'user-4': { watched: 9, reviews: 2, votes: 5, avgRating: 4.1 },
-  'admin-1': { watched: 35, reviews: 10, votes: 24, avgRating: 4.8 },
-};
+const SEED_USER_STATS = LibService.SEED_USER_STATS;
 
 export default function LeaderboardPage() {
   const navigate = useNavigate();
@@ -48,6 +42,10 @@ export default function LeaderboardPage() {
     const cleanUsers = [];
     for (const u of rawUsers) {
       if (!u || !u.id) continue;
+      // Skip development test clone if main account is present
+      if (u.email === 'test1@gmail.com' && rawUsers.some(other => other.id === '519d1f74-d4a5-4826-a385-a03fa92a14bb')) {
+        continue;
+      }
       const idKey = String(u.id).trim();
       const nameKey = (u.displayName || '').trim().toLowerCase();
       if (seen.has(idKey)) continue;

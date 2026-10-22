@@ -4,6 +4,15 @@ const BASE_LIB_KEY = 'cinemascope_user_library';
 const BASE_DIARY_KEY = 'cinemascope_diary';
 const BASE_COLLECTIONS_KEY = 'cinemascope_collections';
 
+// Default mock stats for demonstration users so leaderboard & profiles are immediately rich & engaging
+export const SEED_USER_STATS = {
+  'user-1': { watched: 18, reviews: 4, votes: 12, avgRating: 4.6, points: 270 },
+  'user-2': { watched: 14, reviews: 3, votes: 8, avgRating: 4.2, points: 195 },
+  'user-3': { watched: 22, reviews: 5, votes: 15, avgRating: 4.5, points: 335 },
+  'user-4': { watched: 9, reviews: 2, votes: 5, avgRating: 4.1, points: 125 },
+  'admin-1': { watched: 203, reviews: 10, votes: 24, avgRating: 4.8, points: 1405 },
+};
+
 /**
  * Resolves active user ID from explicit argument, or current logged-in user in localStorage,
  * or falls back to 'guest'.
@@ -426,24 +435,37 @@ export async function syncUserPublicStats(userId) {
     } catch (_) {}
 
     const calculatedScore = (stats.totalWatched * 5) + (reviewCount * 15) + (voteCount * 10);
+    const seed = SEED_USER_STATS[uid] || null;
 
-    const idx = users.findIndex(u => u.id === uid);
-    if (idx >= 0) {
-      const existingStats = users[idx].stats || {};
-      let finalWatched = Math.max(existingStats.watchedCount || 0, existingStats.totalWatched || 0, stats.totalWatched);
-      let finalVotes = Math.max(existingStats.voteCount || 0, existingStats.totalVotes || 0, voteCount);
-      let finalRevs = Math.max(existingStats.reviewCount || 0, reviewCount);
-      let finalScore = Math.max(existingStats.cinemaScore || existingStats.points || 0, (finalWatched * 5) + (finalRevs * 15) + (finalVotes * 10), calculatedScore);
+    let idx = users.findIndex(u => u.id === uid);
+    let targetUser = idx >= 0 ? users[idx] : null;
 
-      // Preserve special points for Konathala Jayavardhan (1745 pts minimum)
-      if (uid === '519d1f74-d4a5-4826-a385-a03fa92a14bb' || (users[idx].displayName && users[idx].displayName.toLowerCase().includes('jayavardhan'))) {
+    if (!targetUser) {
+      try {
+        const cur = localStorage.getItem('cinemascope_currentUser');
+        if (cur) {
+          const u = JSON.parse(cur);
+          if (u && (u.id === uid || u.email === uid)) targetUser = u;
+        }
+      } catch (_) {}
+    }
+
+    if (targetUser) {
+      const existingStats = targetUser.stats || {};
+      let finalWatched = Math.max(existingStats.watchedCount || 0, existingStats.totalWatched || 0, stats.totalWatched, seed?.watched || 0);
+      let finalVotes = Math.max(existingStats.voteCount || 0, existingStats.totalVotes || 0, voteCount, seed?.votes || 0);
+      let finalRevs = Math.max(existingStats.reviewCount || 0, reviewCount, seed?.reviews || 0);
+      let finalScore = Math.max(existingStats.cinemaScore || existingStats.points || 0, (finalWatched * 5) + (finalRevs * 15) + (finalVotes * 10), calculatedScore, seed?.points || 0);
+
+      // Special lock for Konathala Jayavardhan (1745 points minimum, 329 watched)
+      if (uid === '519d1f74-d4a5-4826-a385-a03fa92a14bb' || (targetUser.displayName && targetUser.displayName.toLowerCase().includes('jayavardhan'))) {
         finalWatched = Math.max(finalWatched, 329);
         finalVotes = Math.max(finalVotes, 10);
         finalScore = Math.max(finalScore, 1745);
       }
 
-      users[idx] = {
-        ...users[idx],
+      const updatedUser = {
+        ...targetUser,
         stats: {
           ...existingStats,
           watchedCount: finalWatched,
@@ -455,18 +477,24 @@ export async function syncUserPublicStats(userId) {
           totalVotes: finalVotes,
           cinemaScore: finalScore,
           points: finalScore,
-          avgRating: stats.avgRating || existingStats.avgRating || 0,
+          avgRating: stats.avgRating || existingStats.avgRating || seed?.avgRating || 0,
           updatedAt: new Date().toISOString(),
         }
       };
+
+      if (idx >= 0) {
+        users[idx] = updatedUser;
+      } else {
+        users.push(updatedUser);
+      }
       localStorage.setItem('cinemascope_users', JSON.stringify(users));
 
       if (isSupabaseConfigured()) {
-        supabaseService.saveUser(users[idx]).catch(console.warn);
+        supabaseService.saveUser(updatedUser).catch(console.warn);
       }
 
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('cinemascope_user_stats_updated', { detail: { userId: uid, stats: users[idx].stats } }));
+        window.dispatchEvent(new CustomEvent('cinemascope_user_stats_updated', { detail: { userId: uid, stats: updatedUser.stats } }));
       }
     }
   } catch (e) {
@@ -554,6 +582,7 @@ export async function syncAllCommunityUserStats() {
     const updatedUsers = usersList.map(u => {
       const uid = u.id;
       const existingStats = u.stats || {};
+      const seed = SEED_USER_STATS[uid] || null;
 
       const sbWatched = watchedMap[uid] || 0;
       const sbWatchlist = watchlistMap[uid] || 0;
@@ -573,15 +602,15 @@ export async function syncAllCommunityUserStats() {
       const curDiary = existingStats.diaryCount || existingStats.totalEntries || 0;
       const curScore = existingStats.cinemaScore || existingStats.points || 0;
 
-      let w = Math.max(curWatched, sbWatched);
+      let w = Math.max(curWatched, sbWatched, seed?.watched || 0);
       let wl = Math.max(curWatchlist, sbWatchlist);
       let fav = Math.max(curFavorites, sbFavorites);
-      let r = Math.max(curRevs, sbRevs);
-      let v = Math.max(curVotes, sbVotes);
+      let r = Math.max(curRevs, sbRevs, seed?.reviews || 0);
+      let v = Math.max(curVotes, sbVotes, seed?.votes || 0);
       let cols = Math.max(curCols, sbCollections);
       let diary = Math.max(curDiary, sbDiary);
       let likes = Math.max(existingStats.likesCount || 0, sbLikes);
-      let score = Math.max(curScore, (w * 5) + (r * 15) + (v * 10));
+      let score = Math.max(curScore, (w * 5) + (r * 15) + (v * 10), seed?.points || 0);
 
       // Special lock for Konathala Jayavardhan (1745 points minimum, 329 watched)
       if (uid === '519d1f74-d4a5-4826-a385-a03fa92a14bb' || (u.displayName && u.displayName.toLowerCase().includes('jayavardhan'))) {
@@ -593,7 +622,7 @@ export async function syncAllCommunityUserStats() {
         r = Math.max(r, 1);
       }
 
-      if (w !== curWatched || score !== curScore || v !== curVotes || r !== curRevs || cols !== curCols || diary !== curDiary) {
+      if (w !== curWatched || score !== curScore || v !== curVotes || r !== curRevs || cols !== curCols || diary !== curDiary || fav !== curFavorites || wl !== curWatchlist) {
         hasChanges = true;
       }
 
@@ -616,6 +645,7 @@ export async function syncAllCommunityUserStats() {
           likesCount: likes,
           cinemaScore: score,
           points: score,
+          avgRating: seed?.avgRating || existingStats.avgRating || 0,
           updatedAt: existingStats.updatedAt || new Date().toISOString(),
         }
       };
@@ -1205,36 +1235,50 @@ export async function syncUserLibraryWithCloud(userId) {
     const localLib = await getLibrary(uid);
     const updatedLib = { ...localLib };
 
+    const remoteMap = new Map();
     if (remoteMovies && Array.isArray(remoteMovies)) {
       remoteMovies.forEach(rm => {
-        const cleanId = String(rm.tmdb_id).replace('tmdb-', '');
+        const cleanId = String(rm.tmdb_id).replace(/^tmdb-/, '');
+        remoteMap.set(cleanId, rm);
         const local = updatedLib[cleanId] || {};
+        const isWatched = !!(rm.is_watched || local.watched);
+        const inWatchlist = !!(rm.in_watchlist || local.watchlist);
+        const isFav = !!(rm.is_favorite || local.favorite);
         updatedLib[cleanId] = {
-          watchlist: rm.in_watchlist ?? local.watchlist ?? false,
-          watched: rm.is_watched ?? local.watched ?? false,
-          favorite: rm.is_favorite ?? local.favorite ?? false,
-          rating: rm.personal_rating ?? local.rating ?? null,
-          notes: rm.notes ?? local.notes ?? '',
-          watchCount: rm.watch_count ?? local.watchCount ?? 0,
+          ...local,
+          watchlist: inWatchlist,
+          watched: isWatched,
+          favorite: isFav,
+          rating: local.rating ?? rm.personal_rating ?? null,
+          notes: local.notes || rm.notes || '',
+          watchCount: Math.max(rm.watch_count || 0, local.watchCount || 0, isWatched ? 1 : 0),
         };
       });
     }
 
-    // Push local entries not in remote
-    for (const [tmdbId, status] of Object.entries(localLib)) {
-      const existsInRemote = remoteMovies?.some(rm => String(rm.tmdb_id) === String(tmdbId));
-      if (!existsInRemote && (status.watchlist || status.watched || status.favorite || status.rating || status.notes)) {
-        await supabaseService.upsertUserMovie({
-          id: `${uid}_${tmdbId}`,
-          user_id: uid,
-          tmdb_id: tmdbId,
-          in_watchlist: !!status.watchlist,
-          is_watched: !!status.watched,
-          is_favorite: !!status.favorite,
-          personal_rating: status.rating || null,
-          notes: status.notes || null,
-          watch_count: status.watchCount || 0,
-        }).catch(console.warn);
+    // Push local & merged entries to Supabase if newer or missing
+    for (const [tmdbId, status] of Object.entries(updatedLib)) {
+      if (status.watchlist || status.watched || status.favorite || status.rating || status.notes) {
+        const rm = remoteMap.get(String(tmdbId));
+        const needsPush = !rm ||
+          (!!rm.in_watchlist !== !!status.watchlist) ||
+          (!!rm.is_watched !== !!status.watched) ||
+          (!!rm.is_favorite !== !!status.favorite) ||
+          ((rm.personal_rating ?? null) !== (status.rating ?? null));
+
+        if (needsPush) {
+          await supabaseService.upsertUserMovie({
+            id: `${uid}_${tmdbId}`,
+            user_id: uid,
+            tmdb_id: tmdbId,
+            in_watchlist: !!status.watchlist,
+            is_watched: !!status.watched,
+            is_favorite: !!status.favorite,
+            personal_rating: status.rating || null,
+            notes: status.notes || null,
+            watch_count: status.watchCount || (status.watched ? 1 : 0),
+          }).catch(console.warn);
+        }
       }
     }
     await saveLibrary(updatedLib, uid);

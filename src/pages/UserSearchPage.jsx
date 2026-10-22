@@ -3,15 +3,8 @@ import { Link } from 'react-router-dom';
 import { Search, Users, User, ShieldAlert, Star, MessageSquare, Film, X, ChevronRight } from 'lucide-react';
 import { useApp } from '../AppContext';
 import { getUserVotingStats } from '../services/weekendPickService';
+import { SEED_USER_STATS } from '../services/movieLibraryService';
 import ProfessionalRatingBadge from '../components/reviews/ProfessionalRatingBadge';
-
-const SEED_USER_STATS = {
-  'user-1': { watched: 18, reviews: 4 },
-  'user-2': { watched: 14, reviews: 3 },
-  'user-3': { watched: 22, reviews: 5 },
-  'user-4': { watched: 9, reviews: 2 },
-  'admin-1': { watched: 35, reviews: 10 },
-};
 
 export default function UserSearchPage() {
   const { state, isVerifiedPro } = useApp();
@@ -26,6 +19,10 @@ export default function UserSearchPage() {
     const cleanUsers = [];
     for (const u of rawUsers) {
       if (!u || !u.id) continue;
+      // Skip development test clone if main account is present
+      if (u.email === 'test1@gmail.com' && rawUsers.some(other => other.id === '519d1f74-d4a5-4826-a385-a03fa92a14bb')) {
+        continue;
+      }
       const idKey = String(u.id).trim();
       const nameKey = (u.displayName || '').trim().toLowerCase();
       if (seen.has(idKey)) continue;

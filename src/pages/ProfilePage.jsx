@@ -88,12 +88,13 @@ export default function ProfilePage() {
         if (!isMounted) return;
 
         // If viewing another user and remote library is 0, check user's synced stats
+        const seed = LibService.SEED_USER_STATS[profileUser?.id] || null;
         let finalWatched = archive?.stats?.totalWatched || ls?.totalWatched || 0;
         let finalWatchlist = archive?.stats?.totalWatchlist || ls?.totalWatchlist || 0;
         let finalFavorites = archive?.stats?.totalFavorites || ls?.totalFavorites || 0;
-        let finalRating = ls?.avgRating || 0;
+        let finalRating = ls?.avgRating || profileUser?.stats?.avgRating || seed?.avgRating || 0;
 
-        const profileWatchedStat = Math.max(profileUser?.stats?.watchedCount || 0, profileUser?.stats?.totalWatched || 0);
+        const profileWatchedStat = Math.max(profileUser?.stats?.watchedCount || 0, profileUser?.stats?.totalWatched || 0, seed?.watched || 0);
         if (profileWatchedStat > finalWatched) {
           finalWatched = profileWatchedStat;
         }
@@ -265,9 +266,13 @@ export default function ProfilePage() {
   // Calculate composite Cinema Points matching leaderboard
   // Score = (watched * 5) + (reviews * 15) + (votes * 10)
   const cinemaScore = useMemo(() => {
-    const calculated = (libStats.totalWatched * 5) + (userReviews.length * 15) + (weekendVotingStats.totalVotes * 10);
-    return Math.max(profileUser?.stats?.cinemaScore || profileUser?.stats?.points || 0, calculated);
-  }, [libStats.totalWatched, userReviews.length, weekendVotingStats.totalVotes, profileUser?.stats]);
+    const seed = LibService.SEED_USER_STATS[profileUser?.id] || null;
+    const effectiveWatched = Math.max(libStats.totalWatched, profileUser?.stats?.watchedCount || 0, profileUser?.stats?.totalWatched || 0, seed?.watched || 0);
+    const effectiveRevs = Math.max(userReviews.length, profileUser?.stats?.reviewCount || 0, seed?.reviews || 0);
+    const effectiveVotes = Math.max(weekendVotingStats.totalVotes, profileUser?.stats?.voteCount || 0, profileUser?.stats?.totalVotes || 0, seed?.votes || 0);
+    const calculated = (effectiveWatched * 5) + (effectiveRevs * 15) + (effectiveVotes * 10);
+    return Math.max(profileUser?.stats?.cinemaScore || profileUser?.stats?.points || 0, calculated, seed?.points || 0);
+  }, [libStats.totalWatched, userReviews.length, weekendVotingStats.totalVotes, profileUser?.stats, profileUser?.id]);
 
   // Pro reviewer status
   const proApplication = useMemo(
@@ -334,13 +339,14 @@ export default function ProfilePage() {
     }
   };
 
+  const seedStat = LibService.SEED_USER_STATS[profileUser?.id] || null;
   const statCards = [
-    { id: 'watched', label: 'Movies Watched', value: Math.max(libStats.totalWatched, profileUser?.stats?.watchedCount || 0, profileUser?.stats?.totalWatched || 0), icon: <Film size={18} color="var(--gold)" /> },
+    { id: 'watched', label: 'Movies Watched', value: Math.max(libStats.totalWatched, profileUser?.stats?.watchedCount || 0, profileUser?.stats?.totalWatched || 0, seedStat?.watched || 0), icon: <Film size={18} color="var(--gold)" /> },
     { id: 'watchlist', label: 'Watchlist', value: Math.max(libStats.totalWatchlist, profileUser?.stats?.watchlistCount || 0, profileUser?.stats?.totalWatchlist || 0), icon: <Bookmark size={18} color="var(--gold)" /> },
     { id: 'favorites', label: 'Favorites', value: Math.max(libStats.totalFavorites, profileUser?.stats?.favoritesCount || 0, profileUser?.stats?.totalFavorites || 0), icon: <Heart size={18} color="var(--gold)" /> },
     { id: 'likes', label: 'Helpful Likes', value: Math.max(totalLikesReceived, profileUser?.stats?.likesCount || 0, profileUser?.stats?.helpfulLikes || 0), icon: <Heart size={18} color="#ef4444" /> },
-    { id: 'reviews', label: 'Reviews Written', value: Math.max(userReviews.length, profileUser?.stats?.reviewCount || 0), icon: <MessageSquare size={18} color="var(--gold)" /> },
-    { id: 'votes', label: 'Weekend Votes', value: Math.max(weekendVotingStats.totalVotes, profileUser?.stats?.voteCount || 0, profileUser?.stats?.totalVotes || 0), icon: <Trophy size={18} color="var(--gold)" /> },
+    { id: 'reviews', label: 'Reviews Written', value: Math.max(userReviews.length, profileUser?.stats?.reviewCount || 0, seedStat?.reviews || 0), icon: <MessageSquare size={18} color="var(--gold)" /> },
+    { id: 'votes', label: 'Weekend Votes', value: Math.max(weekendVotingStats.totalVotes, profileUser?.stats?.voteCount || 0, profileUser?.stats?.totalVotes || 0, seedStat?.votes || 0), icon: <Trophy size={18} color="var(--gold)" /> },
     { id: 'diary', label: 'Diary Entries', value: Math.max(diaryStats.totalEntries, diaryEntries.length, profileUser?.stats?.diaryCount || 0, profileUser?.stats?.totalEntries || 0), icon: <BookOpen size={18} color="var(--gold)" /> },
     { id: 'collections', label: 'Collections', value: Math.max(collectionsCount, collectionsList.length, profileUser?.stats?.collectionsCount || 0), icon: <Folder size={18} color="var(--gold)" /> },
   ];

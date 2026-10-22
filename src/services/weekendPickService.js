@@ -1064,6 +1064,11 @@ export function submitVote({ roundId, genreId, candidateId, titleId, title, user
     }
   }
 
+  // Update voter's calculated points immediately
+  if (typeof window !== 'undefined') {
+    import('./movieLibraryService').then(m => m.syncUserPublicStats(userId)).catch(() => {});
+  }
+
   return newVote;
 }
 
