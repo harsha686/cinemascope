@@ -485,11 +485,13 @@ export async function syncAllCommunityUserStats() {
   if (!supabase) return null;
 
   try {
-    const [usersRes, moviesRes, reviewsRes, wpRes] = await Promise.all([
+    const [usersRes, moviesRes, reviewsRes, wpRes, colsRes, diaryRes] = await Promise.all([
       supabase.from('collections').select('description').eq('id', 'system_users_data').maybeSingle(),
-      supabase.from('user_movies').select('user_id, is_watched'),
-      supabase.from('reviews').select('user_id, status'),
+      supabase.from('user_movies').select('user_id, is_watched, in_watchlist, is_favorite'),
+      supabase.from('reviews').select('user_id, status, likes_count'),
       supabase.from('collections').select('description').eq('id', 'system_weekend_pick_data').maybeSingle(),
+      supabase.from('collections').select('id, user_id').neq('id', 'system_users_data').neq('id', 'system_weekend_pick_data').neq('id', 'system_cities_data').neq('id', 'system_theaters_data').neq('id', 'system_notifications_data').neq('id', 'system_pro_applications_data'),
+      supabase.from('diary_entries').select('id, user_id'),
     ]);
 
     let usersList = [];
@@ -498,19 +500,40 @@ export async function syncAllCommunityUserStats() {
     }
     if (!Array.isArray(usersList) || usersList.length === 0) return null;
 
-    // Aggregate watched counts
+    // Aggregate watched, watchlist, favorites counts
     const watchedMap = {};
+    const watchlistMap = {};
+    const favoritesMap = {};
     (moviesRes.data || []).forEach(m => {
-      if (m.is_watched && m.user_id) {
-        watchedMap[m.user_id] = (watchedMap[m.user_id] || 0) + 1;
-      }
+      if (!m.user_id) return;
+      if (m.is_watched) watchedMap[m.user_id] = (watchedMap[m.user_id] || 0) + 1;
+      if (m.in_watchlist) watchlistMap[m.user_id] = (watchlistMap[m.user_id] || 0) + 1;
+      if (m.is_favorite) favoritesMap[m.user_id] = (favoritesMap[m.user_id] || 0) + 1;
     });
 
-    // Aggregate reviews count
+    // Aggregate reviews count & likes
     const revMap = {};
+    const likesMap = {};
     (reviewsRes.data || []).forEach(r => {
       if (r.user_id && (r.status === 'PUBLISHED' || !r.status)) {
         revMap[r.user_id] = (revMap[r.user_id] || 0) + 1;
+        if (r.likes_count) likesMap[r.user_id] = (likesMap[r.user_id] || 0) + (r.likes_count || 0);
+      }
+    });
+
+    // Aggregate collections count
+    const collectionsMap = {};
+    (colsRes.data || []).forEach(c => {
+      if (c.user_id && c.user_id !== 'system') {
+        collectionsMap[c.user_id] = (collectionsMap[c.user_id] || 0) + 1;
+      }
+    });
+
+    // Aggregate diary count
+    const diaryMap = {};
+    (diaryRes.data || []).forEach(d => {
+      if (d.user_id) {
+        diaryMap[d.user_id] = (diaryMap[d.user_id] || 0) + 1;
       }
     });
 
@@ -533,27 +556,44 @@ export async function syncAllCommunityUserStats() {
       const existingStats = u.stats || {};
 
       const sbWatched = watchedMap[uid] || 0;
+      const sbWatchlist = watchlistMap[uid] || 0;
+      const sbFavorites = favoritesMap[uid] || 0;
       const sbRevs = revMap[uid] || 0;
       const sbVotes = voteMap[uid] || 0;
+      const sbCollections = collectionsMap[uid] || 0;
+      const sbDiary = diaryMap[uid] || 0;
+      const sbLikes = likesMap[uid] || 0;
 
       const curWatched = existingStats.watchedCount || existingStats.totalWatched || 0;
+      const curWatchlist = existingStats.watchlistCount || existingStats.totalWatchlist || 0;
+      const curFavorites = existingStats.favoritesCount || existingStats.totalFavorites || 0;
       const curRevs = existingStats.reviewCount || 0;
       const curVotes = existingStats.voteCount || existingStats.totalVotes || 0;
+      const curCols = existingStats.collectionsCount || 0;
+      const curDiary = existingStats.diaryCount || existingStats.totalEntries || 0;
       const curScore = existingStats.cinemaScore || existingStats.points || 0;
 
       let w = Math.max(curWatched, sbWatched);
+      let wl = Math.max(curWatchlist, sbWatchlist);
+      let fav = Math.max(curFavorites, sbFavorites);
       let r = Math.max(curRevs, sbRevs);
       let v = Math.max(curVotes, sbVotes);
+      let cols = Math.max(curCols, sbCollections);
+      let diary = Math.max(curDiary, sbDiary);
+      let likes = Math.max(existingStats.likesCount || 0, sbLikes);
       let score = Math.max(curScore, (w * 5) + (r * 15) + (v * 10));
 
-      // Special lock for Konathala Jayavardhan (1745 points minimum)
+      // Special lock for Konathala Jayavardhan (1745 points minimum, 329 watched)
       if (uid === '519d1f74-d4a5-4826-a385-a03fa92a14bb' || (u.displayName && u.displayName.toLowerCase().includes('jayavardhan'))) {
         w = Math.max(w, 329);
         v = Math.max(v, 10);
         score = Math.max(score, 1745);
+        cols = Math.max(cols, 1);
+        diary = Math.max(diary, 1);
+        r = Math.max(r, 1);
       }
 
-      if (w !== curWatched || score !== curScore || v !== curVotes || r !== curRevs) {
+      if (w !== curWatched || score !== curScore || v !== curVotes || r !== curRevs || cols !== curCols || diary !== curDiary) {
         hasChanges = true;
       }
 
@@ -563,9 +603,17 @@ export async function syncAllCommunityUserStats() {
           ...existingStats,
           watchedCount: w,
           totalWatched: w,
+          watchlistCount: wl,
+          totalWatchlist: wl,
+          favoritesCount: fav,
+          totalFavorites: fav,
           reviewCount: r,
           voteCount: v,
           totalVotes: v,
+          collectionsCount: cols,
+          diaryCount: diary,
+          totalEntries: diary,
+          likesCount: likes,
           cinemaScore: score,
           points: score,
           updatedAt: existingStats.updatedAt || new Date().toISOString(),
@@ -1247,6 +1295,9 @@ export async function syncUserLibraryWithCloud(userId) {
     }
     const mergedCols = Array.from(colMap.values());
     await saveCollections(mergedCols, uid);
+
+    // 5. Update user's calculated public stats in community directory & cloud
+    await syncUserPublicStats(uid);
 
     return {
       success: true,

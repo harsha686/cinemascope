@@ -98,6 +98,20 @@ export default function ProfilePage() {
           finalWatched = profileWatchedStat;
         }
 
+        const profileWatchlistStat = Math.max(profileUser?.stats?.watchlistCount || 0, profileUser?.stats?.totalWatchlist || 0);
+        if (profileWatchlistStat > finalWatchlist) {
+          finalWatchlist = profileWatchlistStat;
+        }
+
+        const profileFavoritesStat = Math.max(profileUser?.stats?.favoritesCount || 0, profileUser?.stats?.totalFavorites || 0);
+        if (profileFavoritesStat > finalFavorites) {
+          finalFavorites = profileFavoritesStat;
+        }
+
+        const finalDiaryCount = Math.max(ds?.totalEntries || 0, diaryData?.length || 0, profileUser?.stats?.diaryCount || 0, profileUser?.stats?.totalEntries || 0);
+        const finalColsList = cols || [];
+        const finalColsCount = Math.max(finalColsList.length, profileUser?.stats?.collectionsCount || 0);
+
         setLibStats({
           totalWatchlist: finalWatchlist,
           totalWatched: finalWatched,
@@ -105,13 +119,13 @@ export default function ProfilePage() {
           totalRated: finalWatched,
           avgRating: finalRating,
         });
-        setDiaryStats(ds || { totalEntries: diaryData?.length || 0, thisYearCount: 0, thisMonthCount: 0, rewatches: 0 });
-        setCollectionsCount(cols ? cols.length : 0);
+        setDiaryStats(ds ? { ...ds, totalEntries: finalDiaryCount } : { totalEntries: finalDiaryCount, thisYearCount: 0, thisMonthCount: 0, rewatches: 0 });
+        setCollectionsCount(finalColsCount);
         setWeekendVotingStats(getUserVotingStats(profileUser.id));
         setUserPastVotes(getUserVotes(profileUser.id));
         setArchiveData(archive || { all: [], watched: [], favorites: [], watchlist: [], stats: {} });
         setDiaryEntries(diaryData || []);
-        setCollectionsList(cols || []);
+        setCollectionsList(finalColsList);
       } catch (e) {
         console.warn('Error loading profile stats and archive:', e);
       } finally {
@@ -120,6 +134,14 @@ export default function ProfilePage() {
     };
 
     load();
+
+    // When viewing own profile, automatically push any local items to Supabase cloud in the background
+    if (isOwnProfile && profileUser?.id) {
+      LibService.syncUserLibraryWithCloud(profileUser.id).then(() => {
+        if (isMounted) load();
+      }).catch(console.warn);
+    }
+
     return () => { isMounted = false; };
   }, [profileUser?.id, isOwnProfile, profileUser?.stats]);
 
@@ -313,14 +335,14 @@ export default function ProfilePage() {
   };
 
   const statCards = [
-    { id: 'watched', label: 'Movies Watched', value: libStats.totalWatched, icon: <Film size={18} color="var(--gold)" /> },
-    { id: 'watchlist', label: 'Watchlist', value: libStats.totalWatchlist, icon: <Bookmark size={18} color="var(--gold)" /> },
-    { id: 'favorites', label: 'Favorites', value: libStats.totalFavorites, icon: <Heart size={18} color="var(--gold)" /> },
-    { id: 'likes', label: 'Helpful Likes', value: totalLikesReceived, icon: <Heart size={18} color="#ef4444" /> },
-    { id: 'reviews', label: 'Reviews Written', value: userReviews.length, icon: <MessageSquare size={18} color="var(--gold)" /> },
-    { id: 'votes', label: 'Weekend Votes', value: weekendVotingStats.totalVotes, icon: <Trophy size={18} color="var(--gold)" /> },
-    { id: 'diary', label: 'Diary Entries', value: diaryStats.totalEntries, icon: <BookOpen size={18} color="var(--gold)" /> },
-    { id: 'collections', label: 'Collections', value: collectionsCount, icon: <Folder size={18} color="var(--gold)" /> },
+    { id: 'watched', label: 'Movies Watched', value: Math.max(libStats.totalWatched, profileUser?.stats?.watchedCount || 0, profileUser?.stats?.totalWatched || 0), icon: <Film size={18} color="var(--gold)" /> },
+    { id: 'watchlist', label: 'Watchlist', value: Math.max(libStats.totalWatchlist, profileUser?.stats?.watchlistCount || 0, profileUser?.stats?.totalWatchlist || 0), icon: <Bookmark size={18} color="var(--gold)" /> },
+    { id: 'favorites', label: 'Favorites', value: Math.max(libStats.totalFavorites, profileUser?.stats?.favoritesCount || 0, profileUser?.stats?.totalFavorites || 0), icon: <Heart size={18} color="var(--gold)" /> },
+    { id: 'likes', label: 'Helpful Likes', value: Math.max(totalLikesReceived, profileUser?.stats?.likesCount || 0, profileUser?.stats?.helpfulLikes || 0), icon: <Heart size={18} color="#ef4444" /> },
+    { id: 'reviews', label: 'Reviews Written', value: Math.max(userReviews.length, profileUser?.stats?.reviewCount || 0), icon: <MessageSquare size={18} color="var(--gold)" /> },
+    { id: 'votes', label: 'Weekend Votes', value: Math.max(weekendVotingStats.totalVotes, profileUser?.stats?.voteCount || 0, profileUser?.stats?.totalVotes || 0), icon: <Trophy size={18} color="var(--gold)" /> },
+    { id: 'diary', label: 'Diary Entries', value: Math.max(diaryStats.totalEntries, diaryEntries.length, profileUser?.stats?.diaryCount || 0, profileUser?.stats?.totalEntries || 0), icon: <BookOpen size={18} color="var(--gold)" /> },
+    { id: 'collections', label: 'Collections', value: Math.max(collectionsCount, collectionsList.length, profileUser?.stats?.collectionsCount || 0), icon: <Folder size={18} color="var(--gold)" /> },
   ];
 
   // Items for the active archive tab
@@ -789,7 +811,7 @@ export default function ProfilePage() {
               className={`btn ${activeArchiveTab === 'watched' ? 'btn-primary' : 'btn-ghost'} btn-sm`}
               style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap' }}
             >
-              <Film size={13} /> Watched ({libStats.totalWatched})
+              <Film size={13} /> Watched ({Math.max(libStats.totalWatched, profileUser?.stats?.watchedCount || 0, profileUser?.stats?.totalWatched || 0)})
             </button>
             <button
               type="button"
@@ -797,7 +819,7 @@ export default function ProfilePage() {
               className={`btn ${activeArchiveTab === 'favorites' ? 'btn-primary' : 'btn-ghost'} btn-sm`}
               style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap' }}
             >
-              <Heart size={13} /> Favorites ({libStats.totalFavorites})
+              <Heart size={13} /> Favorites ({Math.max(libStats.totalFavorites, profileUser?.stats?.favoritesCount || 0, profileUser?.stats?.totalFavorites || 0)})
             </button>
             <button
               type="button"
@@ -805,7 +827,7 @@ export default function ProfilePage() {
               className={`btn ${activeArchiveTab === 'watchlist' ? 'btn-primary' : 'btn-ghost'} btn-sm`}
               style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap' }}
             >
-              <Bookmark size={13} /> Watchlist ({libStats.totalWatchlist})
+              <Bookmark size={13} /> Watchlist ({Math.max(libStats.totalWatchlist, profileUser?.stats?.watchlistCount || 0, profileUser?.stats?.totalWatchlist || 0)})
             </button>
             <button
               type="button"
@@ -813,7 +835,7 @@ export default function ProfilePage() {
               className={`btn ${activeArchiveTab === 'diary' ? 'btn-primary' : 'btn-ghost'} btn-sm`}
               style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap' }}
             >
-              <BookOpen size={13} /> Diary ({diaryStats.totalEntries})
+              <BookOpen size={13} /> Diary ({Math.max(diaryStats.totalEntries, diaryEntries.length, profileUser?.stats?.diaryCount || 0, profileUser?.stats?.totalEntries || 0)})
             </button>
             <button
               type="button"
@@ -821,7 +843,7 @@ export default function ProfilePage() {
               className={`btn ${activeArchiveTab === 'collections' ? 'btn-primary' : 'btn-ghost'} btn-sm`}
               style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap' }}
             >
-              <Folder size={13} /> Collections ({collectionsCount})
+              <Folder size={13} /> Collections ({Math.max(collectionsCount, collectionsList.length, profileUser?.stats?.collectionsCount || 0)})
             </button>
             <button
               type="button"
@@ -829,7 +851,7 @@ export default function ProfilePage() {
               className={`btn ${activeArchiveTab === 'reviews' ? 'btn-primary' : 'btn-ghost'} btn-sm`}
               style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap' }}
             >
-              <MessageSquare size={13} /> Reviews ({userReviews.length})
+              <MessageSquare size={13} /> Reviews ({Math.max(userReviews.length, profileUser?.stats?.reviewCount || 0)})
             </button>
             <button
               type="button"
@@ -837,7 +859,7 @@ export default function ProfilePage() {
               className={`btn ${activeArchiveTab === 'votes' ? 'btn-primary' : 'btn-ghost'} btn-sm`}
               style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap' }}
             >
-              <Trophy size={13} /> Weekend Votes ({weekendVotingStats.totalVotes})
+              <Trophy size={13} /> Weekend Votes ({Math.max(weekendVotingStats.totalVotes, profileUser?.stats?.voteCount || 0, profileUser?.stats?.totalVotes || 0)})
             </button>
           </div>
 

@@ -1004,6 +1004,9 @@ export function AppProvider({ children }) {
       if (!current || current.email?.toLowerCase() !== email.toLowerCase() || current.avatarUrl !== avatarUrl) {
         dispatch({ type: 'REGISTER_USER', payload: userObj });
       }
+
+      // Automatically sync user library, watchlist, favorites, diary, and collections with Supabase
+      syncUserLibraryWithCloud(userObj.id).catch(console.warn);
     };
 
     // Check existing active session
