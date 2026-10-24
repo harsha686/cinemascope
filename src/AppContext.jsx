@@ -1380,11 +1380,11 @@ export function AppProvider({ children }) {
   }, [state.reviews, isMovieMatch, isProfessionalReview]);
 
   const getTheaterReviews = useCallback((theaterId) => {
-    return state.reviews.filter(r => r.theaterId === theaterId && r.status === 'PUBLISHED');
+    return state.reviews.filter(r => (r.theaterId === theaterId || r.parameterRatings?.theaterId === theaterId) && (r.status === 'PUBLISHED' || !r.status));
   }, [state.reviews]);
 
   const getTheaterUserReviews = useCallback((theaterId) => {
-    return state.reviews.filter(r => r.theaterId === theaterId && r.status === 'PUBLISHED');
+    return state.reviews.filter(r => (r.theaterId === theaterId || r.parameterRatings?.theaterId === theaterId) && (r.status === 'PUBLISHED' || !r.status));
   }, [state.reviews]);
 
   const getTheaterProfessionalReviews = useCallback(() => {
@@ -1392,7 +1392,7 @@ export function AppProvider({ children }) {
   }, []);
 
   const getTheaterRating = useCallback((theaterId) => {
-    const published = state.reviews.filter(r => r.theaterId === theaterId && r.status === 'PUBLISHED');
+    const published = state.reviews.filter(r => (r.theaterId === theaterId || r.parameterRatings?.theaterId === theaterId) && (r.status === 'PUBLISHED' || !r.status));
     if (published.length === 0) return { average: 0, count: 0 };
     const sum = published.reduce((acc, r) => acc + (r.rating || 0), 0);
     const avg = Math.round((sum / published.length) * 10) / 10;
@@ -1404,7 +1404,7 @@ export function AppProvider({ children }) {
   }, []);
 
   const getTheaterRatingDistribution = useCallback((theaterId) => {
-    const published = state.reviews.filter(r => r.theaterId === theaterId && r.status === 'PUBLISHED');
+    const published = state.reviews.filter(r => (r.theaterId === theaterId || r.parameterRatings?.theaterId === theaterId) && (r.status === 'PUBLISHED' || !r.status));
     const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
     const total = published.length;
     if (total === 0) return { counts, percentages: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }, total: 0 };
@@ -1427,11 +1427,15 @@ export function AppProvider({ children }) {
 
   const getUserReviewForTheater = useCallback((userId, theaterId) => {
     if (!userId || !theaterId) return null;
-    return state.reviews.find(r => r.userId === userId && r.theaterId === theaterId && r.status !== 'REMOVED') || null;
+    return state.reviews.find(r => r.userId === userId && (r.theaterId === theaterId || r.parameterRatings?.theaterId === theaterId) && r.status !== 'REMOVED') || null;
   }, [state.reviews]);
 
   const getScreenReviews = useCallback((theaterId, screenId) => {
-    return state.reviews.filter(r => r.theaterId === theaterId && r.screenId === screenId && r.status === 'PUBLISHED');
+    return state.reviews.filter(r =>
+      (r.theaterId === theaterId || r.parameterRatings?.theaterId === theaterId) &&
+      (r.screenId === screenId || r.parameterRatings?.screenId === screenId) &&
+      (r.status === 'PUBLISHED' || !r.status)
+    );
   }, [state.reviews]);
 
   const deleteUserAccount = useCallback(async (userOrId, options = {}) => {

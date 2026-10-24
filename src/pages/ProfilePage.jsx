@@ -287,7 +287,7 @@ export default function ProfilePage() {
   // Published reviews by this profile user
   const userReviews = useMemo(() => {
     if (!profileUser) return [];
-    return (state.reviews || []).filter(r => r.userId === profileUser.id && r.status === 'PUBLISHED');
+    return (state.reviews || []).filter(r => r.userId === profileUser.id && (r.status === 'PUBLISHED' || !r.status));
   }, [state.reviews, profileUser]);
 
   // Calculate composite Cinema Points matching leaderboard

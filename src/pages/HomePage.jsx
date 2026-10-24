@@ -47,9 +47,9 @@ export default function HomePage() {
 
   const recentReviews = useMemo(() => {
     return [...state.reviews]
-      .filter(r => r.status === 'PUBLISHED')
+      .filter(r => (r.status === 'PUBLISHED' || !r.status))
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(0, 3);
+      .slice(0, 6);
   }, [state.reviews]);
 
   const filteredCities = allCities.filter(c =>
@@ -314,7 +314,14 @@ export default function HomePage() {
               />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 16 }}>
                 {recentReviews.map(rev => {
-                  const targetM = state.movies.find(m => m.id === rev.movieId);
+                  const isTheater = rev.targetType === 'THEATER' || !!rev.theaterId;
+                  const targetM = !isTheater && rev.movieId ? state.movies.find(m => m.id === rev.movieId) : null;
+                  const targetTheater = isTheater && rev.theaterId ? allTheaters.find(t => t.id === rev.theaterId) : null;
+                  const reviewTitle = isTheater
+                    ? (rev.theaterName || targetTheater?.name || 'Cinema Review')
+                    : (targetM?.title || rev.movieTitle || rev.parameterRatings?.originalMovieTitle || rev.movieId || 'Film Review');
+                  const reviewLink = isTheater && rev.theaterId ? `/theater/${rev.theaterId}` : (rev.movieId ? `/movie/${rev.movieId}` : '#');
+
                   return (
                     <div
                       key={rev.id}
@@ -323,21 +330,21 @@ export default function HomePage() {
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                         <Link
-                          to={`/movie/${rev.movieId}`}
+                          to={reviewLink}
                           style={{ fontSize: 14, color: 'var(--gold)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'opacity var(--transition-fast)' }}
                           onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
                           onMouseLeave={e => e.currentTarget.style.opacity = '1'}
                         >
-                          {targetM?.title || rev.movieId}
+                          {reviewTitle}
                         </Link>
                         <StarRating rating={rev.rating} readOnly size={12} />
                       </div>
                       <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        "{rev.reviewText}"
+                        {rev.reviewText ? `"${rev.reviewText}"` : (isTheater ? 'Rated theater presentation & audio-visual experience.' : 'Rated overall film quality & cinematic experience.')}
                       </p>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span>— {rev.userDisplayName}</span>
-                        <Link to={`/movie/${rev.movieId}`} style={{ color: 'var(--gold)', transition: 'opacity var(--transition-fast)' }}
+                        <span>— {rev.userDisplayName || 'Cinema Enthusiast'}</span>
+                        <Link to={reviewLink} style={{ color: 'var(--gold)', transition: 'opacity var(--transition-fast)' }}
                           onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
                           onMouseLeave={e => e.currentTarget.style.opacity = '1'}
                         >Read →</Link>
