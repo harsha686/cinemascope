@@ -4,8 +4,8 @@ import initialMovies from './data/movies.json';
 import initialReviews from './data/reviews.json';
 import initialUsers from './data/users.json';
 import { supabaseService, isSupabaseConfigured, getSupabaseClient } from './services/supabase';
-import { syncWeekendPickDataFromCloud, pushWeekendPickDataToCloud } from './services/weekendPickService';
-import { syncUserLibraryWithCloud, syncUserPublicStats, syncAllCommunityUserStats } from './services/movieLibraryService';
+import { syncWeekendPickDataFromCloud, pushWeekendPickDataToCloud, deleteUserVotes } from './services/weekendPickService';
+import { syncUserLibraryWithCloud, syncUserPublicStats, syncAllCommunityUserStats, wipeUserLibraryData } from './services/movieLibraryService';
 import { DEFAULT_PRO_APPLICATIONS, getUserApplication as getProAppFromService } from './services/proReviewerService';
 
 const AppContext = createContext(null);
@@ -203,6 +203,7 @@ const initialState = {
   currentUser: sanitizedCurrentUser, // null or User object
   professionalApplications: loadStorage('cinemascope_pro_applications', DEFAULT_PRO_APPLICATIONS),
   notifications: loadStorage('cinemascope_notifications', []),
+  deletionRequests: loadStorage('cinemascope_deletion_requests', []),
 };
 
 function reducer(state, action) {
@@ -245,6 +246,44 @@ function reducer(state, action) {
       const cleanUsers = deduplicateUsers(action.payload);
       newState = { ...state, users: cleanUsers };
       saveStorage('cinemascope_users', cleanUsers);
+      return newState;
+    }
+
+    case 'DELETE_USER': {
+      const target = typeof action.payload === 'object' && action.payload !== null
+        ? action.payload
+        : { id: action.payload };
+      const targetId = target.id;
+      const normEmail = (target.email && target.email !== '—') ? target.email.toLowerCase().trim() : null;
+      const normName = (target.displayName || '').trim().toLowerCase();
+
+      const isMatch = (uId, uEmail, uName) => {
+        if (targetId && uId && uId === targetId) return true;
+        if (normEmail && uEmail && uEmail !== '—' && uEmail.toLowerCase().trim() === normEmail) return true;
+        if (normName && uName && uName.trim().toLowerCase() === normName) return true;
+        return false;
+      };
+
+      const remainingUsers = (state.users || []).filter(u => !isMatch(u.id, u.email, u.displayName));
+      const remainingReviews = (state.reviews || []).filter(r => !isMatch(r.userId, r.userEmail, r.userDisplayName));
+      const remainingRequests = (state.deletionRequests || []).filter(r => !isMatch(r.userId, r.userEmail, r.userDisplayName));
+
+      const isCurrent = state.currentUser && isMatch(state.currentUser.id, state.currentUser.email, state.currentUser.displayName);
+
+      newState = {
+        ...state,
+        users: remainingUsers,
+        reviews: remainingReviews,
+        deletionRequests: remainingRequests,
+        currentUser: isCurrent ? null : state.currentUser,
+      };
+
+      saveStorage('cinemascope_users', remainingUsers);
+      saveStorage('cinemascope_reviews', remainingReviews);
+      saveStorage('cinemascope_deletion_requests', remainingRequests);
+      if (isCurrent) {
+        saveStorage('cinemascope_currentUser', null);
+      }
       return newState;
     }
 
@@ -480,6 +519,41 @@ function reducer(state, action) {
     case 'SET_NOTIFICATIONS': {
       newState = { ...state, notifications: action.payload };
       saveStorage('cinemascope_notifications', action.payload);
+      return newState;
+    }
+
+    // --- DELETION REQUEST ACTIONS ---
+    case 'SET_DELETION_REQUESTS': {
+      newState = { ...state, deletionRequests: action.payload };
+      saveStorage('cinemascope_deletion_requests', action.payload);
+      return newState;
+    }
+
+    case 'SUBMIT_DELETION_REQUEST': {
+      const existing = (state.deletionRequests || []).filter(r => r.userId !== action.payload.userId);
+      const updated = [action.payload, ...existing];
+      newState = { ...state, deletionRequests: updated };
+      saveStorage('cinemascope_deletion_requests', updated);
+      if (isSupabaseConfigured()) supabaseService.saveDeletionRequestsData(updated).catch(console.warn);
+      return newState;
+    }
+
+    case 'UPDATE_DELETION_REQUEST': {
+      const updated = (state.deletionRequests || []).map(r =>
+        (r.id === action.payload.id || r.userId === action.payload.userId) ? { ...r, ...action.payload } : r
+      );
+      newState = { ...state, deletionRequests: updated };
+      saveStorage('cinemascope_deletion_requests', updated);
+      if (isSupabaseConfigured()) supabaseService.saveDeletionRequestsData(updated).catch(console.warn);
+      return newState;
+    }
+
+    case 'CANCEL_DELETION_REQUEST': {
+      const targetId = action.payload?.id || action.payload?.userId || action.payload;
+      const updated = (state.deletionRequests || []).filter(r => r.id !== targetId && r.userId !== targetId);
+      newState = { ...state, deletionRequests: updated };
+      saveStorage('cinemascope_deletion_requests', updated);
+      if (isSupabaseConfigured()) supabaseService.saveDeletionRequestsData(updated).catch(console.warn);
       return newState;
     }
 
@@ -1313,11 +1387,61 @@ export function AppProvider({ children }) {
     return state.reviews.filter(r => r.theaterId === theaterId && r.screenId === screenId && r.status === 'PUBLISHED');
   }, [state.reviews]);
 
+  const deleteUserAccount = useCallback(async (userOrId, options = {}) => {
+    const target = typeof userOrId === 'object' && userOrId !== null
+      ? userOrId
+      : { id: userOrId, email: options.email, displayName: options.displayName };
+
+    const targetId = target.id;
+    const targetEmail = target.email;
+    const targetName = target.displayName;
+
+    // 1. Dispatch local state wipe immediately
+    dispatch({
+      type: 'DELETE_USER',
+      payload: { id: targetId, email: targetEmail, displayName: targetName },
+    });
+
+    // 2. Wipe local library and weekend votes
+    if (targetId) {
+      await wipeUserLibraryData(targetId).catch(console.warn);
+      deleteUserVotes(targetId, targetEmail);
+    }
+
+    // 3. Wipe remote Supabase data (users, reviews, library, diary, collections, votes)
+    if (isSupabaseConfigured()) {
+      await supabaseService.deleteUserAccount(targetId, targetEmail, targetName).catch(console.warn);
+    }
+
+    // 4. If current logged-in user, sign out
+    const isCurrent = stateRef.current?.currentUser && (
+      (targetId && stateRef.current.currentUser.id === targetId) ||
+      (targetEmail && stateRef.current.currentUser.email && stateRef.current.currentUser.email.toLowerCase() === targetEmail.toLowerCase())
+    );
+
+    if (isCurrent) {
+      try {
+        const sbClient = getSupabaseClient();
+        if (sbClient) await sbClient.auth.signOut().catch(() => {});
+      } catch (_) {}
+    }
+
+    // 5. Broadcast custom event
+    try {
+      window.dispatchEvent(new CustomEvent('cinemascope_user_deleted', {
+        detail: { id: targetId, email: targetEmail, displayName: targetName }
+      }));
+    } catch (_) {}
+
+    return true;
+  }, []);
+
   return (
     <AppContext.Provider value={{
       state,
       dispatch,
       currentUser: state.currentUser,
+      deleteUserAccount,
       getCityTheaters,
       getTheater,
       getScreen,

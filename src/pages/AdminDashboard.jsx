@@ -12,7 +12,7 @@ import CloudSyncButton from '../components/common/CloudSyncButton';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { state, dispatch, allCities, allTheaters, getMovieRating, refreshData, syncCloudData, isRefreshing, lastSyncedAt } = useApp();
+  const { state, dispatch, allCities, allTheaters, getMovieRating, refreshData, syncCloudData, isRefreshing, lastSyncedAt, deleteUserAccount } = useApp();
 
   const currentUser = state.currentUser;
   const isAdmin = currentUser && currentUser.role === 'ADMIN';
@@ -21,6 +21,26 @@ export default function AdminDashboard() {
   const [movieSearch, setMovieSearch] = useState('');
   const [movieStatusFilter, setMovieStatusFilter] = useState('all');
   const [refreshFeedback, setRefreshFeedback] = useState('');
+
+  // Delete User State
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
+  const [userDeleteSuccess, setUserDeleteSuccess] = useState('');
+
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeletingUser(true);
+    try {
+      await deleteUserAccount(userToDelete);
+      setUserDeleteSuccess(`User "${userToDelete.displayName}" has been permanently deleted.`);
+      setTimeout(() => setUserDeleteSuccess(''), 4000);
+      setUserToDelete(null);
+    } catch (err) {
+      alert('Failed to delete user: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setIsDeletingUser(false);
+    }
+  };
 
   const handleFullRefresh = async () => {
     if (refreshData) {
@@ -856,6 +876,25 @@ export default function AdminDashboard() {
                     {isRefreshing ? 'Syncing…' : '↻ Refresh Users'}
                   </button>
                 </div>
+
+                {userDeleteSuccess && (
+                  <div style={{
+                    background: 'rgba(34,197,94,0.1)',
+                    border: '1px solid rgba(34,197,94,0.3)',
+                    color: '#4ade80',
+                    padding: '10px 14px',
+                    borderRadius: 4,
+                    fontSize: 12,
+                    marginBottom: 16,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8
+                  }}>
+                    <CheckCircle2 size={14} />
+                    <span>{userDeleteSuccess}</span>
+                  </div>
+                )}
+
                 <div style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-card)' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
@@ -864,6 +903,7 @@ export default function AdminDashboard() {
                         <th style={{ padding: '12px 16px', textAlign: 'left' }}>Email (Private Admin View)</th>
                         <th style={{ padding: '12px 16px', textAlign: 'left' }}>Role</th>
                         <th style={{ padding: '12px 16px', textAlign: 'left' }}>Reviews Written</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -873,6 +913,11 @@ export default function AdminDashboard() {
                           (r.userDisplayName && u.displayName && r.userDisplayName.trim().toLowerCase() === u.displayName.trim().toLowerCase()) ||
                           (u.email && r.userEmail && r.userEmail.toLowerCase() === u.email.toLowerCase())
                         ).length;
+
+                        const isProtected = u.role === 'ADMIN' ||
+                          (u.email && u.email.toLowerCase() === 'harshavardhanmellof41@gmail.com') ||
+                          (currentUser?.id && u.id === currentUser.id);
+
                         return (
                           <tr key={u.id || u.email} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                             <td style={{ padding: '10px 16px', color: 'var(--text-primary)', fontWeight: 600 }}>{u.displayName}</td>
@@ -883,12 +928,134 @@ export default function AdminDashboard() {
                               </span>
                             </td>
                             <td style={{ padding: '10px 16px', color: 'var(--gold)', fontFamily: 'var(--font-serif)', fontWeight: 700 }}>{revCount}</td>
+                            <td style={{ padding: '10px 16px', textAlign: 'right' }}>
+                              {isProtected ? (
+                                <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', letterSpacing: '0.04em' }}>
+                                  Protected
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setUserToDelete(u)}
+                                  className="btn btn-ghost btn-sm"
+                                  style={{
+                                    color: '#f87171',
+                                    borderColor: 'rgba(248, 113, 113, 0.25)',
+                                    padding: '4px 10px',
+                                    fontSize: 11,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 5,
+                                    borderRadius: 4,
+                                    transition: 'all 0.15s ease',
+                                  }}
+                                  title={`Delete user account for ${u.displayName}`}
+                                >
+                                  <Trash2 size={12} />
+                                  <span>Delete</span>
+                                </button>
+                              )}
+                            </td>
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
                 </div>
+
+                {/* Delete Confirmation Modal */}
+                {userToDelete && (
+                  <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 1000,
+                    background: 'rgba(0,0,0,0.85)',
+                    backdropFilter: 'blur(8px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 20,
+                  }}>
+                    <div style={{
+                      background: 'var(--bg-card)',
+                      border: '1px solid rgba(239,68,68,0.4)',
+                      borderRadius: 8,
+                      maxWidth: 480,
+                      width: '100%',
+                      padding: 24,
+                      boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                        <div style={{ padding: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '50%', color: '#f87171', display: 'flex' }}>
+                          <AlertCircle size={20} />
+                        </div>
+                        <div>
+                          <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--text-primary)' }}>
+                            Delete User Account
+                          </h3>
+                          <span style={{ fontSize: 11, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+                            Admin Action • Permanent
+                          </span>
+                        </div>
+                      </div>
+
+                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 16px' }}>
+                        Are you sure you want to permanently delete the account for <strong style={{ color: 'var(--text-primary)' }}>{userToDelete.displayName}</strong>
+                        {userToDelete.email && userToDelete.email !== '—' ? ` (${userToDelete.email})` : ''}?
+                      </p>
+
+                      <div style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '12px 14px', marginBottom: 20, fontSize: 12, color: 'var(--text-muted)' }}>
+                        <div style={{ color: 'var(--text-primary)', fontWeight: 600, marginBottom: 6 }}>This action will permanently delete:</div>
+                        <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <li>User account entry from cloud directory</li>
+                          <li>All reviews and ratings written by this user</li>
+                          <li>Personal watchlist, diary entries &amp; custom collections</li>
+                          <li>Community voting records and leaderboard stats</li>
+                        </ul>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          onClick={() => setUserToDelete(null)}
+                          disabled={isDeletingUser}
+                          style={{ fontSize: 12 }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          onClick={handleConfirmDeleteUser}
+                          disabled={isDeletingUser}
+                          style={{
+                            background: '#dc2626',
+                            color: '#fff',
+                            border: '1px solid #ef4444',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            fontSize: 12,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {isDeletingUser ? (
+                            <>
+                              <RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                              <span>Deleting Account...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 size={13} />
+                              <span>Permanently Delete</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

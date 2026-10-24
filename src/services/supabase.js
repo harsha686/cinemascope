@@ -373,6 +373,95 @@ export const supabaseService = {
     return true;
   },
 
+  // Delete user account and associated personal data across Supabase
+  async deleteUserAccount(userId, userEmail, displayName) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return false;
+
+    try {
+      // 1. Remove from system_users_data collection (community directory)
+      const { data: colData } = await supabase
+        .from('collections')
+        .select('description')
+        .eq('id', 'system_users_data')
+        .maybeSingle();
+
+      if (colData && colData.description) {
+        try {
+          const currentList = JSON.parse(colData.description);
+          if (Array.isArray(currentList)) {
+            const normEmail = (userEmail && userEmail !== '—') ? userEmail.toLowerCase().trim() : null;
+            const normName = (displayName || '').trim().toLowerCase();
+
+            const filteredList = currentList.filter(u => {
+              if (u.id && userId && u.id === userId) return false;
+              if (normEmail && u.email && u.email !== '—' && u.email.toLowerCase().trim() === normEmail) return false;
+              if (normName && u.displayName && u.displayName.trim().toLowerCase() === normName) return false;
+              return true;
+            });
+
+            await this.saveUsersData(filteredList);
+          }
+        } catch (e) {
+          console.warn('Error filtering system_users_data during deleteUserAccount:', e);
+        }
+      }
+
+      // 2. Remove from public.users table (best-effort)
+      if (userId) {
+        await supabase.from('users').delete().eq('id', userId).catch(() => {});
+      }
+      if (userEmail && userEmail !== '—') {
+        await supabase.from('users').delete().eq('email', userEmail).catch(() => {});
+      }
+
+      // 3. Remove reviews written by this user
+      if (userId) {
+        await supabase.from('reviews').delete().eq('user_id', userId).catch(() => {});
+      }
+      if (userEmail && userEmail !== '—') {
+        await supabase.from('reviews').delete().eq('user_email', userEmail).catch(() => {});
+      }
+      if (displayName) {
+        await supabase.from('reviews').delete().eq('user_display_name', displayName).catch(() => {});
+      }
+
+      // 4. Remove user_movies (watchlist, watched, favorites, ratings)
+      if (userId) {
+        await supabase.from('user_movies').delete().eq('user_id', userId).catch(() => {});
+      }
+
+      // 5. Remove diary_entries
+      if (userId) {
+        await supabase.from('diary_entries').delete().eq('user_id', userId).catch(() => {});
+      }
+
+      // 6. Remove user collections (preserve system collections like system_users_data)
+      if (userId) {
+        await supabase.from('collections').delete().eq('user_id', userId).neq('id', 'system_users_data').catch(() => {});
+      }
+
+      // 7. Remove weekend_votes
+      if (userId) {
+        await supabase.from('weekend_votes').delete().eq('user_id', userId).catch(() => {});
+      }
+      if (userEmail && userEmail !== '—') {
+        await supabase.from('weekend_votes').delete().eq('user_email', userEmail).catch(() => {});
+      }
+
+      // 8. Remove pro_applications
+      if (userId) {
+        await supabase.from('professional_applications').delete().eq('user_id', userId).catch(() => {});
+        await supabase.from('pro_applications').delete().eq('user_id', userId).catch(() => {});
+      }
+
+      return true;
+    } catch (e) {
+      console.warn('Supabase deleteUserAccount error:', e);
+      return false;
+    }
+  },
+
   // User Movies
   async upsertUserMovie(record) {
     const supabase = getSupabaseClient();
@@ -700,6 +789,50 @@ export const supabaseService = {
       return true;
     } catch (e) {
       console.warn('Supabase saveNotificationsData error:', e);
+      return false;
+    }
+  },
+
+  // Account Deletion Requests Cloud Sync
+  async getDeletionRequestsData() {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('collections')
+        .select('*')
+        .eq('id', 'system_deletion_requests')
+        .maybeSingle();
+
+      if (error || !data || !data.description) return null;
+      const parsed = JSON.parse(data.description);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.warn('Supabase getDeletionRequestsData error:', e);
+      return null;
+    }
+  },
+
+  async saveDeletionRequestsData(requestsList) {
+    const supabase = getSupabaseClient();
+    if (!supabase || !requestsList) return false;
+    try {
+      const { error } = await supabase.from('collections').upsert({
+        id: 'system_deletion_requests',
+        user_id: 'system',
+        name: 'deletion_requests_state',
+        description: JSON.stringify(requestsList),
+        visibility: 'public',
+        movie_ids: [],
+        updated_at: new Date().toISOString(),
+      });
+      if (error) {
+        console.warn('Supabase saveDeletionRequestsData error:', error);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.warn('Supabase saveDeletionRequestsData error:', e);
       return false;
     }
   },

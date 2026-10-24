@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
-import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, ChevronDown, ChevronUp, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2, Users, Bell, Search, Tv, X, Sparkles, SlidersHorizontal } from 'lucide-react';
+import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, ChevronDown, ChevronUp, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2, Users, Bell, Search, Tv, X, Sparkles, SlidersHorizontal, Trash2, AlertTriangle } from 'lucide-react';
 import { useApp } from '../AppContext';
 import ReviewCard from '../components/reviews/ReviewCard';
 import ProfessionalRatingBadge from '../components/reviews/ProfessionalRatingBadge';
@@ -16,7 +16,7 @@ import { SOCIAL_CONTENT_TYPES } from '../services/socialSharingService';
 export default function ProfilePage() {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { state, dispatch, getMovie, getTheater, isVerifiedPro } = useApp();
+  const { state, dispatch, getMovie, getTheater, isVerifiedPro, deleteUserAccount } = useApp();
 
   // The currently logged in visitor
   const viewerUser = state.currentUser;
@@ -40,6 +40,29 @@ export default function ProfilePage() {
   const isOwnProfile = Boolean(
     !userId || (viewerUser && profileUser && (viewerUser.id === profileUser.id || (viewerUser.email && profileUser.email && viewerUser.email.toLowerCase() === profileUser.email.toLowerCase())))
   );
+
+  // Account Deletion State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  const handleConfirmDeleteAccount = async () => {
+    if (deleteConfirmText.trim().toUpperCase() !== 'DELETE') return;
+    setIsDeletingAccount(true);
+    setDeleteError('');
+    try {
+      await deleteUserAccount(profileUser.id, {
+        email: profileUser.email,
+        displayName: profileUser.displayName,
+      });
+      setShowDeleteModal(false);
+      navigate('/');
+    } catch (err) {
+      setDeleteError(err?.message || 'Failed to delete account. Please try again.');
+      setIsDeletingAccount(false);
+    }
+  };
 
   const [libStats, setLibStats] = useState({ totalWatchlist: 0, totalWatched: 0, totalFavorites: 0, totalRated: 0, avgRating: 0 });
   const [diaryStats, setDiaryStats] = useState({ totalEntries: 0, thisYearCount: 0, thisMonthCount: 0, rewatches: 0 });
@@ -530,6 +553,19 @@ export default function ProfilePage() {
                   )}
                   <button type="button" onClick={handleLogout} className="btn btn-ghost btn-sm" style={{ color: '#f87171' }}>
                     <LogOut size={14} /> Log Out
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteConfirmText('');
+                      setDeleteError('');
+                      setShowDeleteModal(true);
+                    }}
+                    className="btn btn-ghost btn-sm"
+                    style={{ color: 'var(--text-muted)', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                    title="Delete Account"
+                  >
+                    <Trash2 size={13} /> Delete Account
                   </button>
                 </>
               ) : (
@@ -1540,6 +1576,191 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+
+      {/* Danger Zone / Account Deletion for Own Profile */}
+      {isOwnProfile && (
+        <div className="container" style={{ maxWidth: 960, padding: '36px 24px 0' }}>
+          <div style={{
+            background: 'rgba(239, 68, 68, 0.03)',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
+            borderRadius: 6,
+            padding: '24px 28px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#f87171', fontWeight: 600, fontSize: 15, fontFamily: 'var(--font-serif)' }}>
+                  <AlertTriangle size={18} />
+                  <span>Danger Zone</span>
+                </div>
+                <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--text-muted)', maxWidth: 540, lineHeight: 1.5 }}>
+                  Permanently delete your CinemaScope account and all associated data, including reviews, ratings, watchlist, personal diary, collections, and voting records.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteConfirmText('');
+                  setDeleteError('');
+                  setShowDeleteModal(true);
+                }}
+                className="btn btn-outline btn-sm"
+                style={{
+                  borderColor: 'rgba(239, 68, 68, 0.5)',
+                  color: '#f87171',
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 12,
+                }}
+              >
+                <Trash2 size={14} />
+                <span>Delete Account</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Account Deletion Confirmation Modal */}
+      {showDeleteModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 1000,
+          background: 'rgba(0,0,0,0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 20,
+        }}>
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid rgba(239,68,68,0.4)',
+            borderRadius: 8,
+            maxWidth: 500,
+            width: '100%',
+            padding: 24,
+            boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ padding: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '50%', color: '#f87171', display: 'flex' }}>
+                  <AlertTriangle size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-primary)' }}>
+                    Delete Your Account
+                  </h3>
+                  <span style={{ fontSize: 11, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+                    Irreversible Action
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                className="btn btn-ghost btn-sm"
+                style={{ padding: 4, color: 'var(--text-muted)' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {profileUser?.email && profileUser.email.toLowerCase() === 'harshavardhanmellof41@gmail.com' ? (
+              <div style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: 6, padding: '14px 16px', color: 'var(--gold)', fontSize: 13, lineHeight: 1.5 }}>
+                <strong>Protected Master Account:</strong> The primary administrator account (<em>{profileUser.email}</em>) cannot be deleted to ensure system management integrity.
+              </div>
+            ) : (
+              <>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 16px' }}>
+                  Are you sure you want to permanently delete your CinemaScope account (<strong style={{ color: 'var(--text-primary)' }}>{profileUser.displayName}</strong>)?
+                </p>
+
+                <div style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '12px 14px', marginBottom: 20, fontSize: 12, color: 'var(--text-muted)' }}>
+                  <div style={{ color: 'var(--text-primary)', fontWeight: 600, marginBottom: 6 }}>All your personal data will be erased:</div>
+                  <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <li>Your profile, credentials, and session</li>
+                    <li>All movie and theater reviews you wrote</li>
+                    <li>Your saved watchlist, watched titles, and ratings</li>
+                    <li>Your film diary entries and custom collections</li>
+                    <li>Your Weekend Pick voting activity &amp; points</li>
+                  </ul>
+                </div>
+
+                {deleteError && (
+                  <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', color: '#f87171', padding: '10px 12px', borderRadius: 4, fontSize: 12, marginBottom: 16 }}>
+                    {deleteError}
+                  </div>
+                )}
+
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                    To confirm, please type <strong style={{ color: '#f87171', letterSpacing: '0.05em' }}>DELETE</strong> below:
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder="DELETE"
+                    className="input"
+                    style={{
+                      width: '100%',
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                      borderColor: deleteConfirmText.trim().toUpperCase() === 'DELETE' ? '#ef4444' : 'var(--border)',
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() => setShowDeleteModal(false)}
+                    disabled={isDeletingAccount}
+                    style={{ fontSize: 12 }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={handleConfirmDeleteAccount}
+                    disabled={deleteConfirmText.trim().toUpperCase() !== 'DELETE' || isDeletingAccount}
+                    style={{
+                      background: deleteConfirmText.trim().toUpperCase() === 'DELETE' ? '#dc2626' : 'rgba(239,68,68,0.3)',
+                      color: '#fff',
+                      border: '1px solid #ef4444',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: deleteConfirmText.trim().toUpperCase() === 'DELETE' ? 'pointer' : 'not-allowed',
+                      opacity: deleteConfirmText.trim().toUpperCase() === 'DELETE' ? 1 : 0.6,
+                    }}
+                  >
+                    {isDeletingAccount ? (
+                      <>
+                        <span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} />
+                        <span>Deleting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 size={13} />
+                        <span>Permanently Delete My Account</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <div style={{ height: 80 }} />
     </div>

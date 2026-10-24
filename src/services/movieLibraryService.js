@@ -1338,3 +1338,39 @@ export async function syncUserLibraryWithCloud(userId) {
   }
 }
 
+/**
+ * Permanently removes all local library storage for a deleted user.
+ */
+export async function wipeUserLibraryData(userId) {
+  if (!userId) return false;
+  try {
+    const libKey = `cinemascope_lib_${userId}`;
+    const diaryKey = `cinemascope_diary_${userId}`;
+    const colKey = `cinemascope_collections_${userId}`;
+    const statsKey = `cinemascope_user_stats_${userId}`;
+
+    localStorage.removeItem(libKey);
+    localStorage.removeItem(diaryKey);
+    localStorage.removeItem(colKey);
+    localStorage.removeItem(statsKey);
+
+    // Clean any standalone collection keys created by this user
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('cinemascope_col_')) {
+        try {
+          const colData = JSON.parse(localStorage.getItem(k) || '{}');
+          if (colData.userId === userId || colData.user_id === userId) {
+            localStorage.removeItem(k);
+          }
+        } catch (_) {}
+      }
+    }
+    return true;
+  } catch (err) {
+    console.warn('wipeUserLibraryData error:', err);
+    return false;
+  }
+}
+
+

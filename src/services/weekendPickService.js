@@ -957,6 +957,23 @@ export function saveVotes(votes) {
 }
 
 /**
+ * Delete all votes cast by a specific user from storage.
+ */
+export function deleteUserVotes(userId, userEmail) {
+  if (!userId && !userEmail) return;
+  const currentVotes = getAllVotes();
+  const normEmail = (userEmail && userEmail !== '—') ? userEmail.toLowerCase().trim() : null;
+  const filtered = currentVotes.filter(v => {
+    if (userId && v.userId === userId) return false;
+    if (normEmail && v.userEmail && v.userEmail.toLowerCase().trim() === normEmail) return false;
+    return true;
+  });
+  if (filtered.length !== currentVotes.length) {
+    saveVotes(filtered);
+  }
+}
+
+/**
  * Check if a user has already voted in a specific genre in a round
  */
 export function hasUserVotedInGenre(userId, roundId, genreId) {
