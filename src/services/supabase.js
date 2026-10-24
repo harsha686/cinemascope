@@ -209,24 +209,9 @@ export const supabaseService = {
       updated_at: new Date().toISOString(),
     };
 
-    // Ensure movie record exists in movies table if review has a movieId so foreign key constraint is satisfied
-    if (!isTheater && review.movieId) {
-      try {
-        await supabase.from('movies').upsert({
-          id: review.movieId,
-          title: review.movieTitle || review.movieId,
-          poster_url: review.posterUrl || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500',
-          status: 'CURRENTLY_SHOWING',
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'id', ignoreDuplicates: true });
-      } catch (movieStubErr) {
-        console.warn('Pre-emptive movie stub creation notice:', movieStubErr);
-      }
-    }
-
     let { error } = await supabase.from('reviews').upsert(payload);
     
-    // If foreign key constraint failed on movie_id (e.g. TMDB movie), ensure a minimal movie record exists first
+    // If foreign key constraint failed on movie_id (e.g. TMDB movie), ensure an ARCHIVED movie record exists first
     if (error && (error.message?.includes('foreign key') || error.message?.includes('reviews_movie_id_fkey') || error.code === '23503')) {
       if (review.movieId && !isTheater) {
         try {
@@ -234,10 +219,10 @@ export const supabaseService = {
             id: review.movieId,
             title: review.movieTitle || review.movieId,
             poster_url: review.posterUrl || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500',
-            status: 'CURRENTLY_SHOWING',
+            status: 'ARCHIVED',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-          });
+          }, { onConflict: 'id', ignoreDuplicates: true });
           const retryResult = await supabase.from('reviews').upsert(payload);
           error = retryResult.error;
         } catch (e) {

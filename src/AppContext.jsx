@@ -166,16 +166,34 @@ const rawReviews = loadStorage('cinemascope_reviews', initialReviews);
 const sanitizedReviews = sanitizeReviews(Array.isArray(rawReviews) ? rawReviews : initialReviews);
 saveStorage('cinemascope_reviews', sanitizedReviews);
 
+export function isLegitimateMovie(m, baseMovies = initialMovies) {
+  if (!m || !m.id) return false;
+  if (baseMovies.some(im => im.id === m.id)) return true;
+  if (m.director && typeof m.director === 'string' && m.director.trim().length > 0) return true;
+  if (Array.isArray(m.theaters) && m.theaters.length > 0) return true;
+  if (m.overview && typeof m.overview === 'string' && m.overview.trim().length > 15 && m.overview.trim() !== '...') return true;
+  return false;
+}
+
 const rawMovies = loadStorage('cinemascope_movies', initialMovies);
-const sanitizedMovies = (Array.isArray(rawMovies) ? rawMovies : initialMovies).map(m => {
-  const initMatch = initialMovies.find(im => im.id === m.id);
-  return {
-    ...initMatch,
-    ...m,
-    ottPlatform: m.ottPlatform || initMatch?.ottPlatform || '',
-    ottReleaseDate: m.ottReleaseDate || initMatch?.ottReleaseDate || '',
-    ottUrl: m.ottUrl || initMatch?.ottUrl || '',
-  };
+const sanitizedMovies = (Array.isArray(rawMovies) ? rawMovies : initialMovies)
+  .filter(m => isLegitimateMovie(m, initialMovies))
+  .map(m => {
+    const initMatch = initialMovies.find(im => im.id === m.id);
+    return {
+      ...initMatch,
+      ...m,
+      ottPlatform: m.ottPlatform || initMatch?.ottPlatform || '',
+      ottReleaseDate: m.ottReleaseDate || initMatch?.ottReleaseDate || '',
+      ottUrl: m.ottUrl || initMatch?.ottUrl || '',
+    };
+  });
+
+// Guarantee all verified base movies from movies.json are included
+initialMovies.forEach(im => {
+  if (!sanitizedMovies.some(m => m.id === im.id)) {
+    sanitizedMovies.push(im);
+  }
 });
 saveStorage('cinemascope_movies', sanitizedMovies);
 
@@ -712,7 +730,8 @@ export function AppProvider({ children }) {
     try {
       // If forcePush requested, push current local movies and reviews first
       if (forcePush) {
-        for (const m of (currentState.movies || [])) {
+        const legitimateToPush = (currentState.movies || []).filter(m => isLegitimateMovie(m, initialMovies));
+        for (const m of legitimateToPush) {
           await supabaseService.saveMovie(m).catch(console.warn);
         }
         for (const r of (currentState.reviews || [])) {
@@ -760,7 +779,8 @@ export function AppProvider({ children }) {
       let reviewsCount = 0;
 
       if (remoteMovies && remoteMovies.length > 0) {
-        const formatted = remoteMovies.map(m => {
+        const legitimateRemote = remoteMovies.filter(m => isLegitimateMovie(m, initialMovies));
+        const formatted = legitimateRemote.map(m => {
           const initMatch = initialMovies.find(im => im.id === m.id);
           return {
             id: m.id,
@@ -790,11 +810,21 @@ export function AppProvider({ children }) {
             ottWatchUrl: m.ott_watch_url || m.ottWatchUrl || initMatch?.ottWatchUrl || '',
           };
         });
+
+        // Ensure all verified base movies from movies.json are present
+        initialMovies.forEach(im => {
+          if (!formatted.some(m => m.id === im.id)) {
+            formatted.push(im);
+          }
+        });
+
         moviesCount = formatted.length;
         dispatch({ type: 'SET_MOVIES', payload: formatted });
+        saveStorage('cinemascope_movies', formatted);
       } else if (currentState.movies && currentState.movies.length > 0) {
-        // Supabase has no movies; auto-seed remote database with local movies!
-        for (const m of currentState.movies) {
+        // Supabase has no movies; auto-seed remote database with legitimate local movies!
+        const legitimateToSeed = currentState.movies.filter(m => isLegitimateMovie(m, initialMovies));
+        for (const m of legitimateToSeed) {
           supabaseService.saveMovie(m).catch(console.warn);
         }
       }
