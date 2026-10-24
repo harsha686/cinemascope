@@ -277,20 +277,7 @@ export const supabaseService = {
           });
         }
       }
-
-      // Fallback: public.users table (only if it exists)
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) return null;
-      return (data || []).map(u => ({
-        id: u.id,
-        email: u.email,
-        displayName: u.display_name || u.displayName || u.email?.split('@')[0] || 'User',
-        role: u.role || 'USER',
-        createdAt: u.created_at || u.createdAt || new Date().toISOString(),
-      }));
+      return null;
     } catch (e) {
       return null;
     }
@@ -371,19 +358,7 @@ export const supabaseService = {
     const supabase = getSupabaseClient();
     if (!supabase || !user) return false;
     // Append to the cross-device system_users_data collection
-    await this.appendUserToCloudList(user).catch(console.warn);
-    // Also try public.users table (best-effort, silently fails if table missing)
-    try {
-      const payload = {
-        id: user.id,
-        email: user.email,
-        display_name: user.displayName,
-        role: user.role || 'USER',
-        updated_at: new Date().toISOString(),
-      };
-      await supabase.from('users').upsert(payload);
-    } catch (_) {}
-    return true;
+    return await this.appendUserToCloudList(user).catch(console.warn);
   },
 
   // Delete user account and associated personal data across Supabase
@@ -420,13 +395,6 @@ export const supabaseService = {
         }
       }
 
-      // 2. Remove from public.users table (best-effort)
-      if (userId) {
-        await supabase.from('users').delete().eq('id', userId).catch(() => {});
-      }
-      if (userEmail && userEmail !== '—') {
-        await supabase.from('users').delete().eq('email', userEmail).catch(() => {});
-      }
 
       // 3. Remove reviews written by this user
       if (userId) {
