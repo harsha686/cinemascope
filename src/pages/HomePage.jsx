@@ -317,9 +317,14 @@ export default function HomePage() {
                   const isTheater = rev.targetType === 'THEATER' || !!rev.theaterId;
                   const targetM = !isTheater && rev.movieId ? state.movies.find(m => m.id === rev.movieId) : null;
                   const targetTheater = isTheater && rev.theaterId ? (allTheaters || []).find(t => t.id === rev.theaterId) : null;
+                  const rawMovieTitle = (targetM?.title && !targetM.title.startsWith('tmdb-') ? targetM.title : '') ||
+                    rev.movieTitle ||
+                    rev.parameterRatings?.originalMovieTitle ||
+                    (targetM?.title) ||
+                    (rev.movieId ? String(rev.movieId).replace(/^tmdb-/, 'Film #') : 'Film Review');
                   const reviewTitle = isTheater
                     ? (rev.theaterName || targetTheater?.name || 'Cinema Review')
-                    : (targetM?.title || rev.movieTitle || rev.parameterRatings?.originalMovieTitle || rev.movieId || 'Film Review');
+                    : rawMovieTitle;
                   const reviewLink = isTheater && rev.theaterId ? `/theater/${rev.theaterId}` : (rev.movieId ? `/movie/${rev.movieId}` : '#');
 
                   return (

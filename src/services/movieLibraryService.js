@@ -1223,40 +1223,35 @@ export async function syncUserLibraryWithCloud(userId) {
 
     // 2. Sync user_movies
     const localLib = await getLibrary(uid);
-    const updatedLib = { ...localLib };
+    let updatedLib = { ...localLib };
 
     const remoteMap = new Map();
-    if (remoteMovies && Array.isArray(remoteMovies)) {
+    if (remoteMovies && Array.isArray(remoteMovies) && remoteMovies.length > 0) {
+      // Remote Supabase user_movies is the authoritative cloud source of truth
+      const authoritativeLib = {};
       remoteMovies.forEach(rm => {
         const cleanId = String(rm.tmdb_id).replace(/^tmdb-/, '');
         remoteMap.set(cleanId, rm);
-        const local = updatedLib[cleanId] || {};
-        const isWatched = !!(rm.is_watched || local.watched);
-        const inWatchlist = !!(rm.in_watchlist || local.watchlist);
-        const isFav = !!(rm.is_favorite || local.favorite);
-        updatedLib[cleanId] = {
+        const local = localLib[cleanId] || {};
+        const isWatched = !!rm.is_watched;
+        const inWatchlist = !!rm.in_watchlist;
+        const isFav = !!rm.is_favorite;
+        authoritativeLib[cleanId] = {
           ...local,
           watchlist: inWatchlist,
           watched: isWatched,
           favorite: isFav,
-          rating: local.rating ?? rm.personal_rating ?? null,
-          notes: local.notes || rm.notes || '',
-          watchCount: Math.max(rm.watch_count || 0, local.watchCount || 0, isWatched ? 1 : 0),
+          rating: rm.personal_rating ?? local.rating ?? null,
+          notes: rm.notes || local.notes || '',
+          watchCount: rm.watch_count || (isWatched ? 1 : 0),
         };
       });
-    }
-
-    // Push local & merged entries to Supabase if newer or missing
-    for (const [tmdbId, status] of Object.entries(updatedLib)) {
-      if (status.watchlist || status.watched || status.favorite || status.rating || status.notes) {
-        const rm = remoteMap.get(String(tmdbId));
-        const needsPush = !rm ||
-          (!!rm.in_watchlist !== !!status.watchlist) ||
-          (!!rm.is_watched !== !!status.watched) ||
-          (!!rm.is_favorite !== !!status.favorite) ||
-          ((rm.personal_rating ?? null) !== (status.rating ?? null));
-
-        if (needsPush) {
+      updatedLib = authoritativeLib;
+      await saveLibrary(updatedLib, uid);
+    } else if (remoteMovies && Array.isArray(remoteMovies)) {
+      // Remote has no rows yet — push local entries to initialize cloud
+      for (const [tmdbId, status] of Object.entries(updatedLib)) {
+        if (status.watchlist || status.watched || status.favorite || status.rating || status.notes) {
           await supabaseService.upsertUserMovie({
             id: `${uid}_${tmdbId}`,
             user_id: uid,
@@ -1271,7 +1266,6 @@ export async function syncUserLibraryWithCloud(userId) {
         }
       }
     }
-    await saveLibrary(updatedLib, uid);
 
     // 3. Sync diary_entries
     const localDiary = await getDiary(uid);

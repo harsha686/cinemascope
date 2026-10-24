@@ -735,7 +735,7 @@ export function AppProvider({ children }) {
         pushWeekendPickDataToCloud();
       }
 
-      const [remoteMovies, remoteReviews, remoteUsers, remoteTheaters, remoteCities, , remoteProApps, remoteNotifs, remoteDeletionReqs] = await Promise.all([
+      const results = await Promise.allSettled([
         supabaseService.getMovies(),
         supabaseService.getReviews(),
         supabaseService.getUsers(),
@@ -746,6 +746,15 @@ export function AppProvider({ children }) {
         supabaseService.getNotificationsData(),
         supabaseService.getDeletionRequestsData(),
       ]);
+
+      const remoteMovies = results[0].status === 'fulfilled' ? results[0].value : null;
+      const remoteReviews = results[1].status === 'fulfilled' ? results[1].value : null;
+      const remoteUsers = results[2].status === 'fulfilled' ? results[2].value : null;
+      const remoteTheaters = results[3].status === 'fulfilled' ? results[3].value : null;
+      const remoteCities = results[4].status === 'fulfilled' ? results[4].value : null;
+      const remoteProApps = results[6].status === 'fulfilled' ? results[6].value : null;
+      const remoteNotifs = results[7].status === 'fulfilled' ? results[7].value : null;
+      const remoteDeletionReqs = results[8].status === 'fulfilled' ? results[8].value : null;
 
       let moviesCount = 0;
       let reviewsCount = 0;
@@ -1358,11 +1367,8 @@ export function AppProvider({ children }) {
   const isProfessionalReview = useCallback((r) => {
     if (!r) return false;
     if (r.theaterId) return false; // Theaters never have critic/professional reviews
-    if (r.reviewType === 'PROFESSIONAL') return true;
-    if (r.reviewType === 'USER') return false;
-    // Fallback: If reviewType is not explicitly tagged, check if the author is a verified pro
-    return isVerifiedPro(r.userId);
-  }, [isVerifiedPro]);
+    return r.reviewType === 'PROFESSIONAL';
+  }, []);
 
   const getMovieUserReviews = useCallback((movieId) => {
     return state.reviews.filter(r =>

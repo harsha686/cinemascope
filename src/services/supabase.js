@@ -153,17 +153,17 @@ export const supabaseService = {
         tmdbId: paramRatings.tmdbId || (resolvedMovieId ? String(resolvedMovieId).replace(/^tmdb-/, '') : null),
         movieTitle: paramRatings.originalMovieTitle || r.movie_title || null,
         posterUrl: paramRatings.posterUrl || null,
-        theaterId: r.theater_id || paramRatings.theaterId || (r.movie_id && String(r.movie_id).startsWith('theater-') ? String(r.movie_id).replace(/^theater-/, '') : null),
-        theaterName: r.theater_name || paramRatings.theaterName || null,
-        screenId: r.screen_id || paramRatings.screenId || null,
-        screenName: r.screen_name || paramRatings.screenName || null,
+        theaterId: paramRatings.theaterId || r.theater_id || (r.movie_id && String(r.movie_id).startsWith('theater-') ? String(r.movie_id).replace(/^theater-/, '') : null),
+        theaterName: paramRatings.theaterName || r.theater_name || null,
+        screenId: paramRatings.screenId || r.screen_id || null,
+        screenName: paramRatings.screenName || r.screen_name || null,
         targetType: isTheater ? 'THEATER' : 'MOVIE',
         userId: r.user_id,
         userDisplayName: r.user_display_name,
         rating: r.rating,
         parameterRatings: paramRatings,
         reviewText: r.review_text,
-        reviewType: r.review_type || r.reviewType || (r.is_pro ? 'PROFESSIONAL' : undefined),
+        reviewType: paramRatings.reviewType || (r.is_pro ? 'PROFESSIONAL' : 'USER'),
         status: r.status || 'PUBLISHED',
         createdAt: r.created_at,
         updatedAt: r.updated_at,
@@ -180,6 +180,7 @@ export const supabaseService = {
     const rawTmdbId = review.tmdbId || (review.movieId ? String(review.movieId).replace(/^tmdb-/, '') : null);
     const paramRatings = {
       ...(review.parameterRatings || {}),
+      reviewType: review.reviewType || 'USER',
       ...(review.theaterId ? {
         theaterId: review.theaterId,
         theaterName: review.theaterName || null,
@@ -201,15 +202,12 @@ export const supabaseService = {
       user_display_name: review.userDisplayName,
       rating: review.rating,
       parameter_ratings: paramRatings,
-      review_text: review.reviewText,
+      review_text: review.reviewText || '',
       status: review.status || 'PUBLISHED',
       likes_count: review.likesCount || 0,
       report_count: review.reportCount || 0,
       updated_at: new Date().toISOString(),
     };
-    if (review.reviewType) {
-      payload.review_type = review.reviewType;
-    }
 
     // Ensure movie record exists in movies table if review has a movieId so foreign key constraint is satisfied
     if (!isTheater && review.movieId) {

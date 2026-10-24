@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck, Tv, Film, Users, Layers, Share2, Copy, Check, ExternalLink, Send, MessageCircle } from 'lucide-react';
 import { useApp } from '../AppContext';
@@ -15,6 +15,7 @@ import SocialMetaTags from '../components/social/SocialMetaTags';
 import { SOCIAL_CONTENT_TYPES } from '../services/socialSharingService';
 import { getMovieWinningHistory, isWeekendSeries } from '../services/weekendPickService';
 import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
+import { supabaseService, isSupabaseConfigured } from '../services/supabase';
 
 export default function MovieDetailPage() {
   const { movieId } = useParams();
@@ -55,10 +56,17 @@ export default function MovieDetailPage() {
     } catch (e) {}
   }, [movieId]);
 
-  // Ensure latest reviews are fetched immediately
+  // Ensure latest reviews are fetched immediately on mount with zero latency
   useEffect(() => {
     refreshData();
-  }, [movieId, refreshData]);
+    if (isSupabaseConfigured()) {
+      supabaseService.getReviews().then(remoteReviews => {
+        if (remoteReviews && remoteReviews.length > 0) {
+          dispatch({ type: 'SET_REVIEWS', payload: remoteReviews });
+        }
+      }).catch(console.warn);
+    }
+  }, [movieId, refreshData, dispatch]);
 
   // Fetch TMDB data when ID starts with "tmdb-" or "tv-"
   useEffect(() => {

@@ -10,6 +10,7 @@ import RatingBreakdown from '../components/reviews/RatingBreakdown';
 import ReviewCard from '../components/reviews/ReviewCard';
 import ReviewComposer from '../components/reviews/ReviewComposer';
 import { getFeatureBadgeStyle } from '../components/city/TheaterCard';
+import { supabaseService, isSupabaseConfigured } from '../services/supabase';
 
 
 function ScreenMiniCard({ screen, theaterId }) {
