@@ -716,7 +716,7 @@ export function AppProvider({ children }) {
           await supabaseService.saveMovie(m).catch(console.warn);
         }
         for (const r of (currentState.reviews || [])) {
-          if (r.status === 'PUBLISHED') {
+          if (r.status === 'PUBLISHED' || !r.status) {
             await supabaseService.saveReview(r).catch(console.warn);
           }
         }
@@ -828,7 +828,7 @@ export function AppProvider({ children }) {
         // Auto-push any local published reviews that haven't reached Supabase yet
         if (localOnlyEntries.length > 0) {
           for (const lr of localOnlyEntries) {
-            if (lr.status === 'PUBLISHED') {
+            if (lr.status === 'PUBLISHED' || !lr.status) {
               supabaseService.saveReview(lr).catch(console.warn);
             }
           }
@@ -1249,12 +1249,24 @@ export function AppProvider({ children }) {
 
   const isMovieMatch = useCallback((r, movieId) => {
     if (!r || !movieId) return false;
-    if (r.theaterId && !r.movieId && !r.parameterRatings?.originalMovieId) return false;
-    if (r.movieId === movieId || r.parameterRatings?.originalMovieId === movieId) return true;
-    const targetRaw = String(movieId).replace('tmdb-', '');
-    const rMovieRaw = r.movieId ? String(r.movieId).replace('tmdb-', '') : (r.parameterRatings?.originalMovieId ? String(r.parameterRatings.originalMovieId).replace('tmdb-', '') : null);
-    const rTmdbRaw = r.tmdbId ? String(r.tmdbId) : null;
-    return (rMovieRaw && rMovieRaw === targetRaw) || (rTmdbRaw && rTmdbRaw === targetRaw);
+    // Theater reviews should not match movie pages
+    const isTheater = r.targetType === 'THEATER' || (r.theaterId && !r.movieId && !r.parameterRatings?.originalMovieId);
+    if (isTheater) return false;
+
+    // Direct exact string or numeric match
+    if (String(r.movieId) === String(movieId) || String(r.parameterRatings?.originalMovieId) === String(movieId)) return true;
+
+    const clean = (val) => val ? String(val).replace(/^(tmdb-|tv-)/i, '').trim().toLowerCase() : '';
+    const targetClean = clean(movieId);
+    if (!targetClean) return false;
+
+    const rMovieClean = clean(r.movieId || r.parameterRatings?.originalMovieId);
+    if (rMovieClean && rMovieClean === targetClean) return true;
+
+    const rTmdbClean = clean(r.tmdbId || r.parameterRatings?.tmdbId);
+    if (rTmdbClean && rTmdbClean === targetClean) return true;
+
+    return false;
   }, []);
 
   const getMovieReviews = useCallback((movieId) => {

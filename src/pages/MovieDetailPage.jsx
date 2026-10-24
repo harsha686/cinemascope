@@ -32,6 +32,7 @@ export default function MovieDetailPage() {
     getCity,
     state,
     dispatch,
+    refreshData,
   } = useApp();
 
   const isWeekendTv = isWeekendSeries(movieId);
@@ -53,6 +54,11 @@ export default function MovieDetailPage() {
       document.body.scrollTop = 0;
     } catch (e) {}
   }, [movieId]);
+
+  // Ensure latest reviews are fetched immediately
+  useEffect(() => {
+    refreshData();
+  }, [movieId, refreshData]);
 
   // Fetch TMDB data when ID starts with "tmdb-" or "tv-"
   useEffect(() => {

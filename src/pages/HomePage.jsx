@@ -21,7 +21,7 @@ const STEPS = [
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { allCities, getCityMovies, getMovieRating, state, dispatch } = useApp();
+  const { allCities, allTheaters = [], getCityMovies, getMovieRating, state, dispatch } = useApp();
   const [citySearch, setCitySearch] = useState('');
   const [showCityList, setShowCityList] = useState(false);
   const [locationStatus, setLocationStatus] = useState('idle');
@@ -316,7 +316,7 @@ export default function HomePage() {
                 {recentReviews.map(rev => {
                   const isTheater = rev.targetType === 'THEATER' || !!rev.theaterId;
                   const targetM = !isTheater && rev.movieId ? state.movies.find(m => m.id === rev.movieId) : null;
-                  const targetTheater = isTheater && rev.theaterId ? allTheaters.find(t => t.id === rev.theaterId) : null;
+                  const targetTheater = isTheater && rev.theaterId ? (allTheaters || []).find(t => t.id === rev.theaterId) : null;
                   const reviewTitle = isTheater
                     ? (rev.theaterName || targetTheater?.name || 'Cinema Review')
                     : (targetM?.title || rev.movieTitle || rev.parameterRatings?.originalMovieTitle || rev.movieId || 'Film Review');

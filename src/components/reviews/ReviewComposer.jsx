@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, AlertCircle, Monitor } from 'lucide-react';
 import { useApp } from '../../AppContext';
 import { setPersonalRating } from '../../services/movieLibraryService';
+import { supabaseService, isSupabaseConfigured } from '../../services/supabase';
 import { MOVIE_REVIEW_PARAMS, THEATER_REVIEW_PARAMS, getParamsForReview } from '../../data/reviewParams';
 
 function calcAverage(params, paramList) {
@@ -106,7 +107,7 @@ export default function ReviewComposer({
 
   useEffect(() => {
     if (existingReview) {
-      setParams(existingReview.parameterRatings || { ...EMPTY_PARAMS });
+      setParams(existingReview.parameterRatings || { ...emptyParams });
       setNote(existingReview.reviewText || '');
     }
   }, [existingReview]);
@@ -114,7 +115,7 @@ export default function ReviewComposer({
   const overallRating = calcAverage(params, activeParams);
   const ratedCount = activeParams.filter(p => params[p.key] > 0).length;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -153,21 +154,15 @@ export default function ReviewComposer({
           targetType: 'THEATER',
         };
 
-        if (existingReview) {
-          dispatch({
-            type: 'UPDATE_REVIEW',
-            payload: {
+        const theaterReviewPayload = existingReview
+          ? {
               id: existingReview.id,
               userId: existingReview.userId || currentUser.id,
               userDisplayName: existingReview.userDisplayName || currentUser.displayName || 'Cinema Enthusiast',
               userEmail: existingReview.userEmail || currentUser.email,
               ...payload,
-            },
-          });
-        } else {
-          dispatch({
-            type: 'ADD_REVIEW',
-            payload: {
+            }
+          : {
               id: `rev-th-${Date.now()}`,
               userId: currentUser.id,
               userDisplayName: currentUser.displayName || 'Cinema Enthusiast',
@@ -178,12 +173,25 @@ export default function ReviewComposer({
               likesCount: 0,
               reportCount: 0,
               ...payload,
-            },
-          });
+            };
+
+        if (isSupabaseConfigured()) {
+          try {
+            await supabaseService.saveReview(theaterReviewPayload);
+          } catch (cloudErr) {
+            console.warn('Direct Supabase theater review save warning:', cloudErr);
+          }
         }
+
+        dispatch({
+          type: existingReview ? 'UPDATE_REVIEW' : 'ADD_REVIEW',
+          payload: theaterReviewPayload,
+        });
       } else {
-        const targetMovieId = movie?.id || (movie?.tmdbId ? `tmdb-${movie.tmdbId}` : (existingReview?.movieId || null));
-        const rawTmdbId = movie?.tmdbId || (targetMovieId ? String(targetMovieId).replace('tmdb-', '') : null);
+        const rawTmdbId = movie?.tmdbId || (movie?.id && /^\d+$/.test(String(movie.id)) ? String(movie.id) : (existingReview?.tmdbId || (existingReview?.movieId ? String(existingReview.movieId).replace(/^tmdb-/, '') : null)));
+        const targetMovieId = movie?.id
+          ? (String(movie.id).startsWith('tmdb-') || !rawTmdbId ? String(movie.id) : `tmdb-${rawTmdbId}`)
+          : (rawTmdbId ? `tmdb-${rawTmdbId}` : (existingReview?.movieId || null));
         const resolvedMovieTitle = movie?.title || movie?.name || existingReview?.movieTitle || '';
         const resolvedPosterUrl = movie?.posterUrl || (movie?.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : (existingReview?.posterUrl || ''));
 
@@ -197,22 +205,17 @@ export default function ReviewComposer({
           posterUrl: resolvedPosterUrl,
         };
 
-        if (existingReview) {
-          dispatch({
-            type: 'UPDATE_REVIEW',
-            payload: {
+        const movieReviewPayload = existingReview
+          ? {
               id: existingReview.id,
               movieId: targetMovieId,
+              tmdbId: rawTmdbId,
               userId: existingReview.userId || currentUser.id,
               userDisplayName: existingReview.userDisplayName || currentUser.displayName || 'Cinema Enthusiast',
               userEmail: existingReview.userEmail || currentUser.email,
               ...payload,
-            },
-          });
-        } else {
-          dispatch({
-            type: 'ADD_REVIEW',
-            payload: {
+            }
+          : {
               id: `rev-${Date.now()}`,
               movieId: targetMovieId,
               tmdbId: rawTmdbId,
@@ -225,9 +228,20 @@ export default function ReviewComposer({
               likesCount: 0,
               reportCount: 0,
               ...payload,
-            },
-          });
+            };
+
+        if (isSupabaseConfigured()) {
+          try {
+            await supabaseService.saveReview(movieReviewPayload);
+          } catch (cloudErr) {
+            console.warn('Direct Supabase movie review save warning:', cloudErr);
+          }
         }
+
+        dispatch({
+          type: existingReview ? 'UPDATE_REVIEW' : 'ADD_REVIEW',
+          payload: movieReviewPayload,
+        });
 
         if (rawTmdbId && overallRating > 0) {
           setPersonalRating(rawTmdbId, currentUser.id, overallRating).catch(console.error);

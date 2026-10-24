@@ -143,32 +143,41 @@ export const supabaseService = {
       console.warn('Supabase fetch reviews error:', error);
       return null;
     }
-    return data.map(r => ({
-      id: r.id,
-      movieId: r.movie_id,
-      theaterId: r.theater_id || r.parameter_ratings?.theaterId || (r.movie_id?.startsWith('theater-') ? r.movie_id.replace('theater-', '') : null),
-      theaterName: r.theater_name || r.parameter_ratings?.theaterName || null,
-      screenId: r.screen_id || r.parameter_ratings?.screenId || null,
-      screenName: r.screen_name || r.parameter_ratings?.screenName || null,
-      targetType: r.target_type || (r.theater_id || r.parameter_ratings?.theaterId || r.movie_id?.startsWith('theater-') ? 'THEATER' : 'MOVIE'),
-      userId: r.user_id,
-      userDisplayName: r.user_display_name,
-      rating: r.rating,
-      parameterRatings: r.parameter_ratings || {},
-      reviewText: r.review_text,
-      reviewType: r.review_type || r.reviewType || (r.is_pro ? 'PROFESSIONAL' : undefined),
-      status: r.status,
-      createdAt: r.created_at,
-      updatedAt: r.updated_at,
-      likesCount: r.likes_count || 0,
-      reportCount: r.report_count || 0,
-    }));
+    return data.map(r => {
+      const paramRatings = r.parameter_ratings || {};
+      const resolvedMovieId = r.movie_id || paramRatings.originalMovieId || (paramRatings.tmdbId ? `tmdb-${paramRatings.tmdbId}` : null);
+      const isTheater = r.target_type === 'THEATER' || !!r.theater_id || !!paramRatings.theaterId || (r.movie_id && String(r.movie_id).startsWith('theater-'));
+      return {
+        id: r.id,
+        movieId: isTheater ? null : resolvedMovieId,
+        tmdbId: paramRatings.tmdbId || (resolvedMovieId ? String(resolvedMovieId).replace(/^tmdb-/, '') : null),
+        movieTitle: paramRatings.originalMovieTitle || r.movie_title || null,
+        posterUrl: paramRatings.posterUrl || null,
+        theaterId: r.theater_id || paramRatings.theaterId || (r.movie_id && String(r.movie_id).startsWith('theater-') ? String(r.movie_id).replace(/^theater-/, '') : null),
+        theaterName: r.theater_name || paramRatings.theaterName || null,
+        screenId: r.screen_id || paramRatings.screenId || null,
+        screenName: r.screen_name || paramRatings.screenName || null,
+        targetType: isTheater ? 'THEATER' : 'MOVIE',
+        userId: r.user_id,
+        userDisplayName: r.user_display_name,
+        rating: r.rating,
+        parameterRatings: paramRatings,
+        reviewText: r.review_text,
+        reviewType: r.review_type || r.reviewType || (r.is_pro ? 'PROFESSIONAL' : undefined),
+        status: r.status || 'PUBLISHED',
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        likesCount: r.likes_count || 0,
+        reportCount: r.report_count || 0,
+      };
+    });
   },
 
   async saveReview(review) {
     const supabase = getSupabaseClient();
     if (!supabase) return false;
     const isTheater = review.targetType === 'THEATER' || !!review.theaterId;
+    const rawTmdbId = review.tmdbId || (review.movieId ? String(review.movieId).replace(/^tmdb-/, '') : null);
     const paramRatings = {
       ...(review.parameterRatings || {}),
       ...(review.theaterId ? {
@@ -181,6 +190,8 @@ export const supabaseService = {
       ...(review.movieId ? {
         originalMovieId: review.movieId,
         originalMovieTitle: review.movieTitle || null,
+        posterUrl: review.posterUrl || null,
+        tmdbId: rawTmdbId,
       } : {}),
     };
     const payload = {
@@ -199,6 +210,22 @@ export const supabaseService = {
     if (review.reviewType) {
       payload.review_type = review.reviewType;
     }
+
+    // Ensure movie record exists in movies table if review has a movieId so foreign key constraint is satisfied
+    if (!isTheater && review.movieId) {
+      try {
+        await supabase.from('movies').upsert({
+          id: review.movieId,
+          title: review.movieTitle || review.movieId,
+          poster_url: review.posterUrl || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500',
+          status: 'CURRENTLY_SHOWING',
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'id', ignoreDuplicates: true });
+      } catch (movieStubErr) {
+        console.warn('Pre-emptive movie stub creation notice:', movieStubErr);
+      }
+    }
+
     let { error } = await supabase.from('reviews').upsert(payload);
     
     // If foreign key constraint failed on movie_id (e.g. TMDB movie), ensure a minimal movie record exists first

@@ -104,6 +104,7 @@ export default function TheaterPage() {
     getTheaterReviews,
     getTheaterRating,
     getUserReviewForTheater,
+    refreshData,
   } = useApp();
 
   const currentUser = state.currentUser;
@@ -120,6 +121,10 @@ export default function TheaterPage() {
   const [showComposer, setShowComposer] = useState(false);
   const [editingReview, setEditingReview] = useState(null);
   const [sortOption, setSortOption] = useState('newest');
+
+  useEffect(() => {
+    refreshData();
+  }, [theaterId, refreshData]);
 
   const theaterRatingInfo = useMemo(() => getTheaterRating(theaterId), [getTheaterRating, theaterId]);
   const allTheaterReviews = useMemo(() => getTheaterReviews(theaterId), [getTheaterReviews, theaterId]);
