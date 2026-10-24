@@ -735,7 +735,7 @@ export function AppProvider({ children }) {
         pushWeekendPickDataToCloud();
       }
 
-      const [remoteMovies, remoteReviews, remoteUsers, remoteTheaters, remoteCities, , remoteProApps, remoteNotifs] = await Promise.all([
+      const [remoteMovies, remoteReviews, remoteUsers, remoteTheaters, remoteCities, , remoteProApps, remoteNotifs, remoteDeletionReqs] = await Promise.all([
         supabaseService.getMovies(),
         supabaseService.getReviews(),
         supabaseService.getUsers(),
@@ -744,6 +744,7 @@ export function AppProvider({ children }) {
         syncWeekendPickDataFromCloud({ force: forcePush }),
         supabaseService.getProApplicationsData(),
         supabaseService.getNotificationsData(),
+        supabaseService.getDeletionRequestsData(),
       ]);
 
       let moviesCount = 0;
@@ -918,6 +919,27 @@ export function AppProvider({ children }) {
         }
       } else if (currentLocalNotifs.length > 0) {
         supabaseService.saveNotificationsData(currentLocalNotifs).catch(console.warn);
+      }
+
+      // Deletion Requests Synchronization
+      const currentLocalDeletionReqs = currentState.deletionRequests || loadStorage('cinemascope_deletion_requests', []);
+      if (remoteDeletionReqs && Array.isArray(remoteDeletionReqs) && remoteDeletionReqs.length > 0) {
+        const remoteReqMap = new Map(remoteDeletionReqs.map(r => [r.id || r.userId, r]));
+        let hasLocalReqChanges = false;
+        const mergedReqs = [...remoteDeletionReqs];
+        currentLocalDeletionReqs.forEach(loc => {
+          const key = loc.id || loc.userId;
+          if (!remoteReqMap.has(key)) {
+            mergedReqs.push(loc);
+            hasLocalReqChanges = true;
+          }
+        });
+        dispatch({ type: 'SET_DELETION_REQUESTS', payload: mergedReqs });
+        if (hasLocalReqChanges) {
+          supabaseService.saveDeletionRequestsData(mergedReqs).catch(console.warn);
+        }
+      } else if (currentLocalDeletionReqs.length > 0) {
+        supabaseService.saveDeletionRequestsData(currentLocalDeletionReqs).catch(console.warn);
       }
 
       // Sync personal movie library + community stats in parallel to reduce latency
@@ -1436,12 +1458,109 @@ export function AppProvider({ children }) {
     return true;
   }, []);
 
+  const submitDeletionRequest = useCallback(async ({ userId, userEmail, userDisplayName, reason }) => {
+    if (!userId) return false;
+    const req = {
+      id: `del-req-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      userId,
+      userEmail: userEmail || '—',
+      userDisplayName: userDisplayName || 'Cinema User',
+      reason: (reason || '').trim(),
+      status: 'PENDING',
+      adminNote: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    dispatch({ type: 'SUBMIT_DELETION_REQUEST', payload: req });
+
+    // Send admin notification
+    const adminNotif = {
+      id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      recipientId: 'admin',
+      type: 'ACCOUNT_DELETION_REQUEST',
+      title: 'New Account Deletion Request',
+      message: `${userDisplayName || 'User'} (${userEmail}) requested account deletion: "${(reason || '').slice(0, 80)}${(reason || '').length > 80 ? '...' : ''}"`,
+      createdAt: new Date().toISOString(),
+      isRead: false,
+    };
+    dispatch({ type: 'SET_NOTIFICATIONS', payload: [adminNotif, ...(stateRef.current?.notifications || [])] });
+    if (isSupabaseConfigured()) {
+      supabaseService.saveNotificationsData([adminNotif, ...(stateRef.current?.notifications || [])]).catch(console.warn);
+    }
+
+    return true;
+  }, []);
+
+  const cancelDeletionRequest = useCallback(async (userId) => {
+    if (!userId) return false;
+    dispatch({ type: 'CANCEL_DELETION_REQUEST', payload: userId });
+    return true;
+  }, []);
+
+  const rejectDeletionRequest = useCallback(async (requestId, adminNote = '') => {
+    const existingReq = (stateRef.current?.deletionRequests || []).find(r => r.id === requestId);
+    if (!existingReq) return false;
+
+    const updatedReq = {
+      ...existingReq,
+      status: 'REJECTED',
+      adminNote: (adminNote || '').trim(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    dispatch({ type: 'UPDATE_DELETION_REQUEST', payload: updatedReq });
+
+    // Notify user that request was reviewed & declined
+    if (existingReq.userId) {
+      const userNotif = {
+        id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        recipientId: existingReq.userId,
+        type: 'DELETION_REQUEST_REJECTED',
+        title: 'Account Deletion Request Update',
+        message: adminNote
+          ? `Your account deletion request was reviewed and declined by admin: "${adminNote}"`
+          : 'Your account deletion request was reviewed and declined by admin. Your account remains active.',
+        createdAt: new Date().toISOString(),
+        isRead: false,
+      };
+      const updatedNotifs = [userNotif, ...(stateRef.current?.notifications || [])];
+      dispatch({ type: 'SET_NOTIFICATIONS', payload: updatedNotifs });
+      if (isSupabaseConfigured()) {
+        supabaseService.saveNotificationsData(updatedNotifs).catch(console.warn);
+      }
+    }
+
+    return true;
+  }, []);
+
+  const approveDeletionRequest = useCallback(async (requestId, userOrId, options = {}) => {
+    // 1. Permanently delete the user account
+    await deleteUserAccount(userOrId, options);
+
+    // 2. Remove the request
+    dispatch({ type: 'CANCEL_DELETION_REQUEST', payload: requestId });
+
+    return true;
+  }, [deleteUserAccount]);
+
+  const getUserDeletionRequest = useCallback((userId) => {
+    if (!userId) return null;
+    return (state.deletionRequests || []).find(r => r.userId === userId) || null;
+  }, [state.deletionRequests]);
+
   return (
     <AppContext.Provider value={{
       state,
       dispatch,
       currentUser: state.currentUser,
       deleteUserAccount,
+      deletionRequests: state.deletionRequests || [],
+      submitDeletionRequest,
+      cancelDeletionRequest,
+      rejectDeletionRequest,
+      approveDeletionRequest,
+      getUserDeletionRequest,
       getCityTheaters,
       getTheater,
       getScreen,
