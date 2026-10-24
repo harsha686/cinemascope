@@ -168,6 +168,7 @@ export const supabaseService = {
   async saveReview(review) {
     const supabase = getSupabaseClient();
     if (!supabase) return false;
+    const isTheater = review.targetType === 'THEATER' || !!review.theaterId;
     const paramRatings = {
       ...(review.parameterRatings || {}),
       ...(review.theaterId ? {
@@ -177,10 +178,14 @@ export const supabaseService = {
         screenName: review.screenName || null,
         targetType: 'THEATER',
       } : {}),
+      ...(review.movieId ? {
+        originalMovieId: review.movieId,
+        originalMovieTitle: review.movieTitle || null,
+      } : {}),
     };
     const payload = {
       id: review.id,
-      movie_id: review.movieId || (review.theaterId ? `theater-${review.theaterId}` : null),
+      movie_id: isTheater ? null : (review.movieId || null),
       user_id: review.userId,
       user_display_name: review.userDisplayName,
       rating: review.rating,
@@ -198,19 +203,27 @@ export const supabaseService = {
     
     // If foreign key constraint failed on movie_id (e.g. TMDB movie), ensure a minimal movie record exists first
     if (error && (error.message?.includes('foreign key') || error.message?.includes('reviews_movie_id_fkey') || error.code === '23503')) {
-      try {
-        await supabase.from('movies').upsert({
-          id: review.movieId,
-          title: review.movieTitle || review.movieId,
-          poster_url: review.posterUrl || '',
-          status: 'CURRENTLY_SHOWING',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-        const retryResult = await supabase.from('reviews').upsert(payload);
-        error = retryResult.error;
-      } catch (e) {
-        console.warn('Auto movie stub creation failed:', e);
+      if (review.movieId && !isTheater) {
+        try {
+          await supabase.from('movies').upsert({
+            id: review.movieId,
+            title: review.movieTitle || review.movieId,
+            poster_url: review.posterUrl || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500',
+            status: 'CURRENTLY_SHOWING',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+          const retryResult = await supabase.from('reviews').upsert(payload);
+          error = retryResult.error;
+        } catch (e) {
+          console.warn('Auto movie stub creation failed:', e);
+        }
+      }
+      // If foreign key violation persists, fallback to movie_id = null so review is NEVER lost
+      if (error && (error.message?.includes('foreign key') || error.code === '23503')) {
+        payload.movie_id = null;
+        const retryNull = await supabase.from('reviews').upsert(payload);
+        error = retryNull.error;
       }
     }
 

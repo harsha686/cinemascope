@@ -86,14 +86,14 @@ export default function LeaderboardPage() {
 
       // Fallback only for initial mock demo accounts (user-1 to user-4, admin-1)
       const seed = SEED_USER_STATS[user.id] || null;
-      const effectiveWatched = Math.max(watchedCount, user.stats?.watchedCount || 0, user.stats?.totalWatched || 0, seed?.watched || 0);
-      const effectiveReviews = Math.max(reviewCountFromState, user.stats?.reviewCount || 0, seed?.reviews || 0);
-      const effectiveVotes = Math.max(voteCount, user.stats?.voteCount || 0, user.stats?.totalVotes || 0, seed?.votes || 0);
+      const effectiveWatched = watchedCount > 0 ? watchedCount : (seed?.watched || user.stats?.watchedCount || user.stats?.totalWatched || 0);
+      const effectiveReviews = reviewCountFromState > 0 ? reviewCountFromState : (user.stats?.reviewCount || seed?.reviews || 0);
+      const effectiveVotes = voteCount > 0 ? voteCount : (user.stats?.voteCount || user.stats?.totalVotes || seed?.votes || 0);
 
       // Calculate composite cinema score
       // Score = (watched * 5) + (reviews * 15) + (votes * 10)
       const calculatedScore = (effectiveWatched * 5) + (effectiveReviews * 15) + (effectiveVotes * 10);
-      const cinemaScore = Math.max(user.stats?.cinemaScore || user.stats?.points || 0, calculatedScore);
+      const cinemaScore = seed?.points ? Math.max(calculatedScore, seed.points) : calculatedScore;
 
       // Average rating calculation
       let avgRating = 0;

@@ -131,25 +131,10 @@ export default function ProfilePage() {
 
         // If viewing another user and remote library is 0, check user's synced stats
         const seed = LibService.SEED_USER_STATS[profileUser?.id] || null;
-        let finalWatched = archive?.stats?.totalWatched || ls?.totalWatched || 0;
-        let finalWatchlist = archive?.stats?.totalWatchlist || ls?.totalWatchlist || 0;
-        let finalFavorites = archive?.stats?.totalFavorites || ls?.totalFavorites || 0;
+        let finalWatched = (ls?.totalWatched > 0 ? ls.totalWatched : archive?.stats?.totalWatched) ?? profileUser?.stats?.watchedCount ?? profileUser?.stats?.totalWatched ?? seed?.watched ?? 0;
+        let finalWatchlist = (ls?.totalWatchlist > 0 ? ls.totalWatchlist : archive?.stats?.totalWatchlist) ?? profileUser?.stats?.watchlistCount ?? profileUser?.stats?.totalWatchlist ?? 0;
+        let finalFavorites = (ls?.totalFavorites > 0 ? ls.totalFavorites : archive?.stats?.totalFavorites) ?? profileUser?.stats?.favoritesCount ?? profileUser?.stats?.totalFavorites ?? 0;
         let finalRating = ls?.avgRating || profileUser?.stats?.avgRating || seed?.avgRating || 0;
-
-        const profileWatchedStat = Math.max(profileUser?.stats?.watchedCount || 0, profileUser?.stats?.totalWatched || 0, seed?.watched || 0);
-        if (profileWatchedStat > finalWatched) {
-          finalWatched = profileWatchedStat;
-        }
-
-        const profileWatchlistStat = Math.max(profileUser?.stats?.watchlistCount || 0, profileUser?.stats?.totalWatchlist || 0);
-        if (profileWatchlistStat > finalWatchlist) {
-          finalWatchlist = profileWatchlistStat;
-        }
-
-        const profileFavoritesStat = Math.max(profileUser?.stats?.favoritesCount || 0, profileUser?.stats?.totalFavorites || 0);
-        if (profileFavoritesStat > finalFavorites) {
-          finalFavorites = profileFavoritesStat;
-        }
 
         const finalDiaryCount = Math.max(ds?.totalEntries || 0, diaryData?.length || 0, profileUser?.stats?.diaryCount || 0, profileUser?.stats?.totalEntries || 0);
         const finalColsList = cols || [];
@@ -309,11 +294,11 @@ export default function ProfilePage() {
   // Score = (watched * 5) + (reviews * 15) + (votes * 10)
   const cinemaScore = useMemo(() => {
     const seed = LibService.SEED_USER_STATS[profileUser?.id] || null;
-    const effectiveWatched = Math.max(libStats.totalWatched, profileUser?.stats?.watchedCount || 0, profileUser?.stats?.totalWatched || 0, seed?.watched || 0);
-    const effectiveRevs = Math.max(userReviews.length, profileUser?.stats?.reviewCount || 0, seed?.reviews || 0);
-    const effectiveVotes = Math.max(weekendVotingStats.totalVotes, profileUser?.stats?.voteCount || 0, profileUser?.stats?.totalVotes || 0, seed?.votes || 0);
+    const effectiveWatched = libStats.totalWatched > 0 ? libStats.totalWatched : (seed?.watched || profileUser?.stats?.watchedCount || profileUser?.stats?.totalWatched || 0);
+    const effectiveRevs = userReviews.length > 0 ? userReviews.length : (user.stats?.reviewCount || seed?.reviews || 0);
+    const effectiveVotes = weekendVotingStats.totalVotes > 0 ? weekendVotingStats.totalVotes : (profileUser?.stats?.voteCount || profileUser?.stats?.totalVotes || seed?.votes || 0);
     const calculated = (effectiveWatched * 5) + (effectiveRevs * 15) + (effectiveVotes * 10);
-    return Math.max(profileUser?.stats?.cinemaScore || profileUser?.stats?.points || 0, calculated, seed?.points || 0);
+    return seed?.points ? Math.max(calculated, seed.points) : calculated;
   }, [libStats.totalWatched, userReviews.length, weekendVotingStats.totalVotes, profileUser?.stats, profileUser?.id]);
 
   // Pro reviewer status
@@ -383,7 +368,7 @@ export default function ProfilePage() {
 
   const seedStat = LibService.SEED_USER_STATS[profileUser?.id] || null;
   const statCards = [
-    { id: 'watched', label: 'Movies Watched', value: Math.max(libStats.totalWatched, profileUser?.stats?.watchedCount || 0, profileUser?.stats?.totalWatched || 0, seedStat?.watched || 0), icon: <Film size={18} color="var(--gold)" /> },
+    { id: 'watched', label: 'Movies Watched', value: libStats.totalWatched > 0 ? libStats.totalWatched : (seedStat?.watched || profileUser?.stats?.watchedCount || profileUser?.stats?.totalWatched || 0), icon: <Film size={18} color="var(--gold)" /> },
     { id: 'watchlist', label: 'Watchlist', value: Math.max(libStats.totalWatchlist, profileUser?.stats?.watchlistCount || 0, profileUser?.stats?.totalWatchlist || 0), icon: <Bookmark size={18} color="var(--gold)" /> },
     { id: 'favorites', label: 'Favorites', value: Math.max(libStats.totalFavorites, profileUser?.stats?.favoritesCount || 0, profileUser?.stats?.totalFavorites || 0), icon: <Heart size={18} color="var(--gold)" /> },
     { id: 'likes', label: 'Helpful Likes', value: Math.max(totalLikesReceived, profileUser?.stats?.likesCount || 0, profileUser?.stats?.helpfulLikes || 0), icon: <Heart size={18} color="#ef4444" /> },
@@ -872,7 +857,7 @@ export default function ProfilePage() {
               className={`btn ${activeArchiveTab === 'watched' ? 'btn-primary' : 'btn-ghost'} btn-sm`}
               style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap' }}
             >
-              <Film size={13} /> Watched ({Math.max(libStats.totalWatched, profileUser?.stats?.watchedCount || 0, profileUser?.stats?.totalWatched || 0)})
+              <Film size={13} /> Watched ({libStats.totalWatched > 0 ? libStats.totalWatched : (profileUser?.stats?.watchedCount || profileUser?.stats?.totalWatched || 0)})
             </button>
             <button
               type="button"

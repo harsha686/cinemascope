@@ -184,6 +184,8 @@ export default function ReviewComposer({
       } else {
         const targetMovieId = movie?.id || (movie?.tmdbId ? `tmdb-${movie.tmdbId}` : (existingReview?.movieId || null));
         const rawTmdbId = movie?.tmdbId || (targetMovieId ? String(targetMovieId).replace('tmdb-', '') : null);
+        const resolvedMovieTitle = movie?.title || movie?.name || existingReview?.movieTitle || '';
+        const resolvedPosterUrl = movie?.posterUrl || (movie?.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : (existingReview?.posterUrl || ''));
 
         const payload = {
           rating: overallRating,
@@ -191,6 +193,8 @@ export default function ReviewComposer({
           reviewText: note.trim(),
           reviewType: effectiveReviewType,
           targetType: 'MOVIE',
+          movieTitle: resolvedMovieTitle,
+          posterUrl: resolvedPosterUrl,
         };
 
         if (existingReview) {

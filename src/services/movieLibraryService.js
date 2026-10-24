@@ -452,10 +452,11 @@ export async function syncUserPublicStats(userId) {
 
     if (targetUser) {
       const existingStats = targetUser.stats || {};
-      let finalWatched = Math.max(existingStats.watchedCount || 0, existingStats.totalWatched || 0, stats.totalWatched, seed?.watched || 0);
-      let finalVotes = Math.max(existingStats.voteCount || 0, existingStats.totalVotes || 0, voteCount, seed?.votes || 0);
-      let finalRevs = Math.max(existingStats.reviewCount || 0, reviewCount, seed?.reviews || 0);
-      let finalScore = Math.max(existingStats.cinemaScore || existingStats.points || 0, (finalWatched * 5) + (finalRevs * 15) + (finalVotes * 10), calculatedScore, seed?.points || 0);
+      let finalWatched = stats.totalWatched > 0 ? stats.totalWatched : (seed?.watched || 0);
+      let finalVotes = voteCount > 0 ? voteCount : (seed?.votes || existingStats.voteCount || 0);
+      let finalRevs = reviewCount > 0 ? reviewCount : (seed?.reviews || existingStats.reviewCount || 0);
+      let calculated = (finalWatched * 5) + (finalRevs * 15) + (finalVotes * 10);
+      let finalScore = seed?.points ? Math.max(calculated, seed.points) : calculated;
 
       const updatedUser = {
         ...targetUser,
@@ -463,8 +464,8 @@ export async function syncUserPublicStats(userId) {
           ...existingStats,
           watchedCount: finalWatched,
           totalWatched: finalWatched,
-          watchlistCount: Math.max(existingStats.watchlistCount || 0, stats.totalWatchlist),
-          favoritesCount: Math.max(existingStats.favoritesCount || 0, stats.totalFavorites),
+          watchlistCount: stats.totalWatchlist !== undefined ? stats.totalWatchlist : (existingStats.watchlistCount || 0),
+          favoritesCount: stats.totalFavorites !== undefined ? stats.totalFavorites : (existingStats.favoritesCount || 0),
           reviewCount: finalRevs,
           voteCount: finalVotes,
           totalVotes: finalVotes,
@@ -595,15 +596,21 @@ export async function syncAllCommunityUserStats() {
       const curDiary = existingStats.diaryCount || existingStats.totalEntries || 0;
       const curScore = existingStats.cinemaScore || existingStats.points || 0;
 
-      let w = Math.max(curWatched, sbWatched, seed?.watched || 0);
-      let wl = Math.max(curWatchlist, sbWatchlist);
-      let fav = Math.max(curFavorites, sbFavorites);
-      let r = Math.max(curRevs, sbRevs, seed?.reviews || 0);
-      let v = Math.max(curVotes, sbVotes, seed?.votes || 0);
-      let cols = Math.max(curCols, sbCollections);
-      let diary = Math.max(curDiary, sbDiary);
-      let likes = Math.max(existingStats.likesCount || 0, sbLikes);
-      let score = Math.max(curScore, (w * 5) + (r * 15) + (v * 10), seed?.points || 0);
+      // Ground truth from Supabase tables:
+      // If user has rows in user_movies, sb counts are exact. Otherwise fallback to seed or cached.
+      const hasSbMovieData = watchedMap[uid] !== undefined || watchlistMap[uid] !== undefined || favoritesMap[uid] !== undefined;
+      let w = hasSbMovieData ? sbWatched : (seed?.watched || curWatched || 0);
+      let wl = hasSbMovieData ? sbWatchlist : (curWatchlist || 0);
+      let fav = hasSbMovieData ? sbFavorites : (curFavorites || 0);
+      let r = revMap[uid] !== undefined ? sbRevs : (seed?.reviews || curRevs || 0);
+      let v = voteMap[uid] !== undefined ? sbVotes : (seed?.votes || curVotes || 0);
+      let cols = collectionsMap[uid] !== undefined ? sbCollections : (curCols || 0);
+      let diary = diaryMap[uid] !== undefined ? sbDiary : (curDiary || 0);
+      let likes = sbLikes > 0 ? sbLikes : (existingStats.likesCount || 0);
+
+      // Calculate true cinema score based on verified numbers
+      let calculatedScore = (w * 5) + (r * 15) + (v * 10);
+      let score = seed?.points ? Math.max(calculatedScore, seed.points) : calculatedScore;
 
       if (w !== curWatched || score !== curScore || v !== curVotes || r !== curRevs || cols !== curCols || diary !== curDiary || fav !== curFavorites || wl !== curWatchlist) {
         hasChanges = true;

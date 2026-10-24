@@ -85,13 +85,13 @@ export function deduplicateUsers(usersList) {
         existing.stats = {
           ...(existing.stats || {}),
           ...(user.stats || {}),
-          watchedCount: Math.max(exWatched, uWatched),
-          totalWatched: Math.max(exWatched, uWatched),
-          voteCount: Math.max(exVotes, uVotes),
-          totalVotes: Math.max(exVotes, uVotes),
-          reviewCount: Math.max(existing.stats?.reviewCount || 0, user.stats?.reviewCount || 0),
-          cinemaScore: Math.max(exScore, uScore),
-          points: Math.max(exScore, uScore),
+          watchedCount: uWatched > 0 ? uWatched : exWatched,
+          totalWatched: uWatched > 0 ? uWatched : exWatched,
+          voteCount: uVotes > 0 ? uVotes : exVotes,
+          totalVotes: uVotes > 0 ? uVotes : exVotes,
+          reviewCount: user.stats?.reviewCount !== undefined ? user.stats.reviewCount : (existing.stats?.reviewCount || 0),
+          cinemaScore: uScore > 0 ? uScore : exScore,
+          points: uScore > 0 ? uScore : exScore,
         };
       }
       continue;
@@ -112,13 +112,13 @@ export function deduplicateUsers(usersList) {
         existing.stats = {
           ...(existing.stats || {}),
           ...(user.stats || {}),
-          watchedCount: Math.max(exWatched, uWatched),
-          totalWatched: Math.max(exWatched, uWatched),
-          voteCount: Math.max(exVotes, uVotes),
-          totalVotes: Math.max(exVotes, uVotes),
-          reviewCount: Math.max(existing.stats?.reviewCount || 0, user.stats?.reviewCount || 0),
-          cinemaScore: Math.max(exScore, uScore),
-          points: Math.max(exScore, uScore),
+          watchedCount: uWatched > 0 ? uWatched : exWatched,
+          totalWatched: uWatched > 0 ? uWatched : exWatched,
+          voteCount: uVotes > 0 ? uVotes : exVotes,
+          totalVotes: uVotes > 0 ? uVotes : exVotes,
+          reviewCount: user.stats?.reviewCount !== undefined ? user.stats.reviewCount : (existing.stats?.reviewCount || 0),
+          cinemaScore: uScore > 0 ? uScore : exScore,
+          points: uScore > 0 ? uScore : exScore,
         };
         continue;
       }
@@ -824,6 +824,15 @@ export function AppProvider({ children }) {
         const mergedList = sanitizeReviews([...remoteReviews, ...localOnlyEntries]);
         reviewsCount = mergedList.length;
         dispatch({ type: 'SET_REVIEWS', payload: mergedList });
+
+        // Auto-push any local published reviews that haven't reached Supabase yet
+        if (localOnlyEntries.length > 0) {
+          for (const lr of localOnlyEntries) {
+            if (lr.status === 'PUBLISHED') {
+              supabaseService.saveReview(lr).catch(console.warn);
+            }
+          }
+        }
       }
 
       // Theaters Synchronization across all devices (Desktop, Mobile, Tablet)
@@ -1007,14 +1016,34 @@ export function AppProvider({ children }) {
     };
     window.addEventListener('storage', handleStorageChange);
 
-    // Auto-sync when user switches back to the tab/app
+    // Auto-sync fresh reviews, notifications, and user stats when user switches back to tab or on interval
+    const fetchFreshCloudUpdates = () => {
+      supabaseService.getNotificationsData().then((remoteNotifs) => {
+        if (remoteNotifs && Array.isArray(remoteNotifs)) {
+          dispatch({ type: 'SET_NOTIFICATIONS', payload: remoteNotifs });
+        }
+      }).catch(() => {});
+
+      supabaseService.getReviews().then((remoteReviews) => {
+        if (remoteReviews && remoteReviews.length > 0) {
+          const currentLocal = loadStorage('cinemascope_reviews', []);
+          const remoteMap = new Map(remoteReviews.map(r => [r.id, r]));
+          const localOnly = (Array.isArray(currentLocal) ? currentLocal : []).filter(l => !remoteMap.has(l.id));
+          const merged = sanitizeReviews([...remoteReviews, ...localOnly]);
+          dispatch({ type: 'SET_REVIEWS', payload: merged });
+        }
+      }).catch(() => {});
+
+      supabaseService.getUsers().then((remoteUsers) => {
+        if (remoteUsers && remoteUsers.length > 0) {
+          dispatch({ type: 'SET_USERS', payload: remoteUsers });
+        }
+      }).catch(() => {});
+    };
+
     const handleVisibilityOrFocus = () => {
       if (document.visibilityState === 'visible') {
-        supabaseService.getNotificationsData().then((remoteNotifs) => {
-          if (remoteNotifs && Array.isArray(remoteNotifs)) {
-            dispatch({ type: 'SET_NOTIFICATIONS', payload: remoteNotifs });
-          }
-        }).catch(() => {});
+        fetchFreshCloudUpdates();
       }
     };
     window.addEventListener('focus', handleVisibilityOrFocus);
@@ -1022,11 +1051,7 @@ export function AppProvider({ children }) {
 
     // Background interval auto-poll every 15 seconds
     const intervalTimer = setInterval(() => {
-      supabaseService.getNotificationsData().then((remoteNotifs) => {
-        if (remoteNotifs && Array.isArray(remoteNotifs)) {
-          dispatch({ type: 'SET_NOTIFICATIONS', payload: remoteNotifs });
-        }
-      }).catch(() => {});
+      fetchFreshCloudUpdates();
     }, 15000);
 
     return () => {
@@ -1224,20 +1249,20 @@ export function AppProvider({ children }) {
 
   const isMovieMatch = useCallback((r, movieId) => {
     if (!r || !movieId) return false;
-    if (r.theaterId && !r.movieId) return false;
-    if (r.movieId === movieId) return true;
+    if (r.theaterId && !r.movieId && !r.parameterRatings?.originalMovieId) return false;
+    if (r.movieId === movieId || r.parameterRatings?.originalMovieId === movieId) return true;
     const targetRaw = String(movieId).replace('tmdb-', '');
-    const rMovieRaw = r.movieId ? String(r.movieId).replace('tmdb-', '') : null;
+    const rMovieRaw = r.movieId ? String(r.movieId).replace('tmdb-', '') : (r.parameterRatings?.originalMovieId ? String(r.parameterRatings.originalMovieId).replace('tmdb-', '') : null);
     const rTmdbRaw = r.tmdbId ? String(r.tmdbId) : null;
     return (rMovieRaw && rMovieRaw === targetRaw) || (rTmdbRaw && rTmdbRaw === targetRaw);
   }, []);
 
   const getMovieReviews = useCallback((movieId) => {
-    return state.reviews.filter(r => isMovieMatch(r, movieId) && r.status === 'PUBLISHED');
+    return state.reviews.filter(r => isMovieMatch(r, movieId) && (r.status === 'PUBLISHED' || !r.status));
   }, [state.reviews, isMovieMatch]);
 
   const getMovieRating = useCallback((movieId) => {
-    const published = state.reviews.filter(r => isMovieMatch(r, movieId) && r.status === 'PUBLISHED');
+    const published = state.reviews.filter(r => isMovieMatch(r, movieId) && (r.status === 'PUBLISHED' || !r.status));
     if (published.length === 0) return { average: 0, count: 0 };
     const sum = published.reduce((acc, r) => {
       // Support both new parameterRatings format and old flat rating
@@ -1249,7 +1274,7 @@ export function AppProvider({ children }) {
   }, [state.reviews, isMovieMatch]);
 
   const getRatingDistribution = useCallback((movieId) => {
-    const published = state.reviews.filter(r => isMovieMatch(r, movieId) && r.status === 'PUBLISHED');
+    const published = state.reviews.filter(r => isMovieMatch(r, movieId) && (r.status === 'PUBLISHED' || !r.status));
     const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
     const total = published.length;
     if (total === 0) return { counts, percentages: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }, total: 0 };
@@ -1330,7 +1355,7 @@ export function AppProvider({ children }) {
   const getMovieUserReviews = useCallback((movieId) => {
     return state.reviews.filter(r =>
       isMovieMatch(r, movieId) &&
-      r.status === 'PUBLISHED' &&
+      (r.status === 'PUBLISHED' || !r.status) &&
       !isProfessionalReview(r)
     );
   }, [state.reviews, isMovieMatch, isProfessionalReview]);
@@ -1338,7 +1363,7 @@ export function AppProvider({ children }) {
   const getMovieProfessionalReviews = useCallback((movieId) => {
     return state.reviews.filter(r =>
       isMovieMatch(r, movieId) &&
-      r.status === 'PUBLISHED' &&
+      (r.status === 'PUBLISHED' || !r.status) &&
       isProfessionalReview(r)
     );
   }, [state.reviews, isMovieMatch, isProfessionalReview]);
@@ -1346,7 +1371,7 @@ export function AppProvider({ children }) {
   const getProfessionalRating = useCallback((movieId) => {
     const proRevs = state.reviews.filter(r =>
       isMovieMatch(r, movieId) &&
-      r.status === 'PUBLISHED' &&
+      (r.status === 'PUBLISHED' || !r.status) &&
       isProfessionalReview(r)
     );
     if (proRevs.length === 0) return { average: 0, count: 0 };

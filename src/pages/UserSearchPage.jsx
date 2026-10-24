@@ -55,11 +55,11 @@ export default function UserSearchPage() {
         } catch (e) {}
       }
 
-      const effectiveWatched = Math.max(watchedCount, user.stats?.watchedCount || 0, user.stats?.totalWatched || 0, seed?.watched || 0);
-      const effectiveReviews = Math.max(userReviews.length, user.stats?.reviewCount || 0, seed?.reviews || 0);
-      const effectiveVotes = Math.max(voteCount, user.stats?.voteCount || 0, user.stats?.totalVotes || 0, seed?.votes || 0);
+      const effectiveWatched = watchedCount > 0 ? watchedCount : (seed?.watched || user.stats?.watchedCount || user.stats?.totalWatched || 0);
+      const effectiveReviews = userReviews.length > 0 ? userReviews.length : (user.stats?.reviewCount || seed?.reviews || 0);
+      const effectiveVotes = voteCount > 0 ? voteCount : (user.stats?.voteCount || user.stats?.totalVotes || seed?.votes || 0);
       const calculatedScore = (effectiveWatched * 5) + (effectiveReviews * 15) + (effectiveVotes * 10);
-      const cinemaScore = Math.max(user.stats?.cinemaScore || user.stats?.points || 0, calculatedScore);
+      const cinemaScore = seed?.points ? Math.max(calculatedScore, seed.points) : calculatedScore;
       const isPro = isVerifiedPro ? isVerifiedPro(user.id) : false;
 
       return {
