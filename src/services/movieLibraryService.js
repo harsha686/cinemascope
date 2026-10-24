@@ -457,13 +457,6 @@ export async function syncUserPublicStats(userId) {
       let finalRevs = Math.max(existingStats.reviewCount || 0, reviewCount, seed?.reviews || 0);
       let finalScore = Math.max(existingStats.cinemaScore || existingStats.points || 0, (finalWatched * 5) + (finalRevs * 15) + (finalVotes * 10), calculatedScore, seed?.points || 0);
 
-      // Special lock for Konathala Jayavardhan (1745 points minimum, 329 watched)
-      if (uid === '519d1f74-d4a5-4826-a385-a03fa92a14bb' || (targetUser.displayName && targetUser.displayName.toLowerCase().includes('jayavardhan'))) {
-        finalWatched = Math.max(finalWatched, 329);
-        finalVotes = Math.max(finalVotes, 10);
-        finalScore = Math.max(finalScore, 1745);
-      }
-
       const updatedUser = {
         ...targetUser,
         stats: {
@@ -611,16 +604,6 @@ export async function syncAllCommunityUserStats() {
       let diary = Math.max(curDiary, sbDiary);
       let likes = Math.max(existingStats.likesCount || 0, sbLikes);
       let score = Math.max(curScore, (w * 5) + (r * 15) + (v * 10), seed?.points || 0);
-
-      // Special lock for Konathala Jayavardhan (1745 points minimum, 329 watched)
-      if (uid === '519d1f74-d4a5-4826-a385-a03fa92a14bb' || (u.displayName && u.displayName.toLowerCase().includes('jayavardhan'))) {
-        w = Math.max(w, 329);
-        v = Math.max(v, 10);
-        score = Math.max(score, 1745);
-        cols = Math.max(cols, 1);
-        diary = Math.max(diary, 1);
-        r = Math.max(r, 1);
-      }
 
       if (w !== curWatched || score !== curScore || v !== curVotes || r !== curRevs || cols !== curCols || diary !== curDiary || fav !== curFavorites || wl !== curWatchlist) {
         hasChanges = true;

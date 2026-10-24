@@ -846,18 +846,20 @@ export function AppProvider({ children }) {
         supabaseService.saveNotificationsData(currentLocalNotifs).catch(console.warn);
       }
 
-      // Sync personal movie library if a user is logged in
-      if (currentState.currentUser && currentState.currentUser.id) {
-        await syncUserLibraryWithCloud(currentState.currentUser.id).catch(console.warn);
-        await syncUserPublicStats(currentState.currentUser.id).catch(console.warn);
-      }
-
-      // Reconcile and synchronize community leaderboard stats
-      await syncAllCommunityUserStats().then(updatedUsers => {
-        if (updatedUsers && updatedUsers.length > 0) {
-          dispatch({ type: 'SET_USERS', payload: updatedUsers });
-        }
-      }).catch(console.warn);
+      // Sync personal movie library + community stats in parallel to reduce latency
+      await Promise.all([
+        currentState.currentUser?.id
+          ? syncUserLibraryWithCloud(currentState.currentUser.id).catch(console.warn)
+          : Promise.resolve(),
+        currentState.currentUser?.id
+          ? syncUserPublicStats(currentState.currentUser.id).catch(console.warn)
+          : Promise.resolve(),
+        syncAllCommunityUserStats().then(updatedUsers => {
+          if (updatedUsers && updatedUsers.length > 0) {
+            dispatch({ type: 'SET_USERS', payload: updatedUsers });
+          }
+        }).catch(console.warn),
+      ]);
 
       const now = new Date().toISOString();
       setLastSyncedAt(now);
@@ -973,6 +975,76 @@ export function AppProvider({ children }) {
 
     return () => {
       supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Supabase Real-Time Channel for instant review visibility across all devices
+  useEffect(() => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    const reviewsChannel = supabase
+      .channel('reviews_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'reviews' },
+        async () => {
+          // A review was inserted/updated/deleted — re-fetch all reviews
+          try {
+            const remoteReviews = await supabaseService.getReviews();
+            if (remoteReviews && remoteReviews.length > 0) {
+              const currentLocal = loadStorage('cinemascope_reviews', []);
+              const remoteMap = new Map(remoteReviews.map(r => [r.id, r]));
+              const localOnlyEntries = (Array.isArray(currentLocal) ? currentLocal : []).filter(
+                loc => !remoteMap.has(loc.id)
+              );
+              const merged = sanitizeReviews([...remoteReviews, ...localOnlyEntries]);
+              dispatch({ type: 'SET_REVIEWS', payload: merged });
+            }
+          } catch (err) {
+            console.warn('Realtime reviews fetch error:', err);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(reviewsChannel);
+    };
+  }, []);
+
+  // Supabase Real-Time Channel for leaderboard/community stats updates
+  useEffect(() => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    const statsChannel = supabase
+      .channel('community_stats_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'collections',
+          filter: 'id=eq.system_users_data',
+        },
+        (payload) => {
+          if (payload.new && payload.new.description) {
+            try {
+              const updatedUsers = JSON.parse(payload.new.description);
+              if (Array.isArray(updatedUsers) && updatedUsers.length > 0) {
+                dispatch({ type: 'SET_USERS', payload: updatedUsers });
+              }
+            } catch (err) {
+              console.warn('Realtime community stats parse error:', err);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(statsChannel);
     };
   }, []);
 
