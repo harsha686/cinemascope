@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
-import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, ChevronDown, ChevronUp, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2, Users, Bell, Search, Tv, X, Sparkles, SlidersHorizontal, Trash2, AlertTriangle } from 'lucide-react';
+import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, ChevronDown, ChevronUp, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2, Users, Bell, Search, Tv, X, Sparkles, SlidersHorizontal, Trash2, AlertTriangle, Clock, Send } from 'lucide-react';
 import { useApp } from '../AppContext';
 import ReviewCard from '../components/reviews/ReviewCard';
 import ProfessionalRatingBadge from '../components/reviews/ProfessionalRatingBadge';
@@ -16,7 +16,7 @@ import { SOCIAL_CONTENT_TYPES } from '../services/socialSharingService';
 export default function ProfilePage() {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { state, dispatch, getMovie, getTheater, isVerifiedPro, deleteUserAccount } = useApp();
+  const { state, dispatch, getMovie, getTheater, isVerifiedPro, deleteUserAccount, submitDeletionRequest, cancelDeletionRequest, getUserDeletionRequest } = useApp();
 
   // The currently logged in visitor
   const viewerUser = state.currentUser;
@@ -41,26 +41,45 @@ export default function ProfilePage() {
     !userId || (viewerUser && profileUser && (viewerUser.id === profileUser.id || (viewerUser.email && profileUser.email && viewerUser.email.toLowerCase() === profileUser.email.toLowerCase())))
   );
 
-  // Account Deletion State
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
-  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
+  // Account Deletion Request State
+  const userDeletionReq = getUserDeletionRequest ? getUserDeletionRequest(profileUser?.id) : null;
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [deletionReason, setDeletionReason] = useState('');
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+  const [requestFeedback, setRequestFeedback] = useState('');
+  const [requestError, setRequestError] = useState('');
 
-  const handleConfirmDeleteAccount = async () => {
-    if (deleteConfirmText.trim().toUpperCase() !== 'DELETE') return;
-    setIsDeletingAccount(true);
-    setDeleteError('');
+  const handleSubmitDeletionRequest = async (e) => {
+    e?.preventDefault();
+    if (!deletionReason.trim()) {
+      setRequestError('Please provide a message or reason for your account deletion request.');
+      return;
+    }
+    setIsSubmittingRequest(true);
+    setRequestError('');
     try {
-      await deleteUserAccount(profileUser.id, {
-        email: profileUser.email,
-        displayName: profileUser.displayName,
+      await submitDeletionRequest({
+        userId: profileUser.id,
+        userEmail: profileUser.email,
+        userDisplayName: profileUser.displayName,
+        reason: deletionReason.trim(),
       });
-      setShowDeleteModal(false);
-      navigate('/');
+      setShowRequestModal(false);
+      setDeletionReason('');
+      setRequestFeedback('Your deletion request has been submitted to the admin for review.');
+      setTimeout(() => setRequestFeedback(''), 5000);
     } catch (err) {
-      setDeleteError(err?.message || 'Failed to delete account. Please try again.');
-      setIsDeletingAccount(false);
+      setRequestError(err?.message || 'Failed to submit request.');
+    } finally {
+      setIsSubmittingRequest(false);
+    }
+  };
+
+  const handleCancelRequest = async () => {
+    if (window.confirm('Withdraw your account deletion request? Your account will remain active.')) {
+      await cancelDeletionRequest(profileUser.id);
+      setRequestFeedback('Account deletion request has been withdrawn.');
+      setTimeout(() => setRequestFeedback(''), 4000);
     }
   };
 
@@ -557,13 +576,13 @@ export default function ProfilePage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setDeleteConfirmText('');
-                      setDeleteError('');
-                      setShowDeleteModal(true);
+                      setDeletionReason('');
+                      setRequestError('');
+                      setShowRequestModal(true);
                     }}
                     className="btn btn-ghost btn-sm"
                     style={{ color: 'var(--text-muted)', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 5 }}
-                    title="Delete Account"
+                    title="Request Account Deletion"
                   >
                     <Trash2 size={13} /> Delete Account
                   </button>
@@ -1580,51 +1599,161 @@ export default function ProfilePage() {
       {/* Danger Zone / Account Deletion for Own Profile */}
       {isOwnProfile && (
         <div className="container" style={{ maxWidth: 960, padding: '36px 24px 0' }}>
-          <div style={{
-            background: 'rgba(239, 68, 68, 0.03)',
-            border: '1px solid rgba(239, 68, 68, 0.25)',
-            borderRadius: 6,
-            padding: '24px 28px',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#f87171', fontWeight: 600, fontSize: 15, fontFamily: 'var(--font-serif)' }}>
-                  <AlertTriangle size={18} />
-                  <span>Danger Zone</span>
+          {requestFeedback && (
+            <div style={{
+              background: 'rgba(34,197,94,0.1)',
+              border: '1px solid rgba(34,197,94,0.3)',
+              color: '#4ade80',
+              padding: '12px 16px',
+              borderRadius: 6,
+              fontSize: 13,
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}>
+              <CheckCircle2 size={16} />
+              <span>{requestFeedback}</span>
+            </div>
+          )}
+
+          {userDeletionReq && userDeletionReq.status === 'PENDING' ? (
+            <div style={{
+              background: 'rgba(234, 179, 8, 0.05)',
+              border: '1px solid rgba(234, 179, 8, 0.35)',
+              borderRadius: 8,
+              padding: '24px 28px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                  <div style={{ padding: 8, background: 'rgba(234, 179, 8, 0.12)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '50%', color: '#facc15', display: 'flex' }}>
+                    <Clock size={20} />
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-serif)', color: '#facc15', fontSize: 16, fontWeight: 600 }}>
+                      Account Deletion Request Under Review
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                      Submitted on {new Date(userDeletionReq.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })} • Awaiting Administrator Review
+                    </div>
+                  </div>
                 </div>
-                <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--text-muted)', maxWidth: 540, lineHeight: 1.5 }}>
-                  Permanently delete your CinemaScope account and all associated data, including reviews, ratings, watchlist, personal diary, collections, and voting records.
+
+                <button
+                  type="button"
+                  onClick={handleCancelRequest}
+                  className="btn btn-outline btn-sm"
+                  style={{
+                    borderColor: 'rgba(234, 179, 8, 0.4)',
+                    color: '#facc15',
+                    fontSize: 12,
+                  }}
+                >
+                  Withdraw Request
+                </button>
+              </div>
+
+              <div style={{ marginTop: 16, background: 'rgba(0,0,0,0.4)', border: '1px solid var(--border-subtle)', padding: '12px 16px', borderRadius: 6, fontSize: 13, color: 'var(--text-secondary)' }}>
+                <strong style={{ color: 'var(--text-primary)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>
+                  Your Submitted Reason for Admin:
+                </strong>
+                <p style={{ margin: 0, fontStyle: 'italic', color: 'var(--text-primary)', lineHeight: 1.5 }}>
+                  "{userDeletionReq.reason}"
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setDeleteConfirmText('');
-                  setDeleteError('');
-                  setShowDeleteModal(true);
-                }}
-                className="btn btn-outline btn-sm"
-                style={{
-                  borderColor: 'rgba(239, 68, 68, 0.5)',
-                  color: '#f87171',
-                  background: 'rgba(239, 68, 68, 0.08)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  fontSize: 12,
-                }}
-              >
-                <Trash2 size={14} />
-                <span>Delete Account</span>
-              </button>
+              <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                Your account remains fully active while the admin evaluates your request. If approved, your account and library data will be wiped permanently.
+              </p>
             </div>
-          </div>
+          ) : userDeletionReq && userDeletionReq.status === 'REJECTED' ? (
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.04)',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              borderRadius: 8,
+              padding: '24px 28px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#f87171', fontWeight: 600, fontSize: 15, fontFamily: 'var(--font-serif)' }}>
+                    <AlertTriangle size={18} />
+                    <span>Previous Deletion Request Declined</span>
+                  </div>
+                  <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--text-muted)', maxWidth: 540, lineHeight: 1.5 }}>
+                    Your previous account deletion request was reviewed and declined by the administrator.
+                  </p>
+                  {userDeletionReq.adminNote && (
+                    <div style={{ marginTop: 10, background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>Admin Note:</strong> {userDeletionReq.adminNote}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeletionReason('');
+                    setRequestError('');
+                    setShowRequestModal(true);
+                  }}
+                  className="btn btn-outline btn-sm"
+                  style={{
+                    borderColor: 'rgba(239, 68, 68, 0.5)',
+                    color: '#f87171',
+                    fontSize: 12,
+                  }}
+                >
+                  Submit New Request
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.03)',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              borderRadius: 8,
+              padding: '24px 28px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#f87171', fontWeight: 600, fontSize: 15, fontFamily: 'var(--font-serif)' }}>
+                    <AlertTriangle size={18} />
+                    <span>Danger Zone</span>
+                  </div>
+                  <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--text-muted)', maxWidth: 540, lineHeight: 1.5 }}>
+                    Submit an account deletion request to the administrator. If approved, all your reviews, ratings, watchlist, personal diary, collections, and voting records will be permanently removed.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeletionReason('');
+                    setRequestError('');
+                    setShowRequestModal(true);
+                  }}
+                  className="btn btn-outline btn-sm"
+                  style={{
+                    borderColor: 'rgba(239, 68, 68, 0.5)',
+                    color: '#f87171',
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 12,
+                  }}
+                >
+                  <Trash2 size={14} />
+                  <span>Request Account Deletion</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Account Deletion Confirmation Modal */}
-      {showDeleteModal && (
+      {/* Account Deletion Request Submission Modal */}
+      {showRequestModal && (
         <div style={{
           position: 'fixed',
           inset: 0,
@@ -1640,7 +1769,7 @@ export default function ProfilePage() {
             background: 'var(--bg-card)',
             border: '1px solid rgba(239,68,68,0.4)',
             borderRadius: 8,
-            maxWidth: 500,
+            maxWidth: 520,
             width: '100%',
             padding: 24,
             boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
@@ -1652,16 +1781,16 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-primary)' }}>
-                    Delete Your Account
+                    Request Account Deletion
                   </h3>
                   <span style={{ fontSize: 11, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
-                    Irreversible Action
+                    Admin Review Required
                   </span>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setShowDeleteModal(false)}
+                onClick={() => setShowRequestModal(false)}
                 className="btn btn-ghost btn-sm"
                 style={{ padding: 4, color: 'var(--text-muted)' }}
               >
@@ -1674,64 +1803,64 @@ export default function ProfilePage() {
                 <strong>Protected Master Account:</strong> The primary administrator account (<em>{profileUser.email}</em>) cannot be deleted to ensure system management integrity.
               </div>
             ) : (
-              <>
+              <form onSubmit={handleSubmitDeletionRequest}>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 16px' }}>
-                  Are you sure you want to permanently delete your CinemaScope account (<strong style={{ color: 'var(--text-primary)' }}>{profileUser.displayName}</strong>)?
+                  To process your account deletion, please write a message explaining your reason or feedback. The administrator will review your request before taking action.
                 </p>
 
-                <div style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '12px 14px', marginBottom: 20, fontSize: 12, color: 'var(--text-muted)' }}>
-                  <div style={{ color: 'var(--text-primary)', fontWeight: 600, marginBottom: 6 }}>All your personal data will be erased:</div>
-                  <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <li>Your profile, credentials, and session</li>
-                    <li>All movie and theater reviews you wrote</li>
-                    <li>Your saved watchlist, watched titles, and ratings</li>
-                    <li>Your film diary entries and custom collections</li>
-                    <li>Your Weekend Pick voting activity &amp; points</li>
-                  </ul>
+                <div style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '12px 14px', marginBottom: 18, fontSize: 12, color: 'var(--text-muted)' }}>
+                  <div style={{ color: 'var(--text-primary)', fontWeight: 600, marginBottom: 4 }}>Notice upon approval:</div>
+                  <div style={{ lineHeight: 1.4 }}>
+                    If accepted, your credentials, reviews, personal watchlist, diary logs, and voting history will be wiped permanently.
+                  </div>
                 </div>
 
-                {deleteError && (
+                {requestError && (
                   <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', color: '#f87171', padding: '10px 12px', borderRadius: 4, fontSize: 12, marginBottom: 16 }}>
-                    {deleteError}
+                    {requestError}
                   </div>
                 )}
 
                 <div style={{ marginBottom: 20 }}>
-                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>
-                    To confirm, please type <strong style={{ color: '#f87171', letterSpacing: '0.05em' }}>DELETE</strong> below:
+                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-primary)', fontWeight: 600, marginBottom: 6 }}>
+                    Reason / Message for Admin <span style={{ color: '#f87171' }}>*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={deleteConfirmText}
-                    onChange={(e) => setDeleteConfirmText(e.target.value)}
-                    placeholder="DELETE"
+                  <textarea
+                    rows={4}
+                    value={deletionReason}
+                    onChange={(e) => setDeletionReason(e.target.value)}
+                    placeholder="Tell the administrator why you want to delete your account (e.g., feedback, issues faced, no longer needed)..."
                     className="input"
                     style={{
                       width: '100%',
-                      fontFamily: 'monospace',
                       fontSize: 13,
-                      borderColor: deleteConfirmText.trim().toUpperCase() === 'DELETE' ? '#ef4444' : 'var(--border)',
+                      lineHeight: 1.5,
+                      resize: 'vertical',
+                      padding: '10px 12px',
                     }}
+                    autoFocus
                   />
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                    Please write a clear message so the administrator can evaluate your request.
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
                   <button
                     type="button"
                     className="btn btn-outline btn-sm"
-                    onClick={() => setShowDeleteModal(false)}
-                    disabled={isDeletingAccount}
+                    onClick={() => setShowRequestModal(false)}
+                    disabled={isSubmittingRequest}
                     style={{ fontSize: 12 }}
                   >
                     Cancel
                   </button>
                   <button
-                    type="button"
+                    type="submit"
                     className="btn btn-sm"
-                    onClick={handleConfirmDeleteAccount}
-                    disabled={deleteConfirmText.trim().toUpperCase() !== 'DELETE' || isDeletingAccount}
+                    disabled={!deletionReason.trim() || isSubmittingRequest}
                     style={{
-                      background: deleteConfirmText.trim().toUpperCase() === 'DELETE' ? '#dc2626' : 'rgba(239,68,68,0.3)',
+                      background: deletionReason.trim() ? '#dc2626' : 'rgba(239,68,68,0.3)',
                       color: '#fff',
                       border: '1px solid #ef4444',
                       display: 'inline-flex',
@@ -1739,24 +1868,24 @@ export default function ProfilePage() {
                       gap: 6,
                       fontSize: 12,
                       fontWeight: 600,
-                      cursor: deleteConfirmText.trim().toUpperCase() === 'DELETE' ? 'pointer' : 'not-allowed',
-                      opacity: deleteConfirmText.trim().toUpperCase() === 'DELETE' ? 1 : 0.6,
+                      cursor: deletionReason.trim() ? 'pointer' : 'not-allowed',
+                      opacity: deletionReason.trim() ? 1 : 0.6,
                     }}
                   >
-                    {isDeletingAccount ? (
+                    {isSubmittingRequest ? (
                       <>
                         <span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} />
-                        <span>Deleting...</span>
+                        <span>Submitting...</span>
                       </>
                     ) : (
                       <>
-                        <Trash2 size={13} />
-                        <span>Permanently Delete My Account</span>
+                        <Send size={13} />
+                        <span>Submit Deletion Request</span>
                       </>
                     )}
                   </button>
                 </div>
-              </>
+              </form>
             )}
           </div>
         </div>

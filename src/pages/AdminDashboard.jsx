@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShieldAlert, Film, MessageSquare, Users, MapPin, Plus, Search, Edit3, Trash2, CheckCircle2, EyeOff, Sparkles, AlertCircle, ArrowLeft, ExternalLink, Check, Image as ImageIcon, Database, RefreshCw, ShieldCheck, Building2, Trophy } from 'lucide-react';
+import { ShieldAlert, Film, MessageSquare, Users, MapPin, Plus, Search, Edit3, Trash2, CheckCircle2, EyeOff, Sparkles, AlertCircle, ArrowLeft, ExternalLink, Check, Image as ImageIcon, Database, RefreshCw, ShieldCheck, Building2, Trophy, Clock, X, AlertTriangle } from 'lucide-react';
 import { useApp } from '../AppContext';
 import TMDBImportHelper from '../components/admin/TMDBImportHelper';
 import XPosterDiscoveryModal from '../components/admin/XPosterDiscoveryModal';
@@ -12,7 +12,21 @@ import CloudSyncButton from '../components/common/CloudSyncButton';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { state, dispatch, allCities, allTheaters, getMovieRating, refreshData, syncCloudData, isRefreshing, lastSyncedAt, deleteUserAccount } = useApp();
+  const {
+    state,
+    dispatch,
+    allCities,
+    allTheaters,
+    getMovieRating,
+    refreshData,
+    syncCloudData,
+    isRefreshing,
+    lastSyncedAt,
+    deleteUserAccount,
+    deletionRequests,
+    rejectDeletionRequest,
+    approveDeletionRequest,
+  } = useApp();
 
   const currentUser = state.currentUser;
   const isAdmin = currentUser && currentUser.role === 'ADMIN';
@@ -22,10 +36,16 @@ export default function AdminDashboard() {
   const [movieStatusFilter, setMovieStatusFilter] = useState('all');
   const [refreshFeedback, setRefreshFeedback] = useState('');
 
-  // Delete User State
+  // Delete User State (Direct Admin Deletion)
   const [userToDelete, setUserToDelete] = useState(null);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [userDeleteSuccess, setUserDeleteSuccess] = useState('');
+
+  // Deletion Request Review State (Accept / Reject)
+  const [approveModalReq, setApproveModalReq] = useState(null);
+  const [rejectModalReq, setRejectModalReq] = useState(null);
+  const [rejectAdminNote, setRejectAdminNote] = useState('');
+  const [isProcessingReq, setIsProcessingReq] = useState(false);
 
   const handleConfirmDeleteUser = async () => {
     if (!userToDelete) return;
@@ -39,6 +59,40 @@ export default function AdminDashboard() {
       alert('Failed to delete user: ' + (err?.message || 'Unknown error'));
     } finally {
       setIsDeletingUser(false);
+    }
+  };
+
+  const handleAcceptDeletionRequest = async () => {
+    if (!approveModalReq) return;
+    setIsProcessingReq(true);
+    try {
+      await approveDeletionRequest(approveModalReq.id, approveModalReq.userId, {
+        email: approveModalReq.userEmail,
+        displayName: approveModalReq.userDisplayName,
+      });
+      setUserDeleteSuccess(`Account for "${approveModalReq.userDisplayName}" was accepted and permanently deleted.`);
+      setTimeout(() => setUserDeleteSuccess(''), 5000);
+      setApproveModalReq(null);
+    } catch (err) {
+      alert('Failed to process deletion: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setIsProcessingReq(false);
+    }
+  };
+
+  const handleRejectDeletionRequest = async () => {
+    if (!rejectModalReq) return;
+    setIsProcessingReq(true);
+    try {
+      await rejectDeletionRequest(rejectModalReq.id, rejectAdminNote);
+      setUserDeleteSuccess(`Deletion request from "${rejectModalReq.userDisplayName}" was rejected.`);
+      setTimeout(() => setUserDeleteSuccess(''), 5000);
+      setRejectModalReq(null);
+      setRejectAdminNote('');
+    } catch (err) {
+      alert('Failed to reject request: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setIsProcessingReq(false);
     }
   };
 
@@ -380,6 +434,9 @@ export default function AdminDashboard() {
   const comingSoonCount = state.movies.filter(m => m.status === 'COMING_SOON').length;
   const archivedCount = state.movies.filter(m => m.status === 'ARCHIVED').length;
 
+  // Pending deletion requests for admin review
+  const pendingDeletionRequests = (deletionRequests || []).filter(r => r.status === 'PENDING');
+
   // Unified user count (matches what the Users tab table shows)
   const allDisplayUsers = (() => {
     const userMap = new Map();
@@ -450,7 +507,7 @@ export default function AdminDashboard() {
               { id: 'weekend-picks', label: 'Weekend Picks', icon: Trophy, count: 'Live' },
               { id: 'theaters', label: 'Theaters', icon: Building2, count: allTheaters.length },
               { id: 'reviews', label: 'Review Moderation', icon: MessageSquare, count: state.reviews.length },
-              { id: 'users', label: 'Users', icon: Users, count: allDisplayUsers.length },
+              { id: 'users', label: 'Users', icon: Users, count: pendingDeletionRequests.length > 0 ? `${allDisplayUsers.length} (${pendingDeletionRequests.length} Req)` : allDisplayUsers.length },
               { id: 'cities', label: 'Cities', icon: MapPin, count: allCities.length },
               { id: 'pro-reviewers', label: 'Pro Reviewers', icon: ShieldCheck, count: (state.professionalApplications?.length || getApplications().length) },
               { id: 'database', label: 'Cloud Database', icon: Database, count: isSupabaseConfigured() ? 'Live' : 'Local' },
@@ -895,6 +952,130 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
+                {/* ACCOUNT DELETION REQUESTS REVIEW SECTION */}
+                {pendingDeletionRequests.length > 0 && (
+                  <div style={{
+                    marginBottom: 24,
+                    background: 'rgba(239, 68, 68, 0.04)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    borderRadius: 8,
+                    padding: 20,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ padding: 6, background: 'rgba(239, 68, 68, 0.15)', borderRadius: '50%', color: '#f87171', display: 'flex' }}>
+                          <AlertTriangle size={18} />
+                        </div>
+                        <div>
+                          <h4 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)' }}>
+                            Account Deletion Requests ({pendingDeletionRequests.length})
+                          </h4>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                            Review user messages &amp; reasons to accept or decline account deletion
+                          </span>
+                        </div>
+                      </div>
+                      <span className="badge badge-gold" style={{ fontSize: 10, background: 'rgba(239,68,68,0.15)', color: '#f87171', borderColor: 'rgba(239,68,68,0.3)' }}>
+                        Pending Review
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      {pendingDeletionRequests.map(req => {
+                        const userRevs = (state.reviews || []).filter(r =>
+                          (r.userId && req.userId && r.userId === req.userId) ||
+                          (r.userEmail && req.userEmail && r.userEmail.toLowerCase() === req.userEmail.toLowerCase())
+                        ).length;
+
+                        return (
+                          <div
+                            key={req.id}
+                            style={{
+                              background: 'var(--bg-card)',
+                              border: '1px solid var(--border)',
+                              borderRadius: 6,
+                              padding: '16px 18px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 12,
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 14 }}>
+                                    {req.userDisplayName}
+                                  </span>
+                                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                                    ({req.userEmail})
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                                  Submitted: {new Date(req.createdAt).toLocaleString()} • {userRevs} reviews written
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRejectModalReq(req);
+                                    setRejectAdminNote('');
+                                  }}
+                                  className="btn btn-outline btn-sm"
+                                  style={{
+                                    fontSize: 11,
+                                    borderColor: 'rgba(234, 179, 8, 0.4)',
+                                    color: '#facc15',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 5,
+                                  }}
+                                >
+                                  <X size={13} />
+                                  <span>Reject Request</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setApproveModalReq(req)}
+                                  className="btn btn-sm"
+                                  style={{
+                                    fontSize: 11,
+                                    background: '#dc2626',
+                                    color: '#fff',
+                                    border: '1px solid #ef4444',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 5,
+                                  }}
+                                >
+                                  <Check size={13} />
+                                  <span>Accept &amp; Delete</span>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* User's Promising Message / Reason */}
+                            <div style={{
+                              background: 'rgba(0,0,0,0.3)',
+                              borderLeft: '3px solid #f87171',
+                              padding: '10px 14px',
+                              borderRadius: '0 4px 4px 0',
+                            }}>
+                              <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, display: 'block', marginBottom: 4 }}>
+                                User's Reason / Feedback:
+                              </span>
+                              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.5, fontStyle: 'italic' }}>
+                                "{req.reason || 'No message provided.'}"
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-card)' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
@@ -1049,6 +1230,206 @@ export default function AdminDashboard() {
                             <>
                               <Trash2 size={13} />
                               <span>Permanently Delete</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Approve Deletion Request Modal */}
+                {approveModalReq && (
+                  <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 1000,
+                    background: 'rgba(0,0,0,0.85)',
+                    backdropFilter: 'blur(8px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 20,
+                  }}>
+                    <div style={{
+                      background: 'var(--bg-card)',
+                      border: '1px solid rgba(239,68,68,0.4)',
+                      borderRadius: 8,
+                      maxWidth: 500,
+                      width: '100%',
+                      padding: 24,
+                      boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                        <div style={{ padding: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '50%', color: '#f87171', display: 'flex' }}>
+                          <AlertTriangle size={20} />
+                        </div>
+                        <div>
+                          <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--text-primary)' }}>
+                            Accept Deletion Request
+                          </h3>
+                          <span style={{ fontSize: 11, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+                            Permanent Account Deletion
+                          </span>
+                        </div>
+                      </div>
+
+                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 14px' }}>
+                        You are accepting the account deletion request for <strong style={{ color: 'var(--text-primary)' }}>{approveModalReq.userDisplayName}</strong> ({approveModalReq.userEmail}).
+                      </p>
+
+                      <div style={{ background: 'rgba(0,0,0,0.35)', borderLeft: '3px solid #f87171', padding: '10px 14px', borderRadius: '0 4px 4px 0', marginBottom: 16, fontSize: 12 }}>
+                        <div style={{ color: 'var(--text-muted)', fontWeight: 600, marginBottom: 2 }}>USER'S REASON:</div>
+                        <div style={{ color: 'var(--text-primary)', fontStyle: 'italic' }}>"{approveModalReq.reason}"</div>
+                      </div>
+
+                      <div style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '12px 14px', marginBottom: 20, fontSize: 12, color: 'var(--text-muted)' }}>
+                        <div style={{ color: 'var(--text-primary)', fontWeight: 600, marginBottom: 4 }}>This action will permanently delete:</div>
+                        <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          <li>User account entry from cloud directory</li>
+                          <li>All reviews and ratings written by this user</li>
+                          <li>Personal watchlist, diary entries &amp; custom collections</li>
+                          <li>Community voting records and leaderboard stats</li>
+                        </ul>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          onClick={() => setApproveModalReq(null)}
+                          disabled={isProcessingReq}
+                          style={{ fontSize: 12 }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          onClick={handleAcceptDeletionRequest}
+                          disabled={isProcessingReq}
+                          style={{
+                            background: '#dc2626',
+                            color: '#fff',
+                            border: '1px solid #ef4444',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            fontSize: 12,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {isProcessingReq ? (
+                            <>
+                              <RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                              <span>Deleting Account...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Check size={13} />
+                              <span>Accept &amp; Permanently Delete</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Reject Deletion Request Modal */}
+                {rejectModalReq && (
+                  <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 1000,
+                    background: 'rgba(0,0,0,0.85)',
+                    backdropFilter: 'blur(8px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 20,
+                  }}>
+                    <div style={{
+                      background: 'var(--bg-card)',
+                      border: '1px solid rgba(234, 179, 8, 0.4)',
+                      borderRadius: 8,
+                      maxWidth: 480,
+                      width: '100%',
+                      padding: 24,
+                      boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                        <div style={{ padding: 8, background: 'rgba(234, 179, 8, 0.12)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '50%', color: '#facc15', display: 'flex' }}>
+                          <X size={20} />
+                        </div>
+                        <div>
+                          <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--text-primary)' }}>
+                            Reject Deletion Request
+                          </h3>
+                          <span style={{ fontSize: 11, color: '#facc15', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+                            Account Will Remain Active
+                          </span>
+                        </div>
+                      </div>
+
+                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 14px' }}>
+                        Decline the account deletion request from <strong style={{ color: 'var(--text-primary)' }}>{rejectModalReq.userDisplayName}</strong> ({rejectModalReq.userEmail}).
+                      </p>
+
+                      <div style={{ background: 'rgba(0,0,0,0.35)', borderLeft: '3px solid #eab308', padding: '10px 14px', borderRadius: '0 4px 4px 0', marginBottom: 16, fontSize: 12 }}>
+                        <div style={{ color: 'var(--text-muted)', fontWeight: 600, marginBottom: 2 }}>USER'S REASON:</div>
+                        <div style={{ color: 'var(--text-primary)', fontStyle: 'italic' }}>"{rejectModalReq.reason}"</div>
+                      </div>
+
+                      <div style={{ marginBottom: 20 }}>
+                        <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                          Optional note / explanation for the user:
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={rejectAdminNote}
+                          onChange={(e) => setRejectAdminNote(e.target.value)}
+                          placeholder="e.g., We have resolved your issue; we appreciate your contribution to CinemaScope..."
+                          className="input"
+                          style={{ width: '100%', fontSize: 12, padding: '8px 10px', lineHeight: 1.4 }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          onClick={() => setRejectModalReq(null)}
+                          disabled={isProcessingReq}
+                          style={{ fontSize: 12 }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          onClick={handleRejectDeletionRequest}
+                          disabled={isProcessingReq}
+                          style={{
+                            background: '#eab308',
+                            color: '#000',
+                            border: '1px solid #facc15',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            fontSize: 12,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {isProcessingReq ? (
+                            <>
+                              <RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                              <span>Updating...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Check size={13} />
+                              <span>Decline Request</span>
                             </>
                           )}
                         </button>
