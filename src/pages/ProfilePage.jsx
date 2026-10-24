@@ -295,7 +295,7 @@ export default function ProfilePage() {
   const cinemaScore = useMemo(() => {
     const seed = LibService.SEED_USER_STATS[profileUser?.id] || null;
     const effectiveWatched = libStats.totalWatched > 0 ? libStats.totalWatched : (seed?.watched || profileUser?.stats?.watchedCount || profileUser?.stats?.totalWatched || 0);
-    const effectiveRevs = userReviews.length > 0 ? userReviews.length : (user.stats?.reviewCount || seed?.reviews || 0);
+    const effectiveRevs = userReviews.length > 0 ? userReviews.length : (profileUser?.stats?.reviewCount || seed?.reviews || 0);
     const effectiveVotes = weekendVotingStats.totalVotes > 0 ? weekendVotingStats.totalVotes : (profileUser?.stats?.voteCount || profileUser?.stats?.totalVotes || seed?.votes || 0);
     const calculated = (effectiveWatched * 5) + (effectiveRevs * 15) + (effectiveVotes * 10);
     return seed?.points ? Math.max(calculated, seed.points) : calculated;
