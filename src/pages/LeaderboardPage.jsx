@@ -67,12 +67,13 @@ export default function LeaderboardPage() {
       const votingStats = getUserVotingStats(user.id);
       const voteCount = votingStats?.totalVotes || 0;
 
-      // Watched count: from local library if current user, or user's synced stats, or local storage
+      // Watched count: Prioritize cloud verified stats from Supabase
+      const cloudWatched = user.stats?.watchedCount ?? user.stats?.totalWatched ?? null;
       let watchedCount = 0;
-      if (isCurrent && currentLibStats) {
+      if (cloudWatched !== null && cloudWatched !== undefined) {
+        watchedCount = cloudWatched;
+      } else if (isCurrent && currentLibStats) {
         watchedCount = currentLibStats.totalWatched || 0;
-      } else if (user.stats?.watchedCount !== undefined || user.stats?.totalWatched !== undefined) {
-        watchedCount = user.stats.watchedCount ?? user.stats.totalWatched ?? 0;
       } else {
         try {
           const key = `cinemascope_user_library_${user.id}`;
@@ -86,7 +87,7 @@ export default function LeaderboardPage() {
 
       // Fallback only for initial mock demo accounts (user-1 to user-4, admin-1)
       const seed = SEED_USER_STATS[user.id] || null;
-      const effectiveWatched = watchedCount > 0 ? watchedCount : (seed?.watched || user.stats?.watchedCount || user.stats?.totalWatched || 0);
+      const effectiveWatched = watchedCount > 0 ? watchedCount : (seed?.watched || 0);
       const effectiveReviews = reviewCountFromState > 0 ? reviewCountFromState : (user.stats?.reviewCount || seed?.reviews || 0);
       const effectiveVotes = voteCount > 0 ? voteCount : (user.stats?.voteCount || user.stats?.totalVotes || seed?.votes || 0);
 

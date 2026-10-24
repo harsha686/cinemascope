@@ -2,7 +2,7 @@ import React from 'react';
 import { MOVIE_REVIEW_PARAMS, THEATER_REVIEW_PARAMS, getParamsForReview } from '../../data/reviewParams';
 
 export default function RatingBreakdown({ reviews = [], targetType = null, params: customParams = null }) {
-  const published = reviews.filter(r => r.status === 'PUBLISHED');
+  const published = reviews.filter(r => r.status === 'PUBLISHED' || !r.status);
 
   if (published.length === 0) {
     return (

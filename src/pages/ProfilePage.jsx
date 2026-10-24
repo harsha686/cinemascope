@@ -294,7 +294,8 @@ export default function ProfilePage() {
   // Score = (watched * 5) + (reviews * 15) + (votes * 10)
   const cinemaScore = useMemo(() => {
     const seed = LibService.SEED_USER_STATS[profileUser?.id] || null;
-    const effectiveWatched = libStats.totalWatched > 0 ? libStats.totalWatched : (seed?.watched || profileUser?.stats?.watchedCount || profileUser?.stats?.totalWatched || 0);
+    const cloudWatched = profileUser?.stats?.watchedCount ?? profileUser?.stats?.totalWatched ?? null;
+    const effectiveWatched = cloudWatched !== null ? cloudWatched : (libStats.totalWatched > 0 ? libStats.totalWatched : (seed?.watched || 0));
     const effectiveRevs = userReviews.length > 0 ? userReviews.length : (profileUser?.stats?.reviewCount || seed?.reviews || 0);
     const effectiveVotes = weekendVotingStats.totalVotes > 0 ? weekendVotingStats.totalVotes : (profileUser?.stats?.voteCount || profileUser?.stats?.totalVotes || seed?.votes || 0);
     const calculated = (effectiveWatched * 5) + (effectiveRevs * 15) + (effectiveVotes * 10);
@@ -367,8 +368,10 @@ export default function ProfilePage() {
   };
 
   const seedStat = LibService.SEED_USER_STATS[profileUser?.id] || null;
+  const cloudWatched = profileUser?.stats?.watchedCount ?? profileUser?.stats?.totalWatched ?? null;
+  const resolvedWatched = cloudWatched !== null ? cloudWatched : (libStats.totalWatched > 0 ? libStats.totalWatched : (seedStat?.watched || 0));
   const statCards = [
-    { id: 'watched', label: 'Movies Watched', value: libStats.totalWatched > 0 ? libStats.totalWatched : (seedStat?.watched || profileUser?.stats?.watchedCount || profileUser?.stats?.totalWatched || 0), icon: <Film size={18} color="var(--gold)" /> },
+    { id: 'watched', label: 'Movies Watched', value: resolvedWatched, icon: <Film size={18} color="var(--gold)" /> },
     { id: 'watchlist', label: 'Watchlist', value: Math.max(libStats.totalWatchlist, profileUser?.stats?.watchlistCount || 0, profileUser?.stats?.totalWatchlist || 0), icon: <Bookmark size={18} color="var(--gold)" /> },
     { id: 'favorites', label: 'Favorites', value: Math.max(libStats.totalFavorites, profileUser?.stats?.favoritesCount || 0, profileUser?.stats?.totalFavorites || 0), icon: <Heart size={18} color="var(--gold)" /> },
     { id: 'likes', label: 'Helpful Likes', value: Math.max(totalLikesReceived, profileUser?.stats?.likesCount || 0, profileUser?.stats?.helpfulLikes || 0), icon: <Heart size={18} color="#ef4444" /> },

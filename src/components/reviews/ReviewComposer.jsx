@@ -88,7 +88,7 @@ export default function ReviewComposer({
   onSuccess,
   reviewType = 'USER',
 }) {
-  const { state, dispatch, isVerifiedPro } = useApp();
+  const { state, dispatch, isVerifiedPro, refreshData } = useApp();
   const currentUser = state.currentUser;
 
   const isTheater = !!theater || (existingReview?.theaterId || existingReview?.targetType === 'THEATER');
@@ -187,6 +187,7 @@ export default function ReviewComposer({
           type: existingReview ? 'UPDATE_REVIEW' : 'ADD_REVIEW',
           payload: theaterReviewPayload,
         });
+        if (refreshData) refreshData();
       } else {
         const rawTmdbId = movie?.tmdbId || (movie?.id && /^\d+$/.test(String(movie.id)) ? String(movie.id) : (existingReview?.tmdbId || (existingReview?.movieId ? String(existingReview.movieId).replace(/^tmdb-/, '') : null)));
         const targetMovieId = movie?.id
@@ -242,6 +243,7 @@ export default function ReviewComposer({
           type: existingReview ? 'UPDATE_REVIEW' : 'ADD_REVIEW',
           payload: movieReviewPayload,
         });
+        if (refreshData) refreshData();
 
         if (rawTmdbId && overallRating > 0) {
           setPersonalRating(rawTmdbId, currentUser.id, overallRating).catch(console.error);

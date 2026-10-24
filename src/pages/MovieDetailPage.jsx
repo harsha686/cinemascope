@@ -149,10 +149,11 @@ export default function MovieDetailPage() {
   const userReviewsList = useMemo(() => getMovieUserReviews(movieId), [getMovieUserReviews, movieId]);
   const proReviewsList = useMemo(() => getMovieProfessionalReviews(movieId), [getMovieProfessionalReviews, movieId]);
   const userRatingInfo = useMemo(() => {
-    if (!userReviewsList || userReviewsList.length === 0) return { average: 0, count: 0 };
-    const sum = userReviewsList.reduce((acc, r) => acc + (r.rating || 0), 0);
-    return { average: Math.round((sum / userReviewsList.length) * 10) / 10, count: userReviewsList.length };
-  }, [userReviewsList]);
+    const effectiveList = userReviewsList.length > 0 ? userReviewsList : allReviews;
+    if (!effectiveList || effectiveList.length === 0) return { average: 0, count: 0 };
+    const sum = effectiveList.reduce((acc, r) => acc + (r.rating || 0), 0);
+    return { average: Math.round((sum / effectiveList.length) * 10) / 10, count: effectiveList.length };
+  }, [userReviewsList, allReviews]);
 
   // Unified movie display score (user average, TMDB normalized score, or admin rating)
   const movieDisplayScore = useMemo(() => {

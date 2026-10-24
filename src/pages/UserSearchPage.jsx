@@ -55,7 +55,7 @@ export default function UserSearchPage() {
         } catch (e) {}
       }
 
-      const effectiveWatched = watchedCount > 0 ? watchedCount : (seed?.watched || user.stats?.watchedCount || user.stats?.totalWatched || 0);
+      const effectiveWatched = watchedCount > 0 ? watchedCount : (seed?.watched || 0);
       const effectiveReviews = userReviews.length > 0 ? userReviews.length : (user.stats?.reviewCount || seed?.reviews || 0);
       const effectiveVotes = voteCount > 0 ? voteCount : (user.stats?.voteCount || user.stats?.totalVotes || seed?.votes || 0);
       const calculatedScore = (effectiveWatched * 5) + (effectiveReviews * 15) + (effectiveVotes * 10);
