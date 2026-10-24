@@ -60,7 +60,7 @@ export default function LeaderboardPage() {
       const isCurrent = currentUser && currentUser.id === user.id;
 
       // Count reviews in state
-      const userReviews = (state.reviews || []).filter(r => r.userId === user.id && r.status === 'PUBLISHED');
+      const userReviews = (state.reviews || []).filter(r => r.userId === user.id && (r.status === 'PUBLISHED' || !r.status));
       const reviewCountFromState = userReviews.length;
 
       // Count votes in state / weekend service

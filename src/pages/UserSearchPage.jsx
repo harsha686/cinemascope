@@ -35,7 +35,7 @@ export default function UserSearchPage() {
 
     return cleanUsers.map(user => {
       const userReviews = (state.reviews || []).filter(
-        r => r.userId === user.id && r.status === 'PUBLISHED'
+        r => r.userId === user.id && (r.status === 'PUBLISHED' || !r.status)
       );
       const votingStats = getUserVotingStats(user.id);
       const voteCount = votingStats?.totalVotes || 0;
