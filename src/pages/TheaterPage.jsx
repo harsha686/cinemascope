@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { MapPin, Monitor, ChevronRight, GitCompare, Edit3, Star, MessageSquare, Sliders, PenSquare, Trash2, Plus } from 'lucide-react';
 import { useApp } from '../AppContext';

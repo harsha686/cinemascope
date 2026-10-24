@@ -30,6 +30,7 @@ import PublicReviewPage from './pages/PublicReviewPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import UserSearchPage from './pages/UserSearchPage';
 import OttReleasePopupModal from './components/movies/OttReleasePopupModal';
+import ErrorBoundary from './components/shared/ErrorBoundary';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -47,48 +48,52 @@ function ScrollToTop() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <HashRouter>
-        <ScrollToTop />
-        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-          <Navbar />
-          <main style={{ flex: 1, paddingTop: 'var(--nav-height)' }}>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/weekend" element={<WeekendPickPage />} />
-              <Route path="/weekend-winners" element={<WeekendWinnersArchivePage />} />
-              <Route path="/discover" element={<DiscoverPage />} />
-              <Route path="/movies" element={<MoviesPage />} />
-              <Route path="/movie/:movieId" element={<MovieDetailPage />} />
-              <Route path="/library" element={<LibraryPage />} />
-              <Route path="/library/:section" element={<LibraryPage />} />
-              <Route path="/diary" element={<DiaryPage />} />
-              <Route path="/watchlist" element={<WatchlistPage />} />
-              <Route path="/collection/:collectionId" element={<CollectionPage />} />
-              <Route path="/city/:cityId" element={<CityPage />} />
-              <Route path="/theater/:theaterId" element={<TheaterPage />} />
-              <Route path="/theater/:theaterId/screen/:screenId" element={<ScreenPage />} />
-              <Route path="/compare" element={<ComparePage />} />
-              <Route path="/formats" element={<FormatsPage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/signup" element={<SignupPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/profile/:userId" element={<ProfilePage />} />
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/*" element={<AdminDashboard />} />
-              <Route path="/apply-professional" element={<ProReviewerApplyPage />} />
-              <Route path="/reviewer/:userId" element={<ProReviewerProfilePage />} />
-              <Route path="/review/:reviewId" element={<PublicReviewPage />} />
-              <Route path="/leaderboard" element={<LeaderboardPage />} />
-              <Route path="/users" element={<UserSearchPage />} />
-            </Routes>
-          </main>
-          <Footer />
-          <MobileBottomNav />
-          <OttReleasePopupModal />
-        </div>
-      </HashRouter>
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <HashRouter>
+          <ScrollToTop />
+          <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+            <Navbar />
+            <main style={{ flex: 1, paddingTop: 'var(--nav-height)' }}>
+              <ErrorBoundary>
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/weekend" element={<WeekendPickPage />} />
+                  <Route path="/weekend-winners" element={<WeekendWinnersArchivePage />} />
+                  <Route path="/discover" element={<DiscoverPage />} />
+                  <Route path="/movies" element={<MoviesPage />} />
+                  <Route path="/movie/:movieId" element={<MovieDetailPage />} />
+                  <Route path="/library" element={<LibraryPage />} />
+                  <Route path="/library/:section" element={<LibraryPage />} />
+                  <Route path="/diary" element={<DiaryPage />} />
+                  <Route path="/watchlist" element={<WatchlistPage />} />
+                  <Route path="/collection/:collectionId" element={<CollectionPage />} />
+                  <Route path="/city/:cityId" element={<CityPage />} />
+                  <Route path="/theater/:theaterId" element={<TheaterPage />} />
+                  <Route path="/theater/:theaterId/screen/:screenId" element={<ScreenPage />} />
+                  <Route path="/compare" element={<ComparePage />} />
+                  <Route path="/formats" element={<FormatsPage />} />
+                  <Route path="/about" element={<AboutPage />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/signup" element={<SignupPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/profile/:userId" element={<ProfilePage />} />
+                  <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/admin/*" element={<AdminDashboard />} />
+                  <Route path="/apply-professional" element={<ProReviewerApplyPage />} />
+                  <Route path="/reviewer/:userId" element={<ProReviewerProfilePage />} />
+                  <Route path="/review/:reviewId" element={<PublicReviewPage />} />
+                  <Route path="/leaderboard" element={<LeaderboardPage />} />
+                  <Route path="/users" element={<UserSearchPage />} />
+                </Routes>
+              </ErrorBoundary>
+            </main>
+            <Footer />
+            <MobileBottomNav />
+            <OttReleasePopupModal />
+          </div>
+        </HashRouter>
+      </AppProvider>
+    </ErrorBoundary>
   );
 }

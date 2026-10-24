@@ -203,9 +203,13 @@ export default function OttReleasePopupModal() {
     }
 
     // Auto-pop cleanly after brief 500ms delay for smooth page entry
+    // On small mobile viewports (< 768px), avoid aggressive auto-takeover that mimics a black screen
     const timer = setTimeout(() => {
+      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        return;
+      }
       setIsOpen(true);
-    }, 500);
+    }, 800);
 
     return () => clearTimeout(timer);
   }, []);
@@ -280,44 +284,11 @@ export default function OttReleasePopupModal() {
 
   if (!isOpen) return null;
 
-  // While fetching live data, show a loading overlay
-  if (isLoading) {
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 9999,
-          background: 'rgba(0,0,0,0.75)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <div style={{
-          background: 'linear-gradient(180deg, #181410 0%, #0d0a08 100%)',
-          border: '1px solid rgba(220,182,91,0.35)',
-          borderRadius: 14,
-          padding: '40px 56px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 14,
-        }}>
-          <Loader2 size={36} color="var(--gold)" style={{ animation: 'spin 1s linear infinite' }} />
-          <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0, fontFamily: 'var(--font-serif)', letterSpacing: '0.05em' }}>
-            Fetching latest OTT releases…
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!activeMovie) return null;
+  const currentMovie = activeMovie || DEFAULT_OTT_RELEASES[0];
+  if (!currentMovie) return null;
 
   const fallbackPlatformUrl = () => {
-    const p = (activeMovie.ottPlatform || '').toLowerCase();
+    const p = (currentMovie.ottPlatform || '').toLowerCase();
     if (p.includes('netflix')) return 'https://www.netflix.com';
     if (p.includes('prime') || p.includes('amazon')) return 'https://www.primevideo.com';
     if (p.includes('hotstar')) return 'https://www.hotstar.com';
@@ -328,9 +299,9 @@ export default function OttReleasePopupModal() {
     if (p.includes('jio')) return 'https://www.jiocinema.com';
     return null;
   };
-  const brand = getBrandInfo(activeMovie.ottPlatform);
-  const formattedDate = formatReleaseDate(activeMovie.ottReleaseDate);
-  const watchUrl = activeMovie.ottUrl || activeMovie.ottWatchUrl || fallbackPlatformUrl();
+  const brand = getBrandInfo(currentMovie.ottPlatform);
+  const formattedDate = formatReleaseDate(currentMovie.ottReleaseDate);
+  const watchUrl = currentMovie.ottUrl || currentMovie.ottWatchUrl || fallbackPlatformUrl();
 
   return (
     <div
@@ -344,7 +315,9 @@ export default function OttReleasePopupModal() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '16px',
+        padding: 'clamp(8px, 3vw, 16px)',
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
         animation: 'ottFadeIn 200ms ease-out',
       }}
       onClick={(e) => {
@@ -359,7 +332,9 @@ export default function OttReleasePopupModal() {
           borderRadius: 14,
           maxWidth: 620,
           width: '100%',
-          overflow: 'hidden',
+          maxHeight: 'min(92vh, 700px)',
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
           position: 'relative',
           animation: 'ottModalIn 250ms cubic-bezier(0.16, 1, 0.3, 1)',
         }}

@@ -517,7 +517,7 @@ export async function fetchFullTmdbMovieDetails(tmdbId) {
     const ottReleaseDate = rawOttDate ? rawOttDate.split('T')[0] : '';
     const primaryPlatform = streamProviders[0]?.name || ottPlatforms[0]?.name || '';
 
-    return {
+    const finalMovieDetails = {
       id: `tmdb-${data.id}`,
       tmdbId: data.id,
       requestedId: strId,
@@ -934,7 +934,7 @@ export async function fetchFullTmdbTvDetails(tmdbId) {
   const ottPlatforms = Array.from(platformMap.values());
   const primaryPlatform = streamProviders[0]?.name || ottPlatforms[0]?.name || networks || '';
 
-  return {
+  const tvDetails = {
     id: `tmdb-tv-${data.id}`,
     tmdbId: data.id,
     requestedId: String(tmdbId),
