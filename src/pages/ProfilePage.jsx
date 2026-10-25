@@ -88,7 +88,6 @@ export default function ProfilePage() {
   const [collectionsCount, setCollectionsCount] = useState(0);
   const [weekendVotingStats, setWeekendVotingStats] = useState({ totalVotes: 0, distinctRounds: 0, distinctGenres: 0, winnersVotedCount: 0 });
   const [userPastVotes, setUserPastVotes] = useState([]);
-  const [showComments, setShowComments] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
   // Movie Archive Explorer State
@@ -354,10 +353,6 @@ export default function ProfilePage() {
   const handleStatCardClick = (tabId) => {
     if (tabId === 'likes' && isOwnProfile) {
       setShowNotifications(prev => !prev);
-      return;
-    }
-    if (tabId === 'reviews') {
-      setShowComments(prev => !prev);
       return;
     }
     setActiveArchiveTab(tabId);
@@ -1467,7 +1462,7 @@ export default function ProfilePage() {
                     
                     let targetTitle = isTheater
                       ? (targetTheater?.name || rev.theaterName || 'Theater')
-                      : (targetMovie?.title || rev.movieTitle || rev.parameterRatings?.movieTitle);
+                      : (targetMovie?.title || rev.movieTitle || rev.parameterRatings?.movieTitle || rev.parameterRatings?.originalMovieTitle);
 
                     if (!targetTitle && rev.movieId) {
                       const cleaned = String(rev.movieId).replace(/^tmdb-/, '');
