@@ -2176,42 +2176,91 @@ CREATE POLICY "Public all collections" ON public.collections FOR ALL USING (true
                             </span>
                           </div>
 
-                          {/* Theater checkboxes */}
-                          {theatersInCities.map(t => {
-                            const isChecked = (formData.theaters || []).includes(t.id);
+                          {/* Grouped Theater Checkboxes by City */}
+                          {selectedCities.map(cId => {
+                            const cityObj = allCities.find(c => c.id === cId) || { name: cId };
+                            const cityTheaters = theatersInCities.filter(t => t.cityId === cId);
+                            if (cityTheaters.length === 0) return null;
+                            const citySelectedCount = cityTheaters.filter(t => (formData.theaters || []).includes(t.id)).length;
                             return (
-                              <label
-                                key={t.id}
-                                style={{
+                              <div key={cId} style={{ marginBottom: 12 }}>
+                                <div style={{
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: 10,
-                                  padding: '8px 12px',
-                                  cursor: 'pointer',
-                                  borderRadius: 3,
-                                  background: isChecked ? 'rgba(220,182,91,0.06)' : 'transparent',
-                                  border: `1px solid ${isChecked ? 'rgba(220,182,91,0.25)' : 'transparent'}`,
-                                  transition: 'all 150ms ease',
-                                }}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() => handleToggleTheaterForMovie(t.id)}
-                                  style={{ accentColor: 'var(--gold)', width: 14, height: 14 }}
-                                />
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ fontSize: 13, fontWeight: 500, color: isChecked ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                                    {t.name}
-                                  </div>
-                                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                                    {t.totalScreens} screen{t.totalScreens !== 1 ? 's' : ''} • {t.area}
+                                  justifyContent: 'space-between',
+                                  fontSize: 12,
+                                  fontFamily: 'var(--font-serif)',
+                                  color: 'var(--gold)',
+                                  padding: '6px 10px',
+                                  background: 'rgba(255,255,255,0.03)',
+                                  borderRadius: 4,
+                                  marginBottom: 6,
+                                  borderLeft: '3px solid var(--gold)',
+                                }}>
+                                  <span>📍 {cityObj.name} ({citySelectedCount} of {cityTheaters.length} selected)</span>
+                                  <div style={{ display: 'flex', gap: 10 }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const otherTheaters = (formData.theaters || []).filter(tId => !cityTheaters.some(ct => ct.id === tId));
+                                        setFormData({ ...formData, theaters: [...otherTheaters, ...cityTheaters.map(t => t.id)] });
+                                      }}
+                                      style={{ fontSize: 11, color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer' }}
+                                    >
+                                      ✓ Select All in {cityObj.name}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const otherTheaters = (formData.theaters || []).filter(tId => !cityTheaters.some(ct => ct.id === tId));
+                                        setFormData({ ...formData, theaters: otherTheaters });
+                                      }}
+                                      style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
+                                    >
+                                      ✗ Clear
+                                    </button>
                                   </div>
                                 </div>
-                                {isChecked && (
-                                  <span style={{ fontSize: 11, color: 'var(--gold)', fontWeight: 600 }}>✓ Showing</span>
-                                )}
-                              </label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                  {cityTheaters.map(t => {
+                                    const isChecked = (formData.theaters || []).includes(t.id);
+                                    return (
+                                      <label
+                                        key={t.id}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: 10,
+                                          padding: '8px 12px',
+                                          cursor: 'pointer',
+                                          borderRadius: 3,
+                                          background: isChecked ? 'rgba(220,182,91,0.06)' : 'transparent',
+                                          border: `1px solid ${isChecked ? 'rgba(220,182,91,0.25)' : 'transparent'}`,
+                                          transition: 'all 150ms ease',
+                                        }}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          onChange={() => handleToggleTheaterForMovie(t.id)}
+                                          style={{ accentColor: 'var(--gold)', width: 14, height: 14 }}
+                                        />
+                                        <div style={{ flex: 1 }}>
+                                          <div style={{ fontSize: 13, fontWeight: 500, color: isChecked ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                                            {t.name}
+                                          </div>
+                                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                                            {t.totalScreens} screen{t.totalScreens !== 1 ? 's' : ''} • {t.area}
+                                          </div>
+                                        </div>
+                                        {isChecked && (
+                                          <span style={{ fontSize: 11, color: 'var(--gold)', fontWeight: 600 }}>✓ Showing</span>
+                                        )}
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
                             );
                           })}
                         </div>
