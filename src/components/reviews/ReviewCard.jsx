@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Heart, Flag, Edit3, Trash2, Check, Monitor, Building2 } from 'lucide-react';
 import { useApp } from '../../AppContext';
 import ShareButton from '../social/ShareButton';
@@ -224,17 +224,20 @@ export default function ReviewCard({ review, onEdit, onDelete }) {
         <button
           type="button"
           onClick={handleHelpfulClick}
+          title={hasVotedHelpful ? 'Unlike' : 'Like'}
           style={{
-            display: 'flex', alignItems: 'center', gap: 6, fontSize: 11,
+            display: 'flex', alignItems: 'center', gap: 5, fontSize: 12,
+            fontWeight: 600,
             color: hasVotedHelpful ? 'var(--gold)' : 'var(--text-muted)',
             background: hasVotedHelpful ? 'var(--gold-faint)' : 'transparent',
-            padding: '4px 10px',
+            padding: '4px 8px',
             border: `1px solid ${hasVotedHelpful ? 'var(--gold-dim)' : 'var(--border-subtle)'}`,
             borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+            transition: 'all 150ms ease',
           }}
         >
-          <Heart size={12} fill={hasVotedHelpful ? 'var(--gold)' : 'none'} />
-          <span>Helpful ({displayLikesCount})</span>
+          <Heart size={13} fill={hasVotedHelpful ? 'var(--gold)' : 'none'} />
+          {displayLikesCount > 0 && <span>{displayLikesCount}</span>}
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

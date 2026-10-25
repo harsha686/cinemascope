@@ -31,6 +31,8 @@ export default function MovieDetailPage() {
     isVerifiedPro,
     getCityTheaters,
     getCity,
+    allCities = [],
+    allTheaters = [],
     state,
     dispatch,
     refreshData,
@@ -89,7 +91,15 @@ export default function MovieDetailPage() {
   const movie = isTmdbMovie ? tmdbMovie : adminMovie;
   const isNowShowing = movie?.status === 'CURRENTLY_SHOWING';
   const currentUser = state.currentUser;
-  const currentCity = state.selectedCity || getCity('visakhapatnam');
+  const currentCity = useMemo(() => {
+    if (typeof state.selectedCity === 'object' && state.selectedCity?.id) {
+      return state.selectedCity;
+    }
+    if (typeof state.selectedCity === 'string') {
+      return getCity(state.selectedCity) || allCities[0] || { id: 'visakhapatnam', name: 'Visakhapatnam' };
+    }
+    return allCities[0] || getCity('visakhapatnam') || { id: 'visakhapatnam', name: 'Visakhapatnam' };
+  }, [state.selectedCity, getCity, allCities]);
   const currentUserIsPro = currentUser ? isVerifiedPro(currentUser.id) : false;
 
   const [sortOption, setSortOption] = useState('newest');
@@ -230,6 +240,20 @@ export default function MovieDetailPage() {
     return [];
   }, [getCityTheaters, currentCity, movie, isTmdbMovie, isOldMovie]);
 
+  // Cities that have confirmed theater screenings for this movie
+  const citiesWithScreenings = useMemo(() => {
+    if (!movie || !Array.isArray(movie.theaters)) return [];
+    return allCities.map(city => {
+      const cityTheaters = getCityTheaters(city.id);
+      const showingTheaters = cityTheaters.filter(t => movie.theaters.includes(t.id));
+      return {
+        ...city,
+        theatersCount: showingTheaters.length,
+        theaters: showingTheaters,
+      };
+    });
+  }, [movie, allCities, getCityTheaters]);
+
   // Active review list based on tab
   const activeReviews = useMemo(() => {
     if (reviewTab === 'audience') return userReviewsList;
@@ -346,9 +370,10 @@ export default function MovieDetailPage() {
       {/* Backdrop Hero Header */}
       <div style={{
         position: 'relative',
-        minHeight: 480,
-        background: `linear-gradient(to bottom, rgba(10,8,6,0.5) 0%, rgba(10,8,6,0.95) 90%, #0a0806 100%), url(${movie.backdropUrl || movie.posterUrl}) center/cover no-repeat`,
-        padding: '60px 24px 40px',
+        minHeight: 520,
+        marginTop: 'calc(-1 * var(--nav-height))',
+        background: `linear-gradient(to bottom, rgba(10,8,6,0.35) 0%, rgba(10,8,6,0.85) 70%, #0a0806 100%), url(${movie.backdropUrl || movie.posterUrl}) center/cover no-repeat`,
+        padding: 'calc(var(--nav-height) + 32px) 24px 40px',
         display: 'flex',
         alignItems: 'flex-end',
       }}>
@@ -823,7 +848,7 @@ export default function MovieDetailPage() {
                       <MapPin size={20} color="var(--gold)" />
                       <span>Watch In Theaters</span>
                     </h2>
-                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>
                       Confirmed theater screenings &amp; cinema screens in <strong style={{ color: 'var(--gold)' }}>{currentCity?.name}</strong>
                     </p>
                   </div>
@@ -844,87 +869,221 @@ export default function MovieDetailPage() {
                   </button>
                 </div>
 
+                {/* Location Filter & City Selector Bar */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '12px 18px',
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  flexWrap: 'wrap',
+                }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    <MapPin size={14} color="var(--gold)" /> Choose Location:
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    {allCities.map(city => {
+                      const isSelected = (currentCity?.id || 'visakhapatnam') === city.id;
+                      const matchCityData = citiesWithScreenings.find(c => c.id === city.id);
+                      const count = matchCityData ? matchCityData.theatersCount : 0;
+                      return (
+                        <button
+                          key={city.id}
+                          type="button"
+                          onClick={() => dispatch({ type: 'SET_CITY', payload: city })}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            padding: '6px 14px',
+                            borderRadius: 20,
+                            fontSize: 12,
+                            fontFamily: 'var(--font-sans)',
+                            cursor: 'pointer',
+                            background: isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.05)',
+                            color: isSelected ? '#000' : (count > 0 ? 'var(--text-primary)' : 'var(--text-secondary)'),
+                            border: `1px solid ${isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.1)'}`,
+                            fontWeight: isSelected ? 700 : 500,
+                            transition: 'all 150ms ease',
+                          }}
+                        >
+                          <span>{city.name}</span>
+                          <span style={{
+                            fontSize: 10,
+                            padding: '1px 6px',
+                            borderRadius: 10,
+                            background: isSelected ? 'rgba(0,0,0,0.25)' : (count > 0 ? 'rgba(220,182,91,0.18)' : 'rgba(255,255,255,0.06)'),
+                            color: isSelected ? '#000' : (count > 0 ? 'var(--gold)' : 'var(--text-muted)'),
+                            fontWeight: 700,
+                          }}>
+                            {count > 0 ? `${count} theater${count !== 1 ? 's' : ''}` : 'No shows'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* Confirmed Theaters List */}
                 {localTheaters.length > 0 ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-                    {localTheaters.map(t => (
-                      <div
-                        key={t.id}
-                        onClick={() => navigate(`/theater/${t.id}`)}
-                        style={{
-                          background: 'linear-gradient(135deg, rgba(220,182,91,0.08) 0%, rgba(20,17,13,0.95) 100%)',
-                          border: '1px solid var(--border-subtle)',
-                          borderRadius: 8,
-                          padding: '20px 22px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 12,
-                          cursor: 'pointer',
-                          transition: 'all 200ms ease',
-                          position: 'relative',
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = 'var(--gold-dim)';
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                          e.currentTarget.style.transform = 'translateY(0)';
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                          <div>
-                            <div style={{ fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2 }}>
-                              {t.chain || 'Cinema'}
-                            </div>
-                            <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', margin: 0, fontWeight: 700 }}>
-                              {t.name}
-                            </h4>
-                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                              📍 {t.area}
-                            </div>
-                          </div>
-                          <span className="badge badge-gold" style={{ fontSize: 10 }}>
-                            {t.totalScreens} {t.totalScreens === 1 ? 'Screen' : 'Screens'}
-                          </span>
-                        </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 16 }}>
+                    {localTheaters.map(t => {
+                      // Deterministic showtimes for this theater & movie
+                      const showtimes = (() => {
+                        const schedules = [
+                          ['11:00 AM', '02:30 PM', '06:15 PM', '09:45 PM'],
+                          ['10:45 AM', '02:15 PM', '06:00 PM', '09:30 PM'],
+                          ['11:30 AM', '03:00 PM', '06:45 PM', '10:15 PM'],
+                          ['10:15 AM', '01:45 PM', '05:30 PM', '08:45 PM'],
+                          ['01:15 PM', '04:30 PM', '07:45 PM', '10:45 PM'],
+                        ];
+                        let hash = 0;
+                        const str = String(t.id || '') + String(movie.id || '');
+                        for (let i = 0; i < str.length; i++) hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                        return schedules[Math.abs(hash) % schedules.length];
+                      })();
 
-                        {t.features && t.features.length > 0 && (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                            {t.features.slice(0, 4).map((feat, i) => (
-                              <span
-                                key={i}
-                                style={{
-                                  fontSize: 10,
-                                  padding: '2px 7px',
-                                  borderRadius: 4,
-                                  background: 'rgba(255,255,255,0.05)',
-                                  color: 'var(--text-secondary)',
-                                  border: '1px solid rgba(255,255,255,0.08)',
-                                }}
-                              >
-                                {feat}
+                      const primaryScreen = (t.screens && t.screens.length > 0)
+                        ? (t.screens.find(s => s.aspectRatio === movie.aspectRatio) || t.screens[0])
+                        : null;
+
+                      return (
+                        <div
+                          key={t.id}
+                          onClick={() => navigate(`/theater/${t.id}`)}
+                          style={{
+                            background: 'linear-gradient(135deg, rgba(220,182,91,0.08) 0%, rgba(20,17,13,0.95) 100%)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: 8,
+                            padding: '20px 22px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 12,
+                            cursor: 'pointer',
+                            transition: 'all 200ms ease',
+                            position: 'relative',
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.borderColor = 'var(--gold-dim)';
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.4)';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                            <div>
+                              <div style={{ fontSize: 11, fontFamily: 'var(--font-serif)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2 }}>
+                                {t.chain || 'Cinema'}
+                              </div>
+                              <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', margin: 0, fontWeight: 700 }}>
+                                {t.name}
+                              </h4>
+                              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                                📍 {t.area}
+                              </div>
+                            </div>
+                            <span className="badge badge-gold" style={{ fontSize: 10, flexShrink: 0 }}>
+                              {t.totalScreens} {t.totalScreens === 1 ? 'Screen' : 'Screens'}
+                            </span>
+                          </div>
+
+                          {/* Screen Specs & Aspect Ratio Match */}
+                          {primaryScreen && (
+                            <div style={{
+                              padding: '8px 12px',
+                              background: 'rgba(255,255,255,0.03)',
+                              border: '1px solid rgba(255,255,255,0.06)',
+                              borderRadius: 4,
+                              fontSize: 11,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: 8,
+                              color: 'var(--text-secondary)'
+                            }}>
+                              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                                🖥️ {primaryScreen.name || 'Main Screen'}
                               </span>
-                            ))}
-                          </div>
-                        )}
+                              <span style={{ color: 'var(--gold)' }}>
+                                {primaryScreen.aspectRatio || movie.aspectRatio || '2.39:1 Scope'}
+                              </span>
+                              {primaryScreen.soundSystem && (
+                                <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>
+                                  🔊 {primaryScreen.soundSystem}
+                                </span>
+                              )}
+                            </div>
+                          )}
 
-                        <div style={{
-                          marginTop: 'auto',
-                          paddingTop: 10,
-                          borderTop: '1px solid rgba(255,255,255,0.06)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          fontSize: 12,
-                          color: 'var(--gold)',
-                          fontWeight: 600,
-                        }}>
-                          <span>View Theater &amp; Screens</span>
-                          <ChevronRight size={14} />
+                          {/* Today's Showtimes */}
+                          <div>
+                            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 6 }}>
+                              Today's Showtimes
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {showtimes.map((st, idx) => (
+                                <span
+                                  key={idx}
+                                  style={{
+                                    fontSize: 11,
+                                    padding: '3px 7px',
+                                    background: 'rgba(220,182,91,0.06)',
+                                    border: '1px solid rgba(220,182,91,0.2)',
+                                    borderRadius: 4,
+                                    color: 'var(--gold)',
+                                    fontFamily: 'monospace',
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  {st}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+
+                          {t.features && t.features.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {t.features.slice(0, 3).map((feat, i) => (
+                                <span
+                                  key={i}
+                                  style={{
+                                    fontSize: 10,
+                                    padding: '2px 7px',
+                                    borderRadius: 4,
+                                    background: 'rgba(255,255,255,0.05)',
+                                    color: 'var(--text-secondary)',
+                                    border: '1px solid rgba(255,255,255,0.08)',
+                                  }}
+                                >
+                                  {feat}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          <div style={{
+                            marginTop: 'auto',
+                            paddingTop: 10,
+                            borderTop: '1px solid rgba(255,255,255,0.06)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            fontSize: 12,
+                            color: 'var(--gold)',
+                            fontWeight: 600,
+                          }}>
+                            <span>View Theater &amp; Screens</span>
+                            <ChevronRight size={14} />
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div style={{
@@ -938,16 +1097,35 @@ export default function MovieDetailPage() {
                     <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--text-primary)', margin: '0 0 6px' }}>
                       No confirmed screenings reported in {currentCity?.name || 'this city'}
                     </h3>
-                    <p style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 440, margin: '0 auto 18px', lineHeight: 1.5 }}>
-                      This movie is currently in theaters. Try switching your city in the navigation bar to check confirmed screens in other regions.
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 460, margin: '0 auto 16px', lineHeight: 1.5 }}>
+                      "{movie.title}" is not currently playing in <strong>{currentCity?.name}</strong>. Check other cities below for confirmed screenings:
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => navigate('/compare')}
-                      className="btn btn-outline btn-sm"
-                    >
-                      Compare All Screens →
-                    </button>
+
+                    {/* Quick jump to cities where movie IS screening */}
+                    {citiesWithScreenings.some(c => c.theatersCount > 0) ? (
+                      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 12 }}>
+                        {citiesWithScreenings.filter(c => c.theatersCount > 0).map(c => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => dispatch({ type: 'SET_CITY', payload: c })}
+                            className="btn btn-outline btn-sm"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderColor: 'var(--gold-dim)', color: 'var(--gold)' }}
+                          >
+                            <MapPin size={13} />
+                            <span>Switch to {c.name} ({c.theatersCount} {c.theatersCount === 1 ? 'theater' : 'theaters'}) →</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => navigate('/compare')}
+                        className="btn btn-outline btn-sm"
+                      >
+                        Compare All Screens →
+                      </button>
+                    )}
                   </div>
                 )}
 

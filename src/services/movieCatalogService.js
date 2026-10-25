@@ -61,6 +61,64 @@ function slugify(text) {
 }
 
 /**
+ * Intelligently distributes theaters for a movie across registered cities
+ * Ensures different movies get diverse, realistic theater lineups instead of identical copies
+ */
+export function assignDiverseTheatersForMovie(movieIdentifier) {
+  const VIZAG_THEATERS = [
+    'varun-inox',
+    'ambience-mall-pvr',
+    'jagadamba-cinema-theatre',
+    'sangam-sarat',
+    'melody-theatre',
+    'kameswari-kinnera',
+    'miraj-cinemas',
+    'aaa',
+    'stbl-cine-world',
+    'mukta-a2-cinemas',
+    'sri-lakshmi-narasimha-theatre',
+    'mohini-cinemas',
+    'sree-leelamahal-theatre',
+    'urvasi',
+    'sree-rama-picture-palace',
+    'svc-gokul-theater',
+    'jyothi-theatre',
+  ];
+
+  const HYD_THEATERS = [
+    'sandhya-70-mm-8697',
+    'aparna-cinemas',
+    'art-cinemas',
+  ];
+
+  let hash = 0;
+  const str = String(movieIdentifier || 'movie');
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  const posHash = Math.abs(hash);
+
+  const vizagCount = 3 + (posHash % 4); // 3 to 6
+  const vizagPicked = [];
+  const vizagPool = [...VIZAG_THEATERS];
+  for (let i = 0; i < vizagCount; i++) {
+    const idx = (posHash + i * 3) % vizagPool.length;
+    vizagPicked.push(vizagPool.splice(idx, 1)[0]);
+  }
+
+  const hydCount = 1 + (posHash % 2); // 1 or 2
+  const hydPicked = [];
+  const hydPool = [...HYD_THEATERS];
+  for (let i = 0; i < hydCount; i++) {
+    const idx = (posHash + i * 2) % hydPool.length;
+    hydPicked.push(hydPool.splice(idx, 1)[0]);
+  }
+
+  return [...vizagPicked, ...hydPicked];
+}
+
+/**
  * Fetch top recent and upcoming Indian theatrical releases from TMDB
  */
 export async function fetchLiveIndianCatalog({ deletedMovieIds = [], limit = 8 } = {}) {
@@ -163,7 +221,7 @@ export async function fetchLiveIndianCatalog({ deletedMovieIds = [], limit = 8 }
         aspectRatio: '2.39:1',
         status: isUpcoming ? 'COMING_SOON' : 'CURRENTLY_SHOWING',
         cities: ['visakhapatnam', 'hyderabad', 'vijayawada', 'bengaluru'],
-        theaters: isUpcoming ? [] : ['varun-inox', 'sangam-sarat', 'melody-theatre', 'ambience-mall-pvr', 'aaa'],
+        theaters: isUpcoming ? [] : assignDiverseTheatersForMovie(slug || item.id),
         ottPlatform: details.ottPlatform || '',
         ottReleaseDate: details.ottReleaseDate || '',
         ottUrl: details.ottWatchUrl || '',

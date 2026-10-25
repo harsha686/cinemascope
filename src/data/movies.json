@@ -1,44 +1,5 @@
 [
   {
-    "id": "heart-of-the-beast",
-    "title": "Heart of the Beast",
-    "originalTitle": "Heart of the Beast",
-    "posterUrl": "https://image.tmdb.org/t/p/w500/plWgzrXkf0RUQ6pNPRg0jIBxfaG.jpg",
-    "posterSource": "TMDB",
-    "posterSourceType": "OFFICIAL",
-    "backdropUrl": "https://image.tmdb.org/t/p/original/bicMU6xVD5deVyKP2azpyx7xkmH.jpg",
-    "language": "English",
-    "runtime": "1h 41m",
-    "releaseDate": "2026-09-19",
-    "genres": [
-      "Adventure",
-      "Thriller"
-    ],
-    "overview": "After a harrowing plane crash, Special Forces officer James Belmont and his combat dog, Odin, find themselves stranded deep in the Alaskan wilderness. Together, they are forced into a brutal fight for survival against the elements.",
-    "cast": [
-      "Brad Pitt",
-      "J.K. Simmons",
-      "Anna Lambe",
-      "Justin Melnick",
-      "Shaun DeZern"
-    ],
-    "director": "David Ayer",
-    "certificate": "U/A",
-    "trailerUrl": "https://youtu.be/JFQcDFhNh4o?si=-8EMbAfRSRgDQoXR",
-    "aspectRatio": "2.39:1",
-    "status": "CURRENTLY_SHOWING",
-    "cities": [
-      "visakhapatnam"
-    ],
-    "theaters": [
-      "varun-inox",
-      "aaa"
-    ],
-    "ottPlatform": "",
-    "ottReleaseDate": "",
-    "ottUrl": ""
-  },
-  {
     "id": "baththa",
     "title": "Baththa",
     "originalTitle": "பத்தா",
@@ -69,11 +30,145 @@
     "aspectRatio": "2.39:1",
     "status": "CURRENTLY_SHOWING",
     "cities": [
-      "visakhapatnam"
+      "visakhapatnam",
+      "hyderabad"
     ],
     "theaters": [
       "aaa",
-      "miraj-cinemas"
+      "miraj-cinemas",
+      "stbl-cine-world",
+      "kameswari-kinnera",
+      "art-cinemas"
+    ],
+    "ottPlatform": "",
+    "ottReleaseDate": "",
+    "ottUrl": ""
+  },
+  {
+    "id": "heart-of-the-beast",
+    "title": "Heart of the Beast",
+    "originalTitle": "Heart of the Beast",
+    "posterUrl": "https://image.tmdb.org/t/p/w500/plWgzrXkf0RUQ6pNPRg0jIBxfaG.jpg",
+    "posterSource": "TMDB",
+    "posterSourceType": "OFFICIAL",
+    "backdropUrl": "https://image.tmdb.org/t/p/original/bicMU6xVD5deVyKP2azpyx7xkmH.jpg",
+    "language": "English",
+    "runtime": "1h 41m",
+    "releaseDate": "2026-09-19",
+    "genres": [
+      "Adventure",
+      "Thriller"
+    ],
+    "overview": "After a harrowing plane crash, Special Forces officer James Belmont and his combat dog, Odin, find themselves stranded deep in the Alaskan wilderness. Together, they are forced into a brutal fight for survival against the elements.",
+    "cast": [
+      "Brad Pitt",
+      "J.K. Simmons",
+      "Anna Lambe",
+      "Justin Melnick",
+      "Shaun DeZern"
+    ],
+    "director": "David Ayer",
+    "certificate": "U/A",
+    "trailerUrl": "https://youtu.be/JFQcDFhNh4o?si=-8EMbAfRSRgDQoXR",
+    "aspectRatio": "2.39:1",
+    "status": "CURRENTLY_SHOWING",
+    "cities": [
+      "visakhapatnam",
+      "hyderabad"
+    ],
+    "theaters": [
+      "varun-inox",
+      "aaa",
+      "stbl-cine-world",
+      "aparna-cinemas"
+    ],
+    "ottPlatform": "",
+    "ottReleaseDate": "",
+    "ottUrl": ""
+  },
+  {
+    "id": "toxic",
+    "title": "Toxic",
+    "originalTitle": "ಟಾಕ್ಸಿಕ್",
+    "posterUrl": "https://image.tmdb.org/t/p/w500/5RTd3YCLWbEhbe9OXRuNX3pbT5U.jpg",
+    "posterSource": "TMDB / Official",
+    "posterSourceType": "OFFICIAL",
+    "backdropUrl": "https://image.tmdb.org/t/p/original/tBRSSfgqOAq7YlG8udcoJIBm2FG.jpg",
+    "language": "Kannada",
+    "runtime": "3h 12m",
+    "releaseDate": "2026-08-26",
+    "genres": [
+      "Action",
+      "Crime",
+      "Drama"
+    ],
+    "overview": "A powerful drug cartel pulls the strings behind a facade of sun-soaked beaches as a gritty, violent underworld power struggle emerges during the crumbling of Portuguese colonial rule.",
+    "cast": [
+      "Yash",
+      "Kiara Advani",
+      "Nayanthara",
+      "Huma Qureshi",
+      "Tara Sutaria",
+      "Rukmini Vasanth"
+    ],
+    "director": "Geetu Mohandas",
+    "certificate": "U/A",
+    "trailerUrl": "",
+    "aspectRatio": "2.39:1",
+    "status": "CURRENTLY_SHOWING",
+    "cities": [
+      "visakhapatnam",
+      "hyderabad"
+    ],
+    "theaters": [
+      "jagadamba-cinema-theatre",
+      "varun-inox",
+      "sangam-sarat",
+      "aaa",
+      "sandhya-70-mm-8697"
+    ],
+    "ottPlatform": "",
+    "ottReleaseDate": "",
+    "ottUrl": ""
+  },
+  {
+    "id": "reporting-live",
+    "title": "Reporting Live",
+    "originalTitle": "रिपोर्टिंग लाइव",
+    "posterUrl": "https://image.tmdb.org/t/p/w500/xVabS4lTi6IMscr2FOucxydE6ZD.jpg",
+    "posterSource": "TMDB / Official",
+    "posterSourceType": "OFFICIAL",
+    "backdropUrl": "https://image.tmdb.org/t/p/original/faJB8DXU0LXwq5ebMLj5drz8S4N.jpg",
+    "language": "Hindi",
+    "runtime": "1h 56m",
+    "releaseDate": "2026-10-09",
+    "genres": [
+      "Crime",
+      "Thriller"
+    ],
+    "overview": "A young reporter and her reluctant cameraman chase a story, only to get entangled in an illegal sand-mining racket run by a ruthless syndicate.",
+    "cast": [
+      "Parineeti Chopra",
+      "Deven Bhojani",
+      "Adil Hussain",
+      "Shekhar Suman",
+      "Amol Palekar",
+      "Nassar"
+    ],
+    "director": "Dhruv Tripathi",
+    "certificate": "U/A",
+    "trailerUrl": "",
+    "aspectRatio": "2.39:1",
+    "status": "CURRENTLY_SHOWING",
+    "cities": [
+      "visakhapatnam",
+      "hyderabad"
+    ],
+    "theaters": [
+      "sangam-sarat",
+      "jyothi-theatre",
+      "sree-rama-picture-palace",
+      "art-cinemas"
     ],
     "ottPlatform": "",
     "ottReleaseDate": "",
@@ -110,18 +205,103 @@
     "aspectRatio": "2.39:1",
     "status": "CURRENTLY_SHOWING",
     "cities": [
-      "visakhapatnam"
+      "visakhapatnam",
+      "hyderabad"
     ],
     "theaters": [
       "varun-inox",
-      "melody-theatre",
-      "sangam-sarat",
       "ambience-mall-pvr",
-      "stbl-cine-world",
+      "jagadamba-cinema-theatre",
+      "mukta-a2-cinemas",
+      "aparna-cinemas"
+    ],
+    "ottPlatform": "",
+    "ottReleaseDate": "",
+    "ottUrl": ""
+  },
+  {
+    "id": "gajab-raat",
+    "title": "Gajab Raat",
+    "originalTitle": "ग़ज़ब रात",
+    "posterUrl": "https://image.tmdb.org/t/p/w500/e4N7M52cBbyi24xLga8yI6yt1u1.jpg",
+    "posterSource": "TMDB / Official",
+    "posterSourceType": "OFFICIAL",
+    "backdropUrl": "https://image.tmdb.org/t/p/original/8I4YFWgi9IZW4VUi398A0BqLnm.jpg",
+    "language": "Hindi",
+    "runtime": "2h 4m",
+    "releaseDate": "2026-10-23",
+    "genres": [
+      "Thriller",
+      "Crime"
+    ],
+    "overview": "A corrupt, troubled cop's night spirals out of control when a reluctant act of mercy toward an injured girl pulls him into a deadly web of crime.",
+    "cast": [
+      "Manoj Bajpayee",
+      "Divya Dutta",
+      "Akshay Oberoi",
+      "Saqib Saleem",
+      "Shraddha Das",
+      "Rajiv Gupta"
+    ],
+    "director": "Ritesh Shah",
+    "certificate": "U/A",
+    "trailerUrl": "",
+    "aspectRatio": "2.39:1",
+    "status": "CURRENTLY_SHOWING",
+    "cities": [
+      "visakhapatnam",
+      "hyderabad"
+    ],
+    "theaters": [
+      "ambience-mall-pvr",
       "aaa",
       "mukta-a2-cinemas",
-      "sri-lakshmi-narasimha-theatre",
-      "miraj-cinemas"
+      "sandhya-70-mm-8697"
+    ],
+    "ottPlatform": "",
+    "ottReleaseDate": "",
+    "ottUrl": ""
+  },
+  {
+    "id": "khalifa-the-ruler",
+    "title": "Khalifa: The Ruler",
+    "originalTitle": "ഖലീഫ: The Ruler",
+    "posterUrl": "https://image.tmdb.org/t/p/w500/3HOC3omTbl7lB9gxKu7uCEpOtuC.jpg",
+    "posterSource": "TMDB / Official",
+    "posterSourceType": "OFFICIAL",
+    "backdropUrl": "https://image.tmdb.org/t/p/original/6Jz7rnnZrSkgs9ySWUxewpcxr7Q.jpg",
+    "language": "Malayalam",
+    "runtime": "2h 39m",
+    "releaseDate": "2026-08-20",
+    "genres": [
+      "Action",
+      "Thriller",
+      "Crime"
+    ],
+    "overview": "Aamir Ali, a notorious gold smuggling kingpin who inherited his multi-million dollar criminal enterprise from a lineage of gangsters, is drawn into a web of vengeance, legacy and power.",
+    "cast": [
+      "Prithviraj Sukumaran",
+      "Mohanlal",
+      "Neil Nitin Mukesh",
+      "Indrans",
+      "Shammi Thilakan",
+      "Malvika Sharma"
+    ],
+    "director": "Vysakh",
+    "certificate": "U/A",
+    "trailerUrl": "",
+    "aspectRatio": "2.39:1",
+    "status": "CURRENTLY_SHOWING",
+    "cities": [
+      "visakhapatnam",
+      "hyderabad"
+    ],
+    "theaters": [
+      "jagadamba-cinema-theatre",
+      "varun-inox",
+      "stbl-cine-world",
+      "sandhya-70-mm-8697",
+      "art-cinemas"
     ],
     "ottPlatform": "",
     "ottReleaseDate": "",
@@ -157,17 +337,102 @@
     "aspectRatio": "2.39:1",
     "status": "CURRENTLY_SHOWING",
     "cities": [
-      "visakhapatnam"
+      "visakhapatnam",
+      "hyderabad"
     ],
     "theaters": [
       "jagadamba-cinema-theatre",
-      "varun-inox",
-      "kameswari-kinnera",
-      "ambience-mall-pvr",
-      "aaa",
+      "mohini-cinemas",
       "sri-lakshmi-narasimha-theatre",
-      "stbl-cine-world",
-      "miraj-cinemas"
+      "svc-gokul-theater",
+      "sandhya-70-mm-8697"
+    ],
+    "ottPlatform": "",
+    "ottReleaseDate": "",
+    "ottUrl": ""
+  },
+  {
+    "id": "ranabaali",
+    "title": "Ranabaali",
+    "originalTitle": "రణబాలి",
+    "posterUrl": "https://image.tmdb.org/t/p/w500/cXaCyYYbafVyMrs8rwKmxezBYPJ.jpg",
+    "posterSource": "TMDB / Official",
+    "posterSourceType": "OFFICIAL",
+    "backdropUrl": "https://image.tmdb.org/t/p/original/xpImgnsxuqb3VOp0QRtXTS5uBRi.jpg",
+    "language": "Telugu",
+    "runtime": "2h 59m",
+    "releaseDate": "2026-10-15",
+    "genres": [
+      "History",
+      "Action",
+      "Drama"
+    ],
+    "overview": "Set in 19th-century British India, a fierce leader rises from a drought-stricken land to fight colonial oppression and atrocities.",
+    "cast": [
+      "Vijay Deverakonda",
+      "Rashmika Mandanna",
+      "Arnold Vosloo",
+      "Easwari Rao",
+      "Vinod Sagar",
+      "Kishore Kumar Polimera"
+    ],
+    "director": "Rahul Sankrityan",
+    "certificate": "U/A",
+    "trailerUrl": "",
+    "aspectRatio": "2.39:1",
+    "status": "CURRENTLY_SHOWING",
+    "cities": [
+      "visakhapatnam",
+      "hyderabad"
+    ],
+    "theaters": [
+      "kameswari-kinnera",
+      "melody-theatre",
+      "miraj-cinemas",
+      "srinivasa-theatre",
+      "art-cinemas"
+    ],
+    "ottPlatform": "",
+    "ottReleaseDate": "",
+    "ottUrl": ""
+  },
+  {
+    "id": "lust-stories-3",
+    "title": "Lust Stories 3",
+    "originalTitle": "लस्ट स्टोरीज़ ३",
+    "posterUrl": "https://image.tmdb.org/t/p/w500/cLA83DD1qMEBwbRIYXf29RKjMja.jpg",
+    "posterSource": "TMDB / Official",
+    "posterSourceType": "OFFICIAL",
+    "backdropUrl": "https://image.tmdb.org/t/p/original/jRtR4aTq4vmxRg9ah60R5i1kkQ7.jpg",
+    "language": "Hindi",
+    "runtime": "2h 45m",
+    "releaseDate": "2026-09-18",
+    "genres": [
+      "Romance",
+      "Drama"
+    ],
+    "overview": "Through four bite-sized yet emotionally resonant films, the anthology once again explores lust, love, relationships, and repressed desire, offering fresh perspectives on intimacy, longing, and human connection in all their complexity.",
+    "cast": [
+      "Radhika Apte",
+      "Konkona Sen Sharma",
+      "Vijay Varma",
+      "Abhishek Banerjee",
+      "Ali Fazal",
+      "Radhikka Madan"
+    ],
+    "director": "Vikramaditya Motwane, Kiran Rao, Shakun Batra, Vishal Bhardwaj",
+    "certificate": "U/A",
+    "trailerUrl": "",
+    "aspectRatio": "2.39:1",
+    "status": "CURRENTLY_SHOWING",
+    "cities": [
+      "visakhapatnam",
+      "hyderabad"
+    ],
+    "theaters": [
+      "varun-inox",
+      "ambience-mall-pvr",
+      "aparna-cinemas"
     ],
     "ottPlatform": "",
     "ottReleaseDate": "",
@@ -202,9 +467,61 @@
     "aspectRatio": "2.39:1",
     "status": "CURRENTLY_SHOWING",
     "cities": [
-      "visakhapatnam"
+      "visakhapatnam",
+      "hyderabad"
     ],
-    "theaters": [],
+    "theaters": [
+      "ambience-mall-pvr",
+      "mukta-a2-cinemas",
+      "sree-rama-picture-palace",
+      "art-cinemas"
+    ],
+    "ottPlatform": "",
+    "ottReleaseDate": "",
+    "ottUrl": ""
+  },
+  {
+    "id": "drishyam-the-conclusion",
+    "title": "Drishyam: The Conclusion",
+    "originalTitle": "दृश्यम: आखिरी हिस्सा",
+    "posterUrl": "https://image.tmdb.org/t/p/w500/67FsF2kpgEZ1T5Qos4adgqm9dLf.jpg",
+    "posterSource": "TMDB / Official",
+    "posterSourceType": "OFFICIAL",
+    "backdropUrl": "https://image.tmdb.org/t/p/original/nq73eRdEooripf3k0XHLtX14zyC.jpg",
+    "language": "Hindi",
+    "runtime": "2h 28m",
+    "releaseDate": "2026-10-02",
+    "genres": [
+      "Thriller",
+      "Drama",
+      "Mystery",
+      "Crime"
+    ],
+    "overview": "Years after outsmarting the police, Vijay Salgaonkar's past resurfaces when a new evidence threatens to expose his secret. As the investigation reopens, he must outwit the system once again to save his family.",
+    "cast": [
+      "Ajay Devgn",
+      "Jaideep Ahlawat",
+      "Tabu",
+      "Shriya Saran",
+      "Rajat Kapoor",
+      "Prakash Raj"
+    ],
+    "director": "Abhishek Pathak",
+    "certificate": "U/A",
+    "trailerUrl": "",
+    "aspectRatio": "2.39:1",
+    "status": "CURRENTLY_SHOWING",
+    "cities": [
+      "visakhapatnam",
+      "hyderabad"
+    ],
+    "theaters": [
+      "varun-inox",
+      "ambience-mall-pvr",
+      "aaa",
+      "mukta-a2-cinemas",
+      "aparna-cinemas"
+    ],
     "ottPlatform": "",
     "ottReleaseDate": "",
     "ottUrl": ""
@@ -237,9 +554,58 @@
     "aspectRatio": "2.39:1",
     "status": "CURRENTLY_SHOWING",
     "cities": [
-      "visakhapatnam"
+      "visakhapatnam",
+      "hyderabad"
     ],
-    "theaters": [],
+    "theaters": [
+      "melody-theatre",
+      "sangam-sarat",
+      "sree-leelamahal-theatre",
+      "jyothi-theatre",
+      "sandhya-70-mm-8697"
+    ],
+    "ottPlatform": "",
+    "ottReleaseDate": "",
+    "ottUrl": ""
+  },
+  {
+    "id": "the-dark-heaven",
+    "title": "The Dark Heaven",
+    "originalTitle": "தீ டார்க் ஹெவன்",
+    "posterUrl": "https://image.tmdb.org/t/p/w500/xFr0Q7j2JmOwBJnvImIgTAWBk4U.jpg",
+    "posterSource": "TMDB / Official",
+    "posterSourceType": "OFFICIAL",
+    "backdropUrl": "https://image.tmdb.org/t/p/original/4ercU8wa7OAexszQG3SSNuyB8fy.jpg",
+    "language": "Tamil",
+    "runtime": "2h 27m",
+    "releaseDate": "2026-09-18",
+    "genres": [
+      "Crime",
+      "Thriller"
+    ],
+    "overview": "In the Hill Village of Mekkarai, Where It is Customary for Men to Die Every Seven Years During the Month of June, a Newly Appointed Police Inspector Arrives to Investigate a Series of Mysterious Murders. As He Digs Deeper Into the Village's Dark Secrets and Long-standing Beliefs, He Finds Himself Trapped in a Web of Crime, Fear, and Hidden Truths.",
+    "cast": [
+      "Sidhu Sid",
+      "Tharshika",
+      "Riythvika",
+      "Vela Ramamoorthy",
+      "Nizhalgal Ravi"
+    ],
+    "director": "Balaaji",
+    "certificate": "U/A",
+    "trailerUrl": "",
+    "aspectRatio": "2.39:1",
+    "status": "CURRENTLY_SHOWING",
+    "cities": [
+      "visakhapatnam",
+      "hyderabad"
+    ],
+    "theaters": [
+      "melody-theatre",
+      "miraj-cinemas",
+      "stbl-cine-world",
+      "aparna-cinemas"
+    ],
     "ottPlatform": "",
     "ottReleaseDate": "",
     "ottUrl": ""

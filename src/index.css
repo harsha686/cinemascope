@@ -514,8 +514,17 @@ select optgroup {
   z-index: 100;
   display: flex;
   align-items: center;
-  background: linear-gradient(to bottom, rgba(10,8,6,0.98) 0%, rgba(10,8,6,0.88) 100%);
-  backdrop-filter: blur(14px);
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition: background 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              backdrop-filter 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nav.nav-scrolled {
+  background: rgba(10, 8, 6, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border-subtle);
 }
 

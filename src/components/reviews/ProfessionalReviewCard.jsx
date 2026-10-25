@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { Heart, Flag, Edit3, Trash2, Check, ShieldCheck, ChevronDown, ChevronUp, ExternalLink, Info, Monitor } from "lucide-react";
 import { useApp } from "../../AppContext";
 import ProfessionalRatingBadge from "./ProfessionalRatingBadge";
@@ -264,16 +264,18 @@ export default function ProfessionalReviewCard({ review, onEdit, onDelete }) {
 
       {/* Footer */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid rgba(16,185,129,0.15)" }}>
-        <button type="button" onClick={handleHelpfulClick} style={{
-          display: "flex", alignItems: "center", gap: 6, fontSize: 11,
+        <button type="button" onClick={handleHelpfulClick} title={hasVotedHelpful ? 'Unlike' : 'Like'} style={{
+          display: "flex", alignItems: "center", gap: 5, fontSize: 12,
+          fontWeight: 600,
           color: hasVotedHelpful ? "#10b981" : "var(--text-muted)",
           background: hasVotedHelpful ? "rgba(16,185,129,0.1)" : "transparent",
-          padding: "4px 10px",
+          padding: "4px 8px",
           border: `1px solid ${hasVotedHelpful ? "rgba(16,185,129,0.4)" : "var(--border-subtle)"}`,
           borderRadius: "var(--radius-sm)", cursor: "pointer",
+          transition: "all 150ms ease",
         }}>
-          <Heart size={12} fill={hasVotedHelpful ? "#10b981" : "none"} />
-          <span>Helpful ({displayLikesCount})</span>
+          <Heart size={13} fill={hasVotedHelpful ? "#10b981" : "none"} />
+          {displayLikesCount > 0 && <span>{displayLikesCount}</span>}
         </button>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

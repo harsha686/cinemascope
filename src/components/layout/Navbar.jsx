@@ -103,7 +103,17 @@ export default function Navbar() {
   const isMoreActive = moreLinks.some(link => isActive(link.to));
 
   return (
-    <nav className="nav" style={{ borderBottomColor: scrolled ? 'var(--border-subtle)' : 'transparent' }}>
+    <nav
+      className={`nav ${scrolled ? 'nav-scrolled' : 'nav-transparent'}`}
+      style={{
+        background: scrolled
+          ? 'rgba(10, 8, 6, 0.85)'
+          : 'linear-gradient(to bottom, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.2) 60%, transparent 100%)',
+        backdropFilter: scrolled ? 'blur(16px)' : 'none',
+        WebkitBackdropFilter: scrolled ? 'blur(16px)' : 'none',
+        borderBottom: scrolled ? '1px solid var(--border-subtle)' : '1px solid transparent',
+      }}
+    >
       <div
         className="container"
         style={{
@@ -320,6 +330,45 @@ export default function Navbar() {
 
         {/* Right: User Menu / Auth Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          {/* Desktop City Switcher */}
+          <div className="desktop-only" style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--border-neutral)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '4px 8px',
+              gap: 6,
+            }}>
+              <MapPin size={13} color="var(--gold)" />
+              <select
+                aria-label="Select City"
+                value={activeCity?.id || 'visakhapatnam'}
+                onChange={(e) => {
+                  const selected = allCities.find(c => c.id === e.target.value);
+                  if (selected) dispatch({ type: 'SET_CITY', payload: selected });
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-primary)',
+                  fontSize: 12,
+                  fontFamily: 'var(--font-sans)',
+                  fontWeight: 600,
+                  outline: 'none',
+                  cursor: 'pointer',
+                  paddingRight: 2,
+                }}
+              >
+                {allCities.map(c => (
+                  <option key={c.id} value={c.id} style={{ background: '#1c1917', color: '#fff' }}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
           {currentUser && (
             <div ref={notifDropdownRef} style={{ position: 'relative', flexShrink: 0 }}>
               <button
