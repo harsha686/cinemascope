@@ -517,6 +517,10 @@ export async function fetchFullTmdbMovieDetails(tmdbId) {
     const ottReleaseDate = rawOttDate ? rawOttDate.split('T')[0] : '';
     const primaryPlatform = streamProviders[0]?.name || ottPlatforms[0]?.name || '';
 
+    // Check if title has genuine theatrical release (types 2 or 3 in release_dates)
+    const hasTheatricalRelease = inReleases.some(rd => rd.type === 2 || rd.type === 3) ||
+      allReleaseDates.flatMap(r => r.release_dates || []).some(rd => rd.type === 2 || rd.type === 3);
+
     const finalMovieDetails = {
       id: `tmdb-${data.id}`,
       tmdbId: data.id,
@@ -529,6 +533,8 @@ export async function fetchFullTmdbMovieDetails(tmdbId) {
       overview: data.overview || '',
       releaseDate: data.release_date || '',
       releaseYear: data.release_date ? data.release_date.split('-')[0] : '',
+      tmdbStatus: data.status || 'Released',
+      isTheatrical: hasTheatricalRelease,
       runtime: formatRuntime(data.runtime),
       runtimeMinutes: data.runtime || 150,
       genres: genreList,

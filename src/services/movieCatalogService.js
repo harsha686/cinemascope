@@ -136,9 +136,9 @@ export async function fetchLiveIndianCatalog({ deletedMovieIds = [], limit = 8 }
   const seenTmdbIds = new Set();
 
   try {
-    // 1. Fetch Indian releases in Telugu, Tamil, Hindi, Malayalam, Kannada
+    // 1. Fetch Indian releases in Telugu, Tamil, Hindi, Malayalam, Kannada with verified vote threshold
     const indianNowPlaying = await tmdbFetch(
-      `/discover/movie?region=IN&sort_by=popularity.desc&primary_release_date.gte=${gteDate}&primary_release_date.lte=${today}&with_original_language=te|ta|hi|ml|kn&with_origin_country=IN&include_adult=false&page=1`
+      `/discover/movie?region=IN&sort_by=popularity.desc&primary_release_date.gte=${gteDate}&primary_release_date.lte=${today}&with_original_language=te|ta|hi|ml|kn&with_origin_country=IN&include_adult=false&vote_count.gte=15&page=1`
     );
 
     (indianNowPlaying.results || []).forEach(m => {
@@ -150,10 +150,10 @@ export async function fetchLiveIndianCatalog({ deletedMovieIds = [], limit = 8 }
       }
     });
 
-    // 2. Fetch Now Playing in Indian theaters (including major international/English hits)
+    // 2. Fetch Now Playing in Indian theaters with verified vote threshold
     const nowPlayingAll = await tmdbFetch(`/movie/now_playing?region=IN&page=1`);
     (nowPlayingAll.results || []).forEach(m => {
-      if (m.id && m.poster_path && (m.title || m.original_title)) {
+      if (m.id && m.poster_path && (m.title || m.original_title) && (m.vote_count || 0) >= 15) {
         if (!seenTmdbIds.has(m.id)) {
           seenTmdbIds.add(m.id);
           discoveredCandidates.push({ ...m, isUpcoming: false });
@@ -189,9 +189,10 @@ export async function fetchLiveIndianCatalog({ deletedMovieIds = [], limit = 8 }
 
   // Enrich top candidates with full credits, trailers, and certifications
   const enrichedMovies = [];
-  const selectedCandidates = validCandidates.slice(0, limit);
+  const selectedCandidates = validCandidates.slice(0, limit * 2);
 
   for (const item of selectedCandidates) {
+    if (enrichedMovies.length >= limit) break;
     try {
       const details = await fetchFullTmdbMovieDetails(item.id);
       if (!details) continue;
@@ -200,6 +201,22 @@ export async function fetchLiveIndianCatalog({ deletedMovieIds = [], limit = 8 }
       if (deletedSet.has(slug) || deletedSet.has(`tmdb-${item.id}`)) continue;
 
       const isUpcoming = Boolean(item.isUpcoming || (details.releaseDate && details.releaseDate > today));
+
+      // STRICT FILTERING: Prevent unreleased, fake, or non-theatrical titles from entering Now Showing
+      if (!isUpcoming) {
+        // Must be officially released in TMDB
+        if (details.tmdbStatus && details.tmdbStatus !== 'Released') {
+          continue;
+        }
+        // Must have verified minimum votes to avoid speculative fan-made pages
+        if ((details.voteCount || 0) < 10) {
+          continue;
+        }
+        // Must have a valid theatrical duration (> 40 minutes)
+        if ((details.runtimeMinutes || 0) < 40) {
+          continue;
+        }
+      }
 
       const movieObj = {
         id: slug || `tmdb-${item.id}`,
@@ -220,8 +237,8 @@ export async function fetchLiveIndianCatalog({ deletedMovieIds = [], limit = 8 }
         trailerUrl: details.trailerUrl || '',
         aspectRatio: '2.39:1',
         status: isUpcoming ? 'COMING_SOON' : 'CURRENTLY_SHOWING',
-        cities: ['visakhapatnam', 'hyderabad', 'vijayawada', 'bengaluru'],
-        theaters: isUpcoming ? [] : assignDiverseTheatersForMovie(slug || item.id),
+        cities: ['visakhapatnam'],
+        theaters: [], // Theaters are strictly assigned by Admin in Admin Dashboard, never auto-fabricated
         ottPlatform: details.ottPlatform || '',
         ottReleaseDate: details.ottReleaseDate || '',
         ottUrl: details.ottWatchUrl || '',

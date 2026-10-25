@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck, Tv, Film, Users, Layers, Share2, Copy, Check, ExternalLink, Send, MessageCircle } from 'lucide-react';
+import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck, Tv, Film, Users, Layers, Share2, Copy, Check, ExternalLink, Send, MessageCircle, Ticket } from 'lucide-react';
 import { useApp } from '../AppContext';
 import RatingBreakdown from '../components/reviews/RatingBreakdown';
 import ReviewCard from '../components/reviews/ReviewCard';
@@ -16,6 +16,19 @@ import { SOCIAL_CONTENT_TYPES } from '../services/socialSharingService';
 import { getMovieWinningHistory, isWeekendSeries } from '../services/weekendPickService';
 import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
 import { supabaseService, isSupabaseConfigured } from '../services/supabase';
+
+// Helper to construct real BookMyShow ticket search URL
+const getBookMyShowUrl = (movieTitle, cityId = 'visakhapatnam', theaterName = '') => {
+  const cityMap = {
+    visakhapatnam: 'vizag',
+    hyderabad: 'hyderabad',
+    vijayawada: 'vijayawada',
+    bengaluru: 'bengaluru',
+  };
+  const bmsCity = cityMap[cityId] || 'vizag';
+  const query = theaterName ? `${movieTitle} ${theaterName}` : (movieTitle || '');
+  return `https://in.bookmyshow.com/explore/movies-${bmsCity}?search=${encodeURIComponent(query)}`;
+};
 
 export default function MovieDetailPage() {
   const { movieId } = useParams();
@@ -849,24 +862,50 @@ export default function MovieDetailPage() {
                       <span>Watch In Theaters</span>
                     </h2>
                     <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>
-                      Confirmed theater screenings &amp; cinema screens in <strong style={{ color: 'var(--gold)' }}>{currentCity?.name}</strong>
+                      Theaters &amp; technical cinema specs in <strong style={{ color: 'var(--gold)' }}>{currentCity?.name}</strong>
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => navigate('/compare')}
-                    className="btn btn-outline btn-sm"
-                    style={{
-                      fontSize: 12,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                    }}
-                  >
-                    <Monitor size={13} />
-                    <span>Compare Cinema Screens →</span>
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <a
+                      href={getBookMyShowUrl(movie.title, currentCity?.id)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-sm"
+                      style={{
+                        fontSize: 12,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        background: 'linear-gradient(135deg, #d32f2f, #b71c1c)',
+                        color: '#ffffff',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                        padding: '6px 14px',
+                        borderRadius: 'var(--radius-sm)',
+                        boxShadow: '0 2px 8px rgba(211,47,47,0.3)',
+                      }}
+                    >
+                      <Ticket size={13} />
+                      <span>Check Live Tickets on BookMyShow ↗</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => navigate('/compare')}
+                      className="btn btn-outline btn-sm"
+                      style={{
+                        fontSize: 12,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      <Monitor size={13} />
+                      <span>Compare Cinema Screens →</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Location Filter & City Selector Bar */}
@@ -930,24 +969,10 @@ export default function MovieDetailPage() {
                 {localTheaters.length > 0 ? (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 16 }}>
                     {localTheaters.map(t => {
-                      // Deterministic showtimes for this theater & movie
-                      const showtimes = (() => {
-                        const schedules = [
-                          ['11:00 AM', '02:30 PM', '06:15 PM', '09:45 PM'],
-                          ['10:45 AM', '02:15 PM', '06:00 PM', '09:30 PM'],
-                          ['11:30 AM', '03:00 PM', '06:45 PM', '10:15 PM'],
-                          ['10:15 AM', '01:45 PM', '05:30 PM', '08:45 PM'],
-                          ['01:15 PM', '04:30 PM', '07:45 PM', '10:45 PM'],
-                        ];
-                        let hash = 0;
-                        const str = String(t.id || '') + String(movie.id || '');
-                        for (let i = 0; i < str.length; i++) hash = ((hash << 5) - hash) + str.charCodeAt(i);
-                        return schedules[Math.abs(hash) % schedules.length];
-                      })();
-
                       const primaryScreen = (t.screens && t.screens.length > 0)
                         ? (t.screens.find(s => s.aspectRatio === movie.aspectRatio) || t.screens[0])
                         : null;
+                      const bmsTheaterUrl = getBookMyShowUrl(movie.title, currentCity?.id, t.name);
 
                       return (
                         <div
@@ -996,56 +1021,33 @@ export default function MovieDetailPage() {
                           {/* Screen Specs & Aspect Ratio Match */}
                           {primaryScreen && (
                             <div style={{
-                              padding: '8px 12px',
+                              padding: '10px 12px',
                               background: 'rgba(255,255,255,0.03)',
                               border: '1px solid rgba(255,255,255,0.06)',
-                              borderRadius: 4,
+                              borderRadius: 6,
                               fontSize: 11,
                               display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              gap: 8,
-                              color: 'var(--text-secondary)'
+                              flexDirection: 'column',
+                              gap: 6,
                             }}>
-                              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                                🖥️ {primaryScreen.name || 'Main Screen'}
-                              </span>
-                              <span style={{ color: 'var(--gold)' }}>
-                                {primaryScreen.aspectRatio || movie.aspectRatio || '2.39:1 Scope'}
-                              </span>
-                              {primaryScreen.soundSystem && (
-                                <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>
-                                  🔊 {primaryScreen.soundSystem}
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                                  🖥️ {primaryScreen.name || 'Main Screen'}
                                 </span>
-                              )}
+                                <span style={{ color: 'var(--gold)', fontWeight: 600 }}>
+                                  {primaryScreen.aspectRatio || movie.aspectRatio || '2.39:1 Scope'}
+                                </span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, color: 'var(--text-muted)', fontSize: 10 }}>
+                                {primaryScreen.soundSystem && (
+                                  <span>🔊 {primaryScreen.soundSystem}</span>
+                                )}
+                                {primaryScreen.projectorType && (
+                                  <span>📽️ {primaryScreen.projectorType}</span>
+                                )}
+                              </div>
                             </div>
                           )}
-
-                          {/* Today's Showtimes */}
-                          <div>
-                            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 6 }}>
-                              Today's Showtimes
-                            </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                              {showtimes.map((st, idx) => (
-                                <span
-                                  key={idx}
-                                  style={{
-                                    fontSize: 11,
-                                    padding: '3px 7px',
-                                    background: 'rgba(220,182,91,0.06)',
-                                    border: '1px solid rgba(220,182,91,0.2)',
-                                    borderRadius: 4,
-                                    color: 'var(--gold)',
-                                    fontFamily: 'monospace',
-                                    fontWeight: 600,
-                                  }}
-                                >
-                                  {st}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
 
                           {t.features && t.features.length > 0 && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -1067,19 +1069,53 @@ export default function MovieDetailPage() {
                             </div>
                           )}
 
+                          {/* Action Buttons: Book on BMS & View Specs */}
                           <div style={{
                             marginTop: 'auto',
-                            paddingTop: 10,
+                            paddingTop: 12,
                             borderTop: '1px solid rgba(255,255,255,0.06)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
-                            fontSize: 12,
-                            color: 'var(--gold)',
-                            fontWeight: 600,
+                            gap: 8,
+                            flexWrap: 'wrap',
                           }}>
-                            <span>View Theater &amp; Screens</span>
-                            <ChevronRight size={14} />
+                            <a
+                              href={bmsTheaterUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 5,
+                                fontSize: 11,
+                                fontWeight: 600,
+                                color: '#ffffff',
+                                background: 'rgba(220, 53, 69, 0.88)',
+                                padding: '5px 10px',
+                                borderRadius: 4,
+                                textDecoration: 'none',
+                                transition: 'background 150ms ease',
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.background = '#d32f2f'}
+                              onMouseLeave={e => e.currentTarget.style.background = 'rgba(220, 53, 69, 0.88)'}
+                            >
+                              <Ticket size={12} />
+                              <span>Book on BookMyShow ↗</span>
+                            </a>
+
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              fontSize: 11,
+                              color: 'var(--gold)',
+                              fontWeight: 600,
+                            }}>
+                              <span>Screen Specs</span>
+                              <ChevronRight size={13} />
+                            </div>
                           </div>
                         </div>
                       );
@@ -1095,16 +1131,37 @@ export default function MovieDetailPage() {
                   }}>
                     <MapPin size={32} color="var(--gold-dim)" style={{ margin: '0 auto 12px' }} />
                     <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--text-primary)', margin: '0 0 6px' }}>
-                      No confirmed screenings reported in {currentCity?.name || 'this city'}
+                      No local theater screenings currently assigned in {currentCity?.name || 'this city'}
                     </h3>
-                    <p style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 460, margin: '0 auto 16px', lineHeight: 1.5 }}>
-                      "{movie.title}" is not currently playing in <strong>{currentCity?.name}</strong>. Check other cities below for confirmed screenings:
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 480, margin: '0 auto 18px', lineHeight: 1.5 }}>
+                      Theater screenings can be configured in the Admin Dashboard. You can also check real-time live tickets and showtimes for <strong>"{movie.title}"</strong> directly on BookMyShow:
                     </p>
 
-                    {/* Quick jump to cities where movie IS screening */}
-                    {citiesWithScreenings.some(c => c.theatersCount > 0) ? (
-                      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 12 }}>
-                        {citiesWithScreenings.filter(c => c.theatersCount > 0).map(c => (
+                    <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <a
+                        href={getBookMyShowUrl(movie.title, currentCity?.id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-sm"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          background: 'linear-gradient(135deg, #d32f2f, #b71c1c)',
+                          color: '#ffffff',
+                          fontWeight: 600,
+                          textDecoration: 'none',
+                          padding: '7px 16px',
+                          borderRadius: 'var(--radius-sm)',
+                        }}
+                      >
+                        <Ticket size={14} />
+                        <span>Search "{movie.title}" on BookMyShow ({currentCity?.name}) ↗</span>
+                      </a>
+
+                      {/* Quick jump to cities where movie IS screening */}
+                      {citiesWithScreenings.some(c => c.theatersCount > 0) && (
+                        citiesWithScreenings.filter(c => c.theatersCount > 0).map(c => (
                           <button
                             key={c.id}
                             type="button"
@@ -1115,17 +1172,9 @@ export default function MovieDetailPage() {
                             <MapPin size={13} />
                             <span>Switch to {c.name} ({c.theatersCount} {c.theatersCount === 1 ? 'theater' : 'theaters'}) →</span>
                           </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => navigate('/compare')}
-                        className="btn btn-outline btn-sm"
-                      >
-                        Compare All Screens →
-                      </button>
-                    )}
+                        ))
+                      )}
+                    </div>
                   </div>
                 )}
 
