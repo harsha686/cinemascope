@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+﻿import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, ChevronDown, ChevronUp, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2, Users, Bell, Search, Tv, X, Sparkles, SlidersHorizontal, Trash2, AlertTriangle, Clock, Send } from 'lucide-react';
 import { useApp } from '../AppContext';
@@ -321,8 +321,11 @@ export default function ProfilePage() {
   }, [userNotifications]);
 
   const totalLikesReceived = useMemo(() => {
-    return userReviews.reduce((sum, r) => sum + (r.likesCount || 0), 0);
-  }, [userReviews]);
+    return userReviews.reduce((sum, r) => {
+      const notifsCount = (state.notifications || []).filter(n => n.type === 'REVIEW_LIKE' && n.reviewId === r.id).length;
+      return sum + Math.max(r.likesCount || 0, notifsCount);
+    }, 0);
+  }, [userReviews, state.notifications]);
 
   if (!profileUser) {
     return (

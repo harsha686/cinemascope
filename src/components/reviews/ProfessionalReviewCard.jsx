@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { Heart, Flag, Edit3, Trash2, Check, ShieldCheck, ChevronDown, ChevronUp, ExternalLink, Info, Monitor } from "lucide-react";
 import { useApp } from "../../AppContext";
 import ProfessionalRatingBadge from "./ProfessionalRatingBadge";
@@ -36,7 +36,16 @@ export default function ProfessionalReviewCard({ review, onEdit, onDelete }) {
 
   const currentUser = state.currentUser;
   const isOwnReview = currentUser && currentUser.id === review.userId;
-  const hasVotedHelpful = currentUser && state.helpfulVotes.some(v => v.userId === currentUser.id && v.reviewId === review.id);
+
+  // Calculate helpful likes reconciling from review object, notifications, and helpful votes
+  const notifsLikesCount = (state.notifications || []).filter(n => n.type === 'REVIEW_LIKE' && n.reviewId === review.id).length;
+  const votesLikesCount = (state.helpfulVotes || []).filter(v => v.reviewId === review.id).length;
+  const displayLikesCount = Math.max(review.likesCount || 0, notifsLikesCount, votesLikesCount);
+
+  const hasVotedHelpful = currentUser && (
+    (state.helpfulVotes || []).some(v => v.userId === currentUser.id && v.reviewId === review.id) ||
+    (state.notifications || []).some(n => n.type === 'REVIEW_LIKE' && n.actorId === currentUser.id && n.reviewId === review.id)
+  );
   const hasParams = review.parameterRatings && Object.values(review.parameterRatings).some(v => v > 0);
 
   // Get reviewer application info for profession badge
@@ -264,7 +273,7 @@ export default function ProfessionalReviewCard({ review, onEdit, onDelete }) {
           borderRadius: "var(--radius-sm)", cursor: "pointer",
         }}>
           <Heart size={12} fill={hasVotedHelpful ? "#10b981" : "none"} />
-          <span>Helpful ({review.likesCount || 0})</span>
+          <span>Helpful ({displayLikesCount})</span>
         </button>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

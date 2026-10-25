@@ -26,6 +26,10 @@ export default function AdminDashboard() {
     deletionRequests,
     rejectDeletionRequest,
     approveDeletionRequest,
+    updateMovieCatalog,
+    getLastCatalogUpdateTime,
+    isAutoCatalogSyncEnabled,
+    setAutoCatalogSyncEnabled,
   } = useApp();
 
   const currentUser = state.currentUser;
@@ -35,6 +39,9 @@ export default function AdminDashboard() {
   const [movieSearch, setMovieSearch] = useState('');
   const [movieStatusFilter, setMovieStatusFilter] = useState('all');
   const [refreshFeedback, setRefreshFeedback] = useState('');
+  const [isUpdatingCatalog, setIsUpdatingCatalog] = useState(false);
+  const [catalogFeedback, setCatalogFeedback] = useState('');
+  const [autoSyncOn, setAutoSyncOn] = useState(typeof isAutoCatalogSyncEnabled === 'function' ? isAutoCatalogSyncEnabled() : true);
 
   // Delete User State (Direct Admin Deletion)
   const [userToDelete, setUserToDelete] = useState(null);
@@ -400,9 +407,39 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteMovie = (id) => {
-    if (window.confirm('Delete this movie from the platform?')) {
+  const handleAutoUpdateCatalog = async () => {
+    setIsUpdatingCatalog(true);
+    setCatalogFeedback('Discovering live Indian theatrical releases from TMDB...');
+    try {
+      const res = await updateMovieCatalog({ force: true });
+      if (res?.success) {
+        setCatalogFeedback(res.message || `✓ Catalog updated successfully! (${res.addedCount} new movies added)`);
+      } else {
+        setCatalogFeedback(res?.message || 'Catalog is already up to date with the latest Indian releases.');
+      }
+      setTimeout(() => setCatalogFeedback(''), 5000);
+    } catch (err) {
+      setCatalogFeedback('Catalog update error: ' + (err?.message || 'Failed'));
+      setTimeout(() => setCatalogFeedback(''), 5000);
+    } finally {
+      setIsUpdatingCatalog(false);
+    }
+  };
+
+  const handleToggleAutoSync = () => {
+    const nextVal = !autoSyncOn;
+    setAutoSyncOn(nextVal);
+    if (typeof setAutoCatalogSyncEnabled === 'function') {
+      setAutoCatalogSyncEnabled(nextVal);
+    }
+  };
+
+  const handleDeleteMovie = (id, title) => {
+    const displayTitle = title || id;
+    if (window.confirm(`Permanently delete "${displayTitle}" from the platform?\n\nThis movie will be removed and blacklisted so it will never resurrect on refresh or sync.`)) {
       dispatch({ type: 'DELETE_MOVIE', payload: id });
+      setCatalogFeedback(`✓ Movie "${displayTitle}" permanently deleted and blacklisted.`);
+      setTimeout(() => setCatalogFeedback(''), 4500);
     }
   };
 
@@ -555,6 +592,79 @@ export default function AdminDashboard() {
             {/* MOVIES TAB */}
             {activeTab === 'movies' && (
               <div>
+                {/* Auto-Update Catalog Banner & Controls */}
+                <div style={{
+                  padding: '16px 20px',
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  marginBottom: 20,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 16
+                }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Sparkles size={16} color="var(--gold)" />
+                      <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+                        Live Theatrical Catalog Sync
+                      </span>
+                      <span className="badge badge-gold" style={{ fontSize: 9 }}>TMDB Verified</span>
+                    </div>
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>
+                      Automatically updates current Indian theatrical releases (Now Showing & Upcoming) into your catalog with official posters, director, cast, and default theater screens.
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, color: 'var(--text-secondary)' }}>
+                      <input
+                        type="checkbox"
+                        checked={autoSyncOn}
+                        onChange={handleToggleAutoSync}
+                        style={{ accentColor: 'var(--gold)', cursor: 'pointer' }}
+                      />
+                      <span>Daily Auto-Sync</span>
+                    </label>
+
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', background: 'rgba(255,255,255,0.04)', padding: '5px 10px', borderRadius: 3, border: '1px solid var(--border-subtle)' }}>
+                      Updated: {typeof getLastCatalogUpdateTime === 'function' ? getLastCatalogUpdateTime() : 'Live'}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={handleAutoUpdateCatalog}
+                      disabled={isUpdatingCatalog}
+                      className="btn btn-primary btn-sm"
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}
+                    >
+                      <RefreshCw size={13} className={isUpdatingCatalog ? 'spin' : ''} />
+                      <span>{isUpdatingCatalog ? 'Updating Catalog...' : 'Auto-Update Catalog from TMDB'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {catalogFeedback && (
+                  <div style={{
+                    padding: '12px 16px',
+                    marginBottom: 20,
+                    background: catalogFeedback.includes('✓') ? 'rgba(74, 222, 128, 0.1)' : 'rgba(217, 119, 6, 0.1)',
+                    border: `1px solid ${catalogFeedback.includes('✓') ? 'rgba(74, 222, 128, 0.3)' : 'rgba(217, 119, 6, 0.3)'}`,
+                    borderRadius: 'var(--radius-sm)',
+                    color: catalogFeedback.includes('✓') ? '#4ade80' : 'var(--gold)',
+                    fontSize: 12,
+                    fontFamily: 'var(--font-serif)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8
+                  }}>
+                    <CheckCircle2 size={16} />
+                    <span>{catalogFeedback}</span>
+                  </div>
+                )}
+
                 {/* Stats Bar */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 24 }}>
                   <div style={{ padding: 14, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
@@ -649,7 +759,7 @@ export default function AdminDashboard() {
                                     Archive
                                   </button>
                                 )}
-                                <button type="button" onClick={() => handleDeleteMovie(m.id)} className="btn btn-ghost btn-sm" style={{ padding: '4px 8px', fontSize: 11, color: '#f87171' }}>
+                                <button type="button" onClick={() => handleDeleteMovie(m.id, m.title)} className="btn btn-ghost btn-sm" style={{ padding: '4px 8px', fontSize: 11, color: '#f87171' }} title="Delete and Blacklist">
                                   <Trash2 size={12} />
                                 </button>
                               </div>

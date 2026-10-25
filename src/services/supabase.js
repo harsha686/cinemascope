@@ -86,15 +86,69 @@ export const signOutUser = async () => {
 
 export const supabaseService = {
   // Movies
+  async getDeletedMovieIds() {
+    const supabase = getSupabaseClient();
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('collections')
+        .select('description')
+        .eq('id', 'system_deleted_movies')
+        .maybeSingle();
+      if (error || !data?.description) return [];
+      const parsed = JSON.parse(data.description);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  async recordDeletedMovieId(id) {
+    if (!id) return false;
+    const supabase = getSupabaseClient();
+    if (!supabase) return false;
+    try {
+      const current = await this.getDeletedMovieIds();
+      if (!current.includes(id)) {
+        current.push(id);
+        await supabase.from('collections').upsert({
+          id: 'system_deleted_movies',
+          user_id: 'system',
+          name: 'deleted_movies_blacklist',
+          description: JSON.stringify(current),
+          visibility: 'public',
+          movie_ids: [],
+          updated_at: new Date().toISOString(),
+        });
+      }
+      return true;
+    } catch (e) {
+      console.warn('recordDeletedMovieId error:', e);
+      return false;
+    }
+  },
+
   async getMovies() {
     const supabase = getSupabaseClient();
     if (!supabase) return null;
-    const { data, error } = await supabase.from('movies').select('*').order('created_at', { ascending: false });
-    if (error) {
-      console.warn('Supabase fetch movies error:', error);
+    const [moviesRes, deletedIds] = await Promise.all([
+      supabase.from('movies').select('*').order('created_at', { ascending: false }),
+      this.getDeletedMovieIds().catch(() => []),
+    ]);
+    if (moviesRes.error) {
+      console.warn('Supabase fetch movies error:', moviesRes.error);
       return null;
     }
-    return data;
+    const deletedSet = new Set(deletedIds || []);
+    return (moviesRes.data || []).filter(m => {
+      if (!m || !m.id) return false;
+      if (deletedSet.has(m.id)) return false;
+      // Skip empty auto-stubs with no director, no overview, and no theaters
+      if (m.status === 'ARCHIVED' && (!m.director || m.director.trim() === '') && (!m.theaters || m.theaters.length === 0)) {
+        return false;
+      }
+      return true;
+    });
   },
 
   async saveMovie(movie) {
@@ -130,8 +184,21 @@ export const supabaseService = {
   async deleteMovie(id) {
     const supabase = getSupabaseClient();
     if (!supabase) return false;
-    const { error } = await supabase.from('movies').delete().eq('id', id);
-    return !error;
+    try {
+      // 1. Record in persistent blacklist first
+      await this.recordDeletedMovieId(id);
+
+      // 2. Disassociate reviews pointing to this movie so FK constraint does not fail
+      await supabase.from('reviews').update({ movie_id: null }).eq('movie_id', id);
+
+      // 3. Delete from movies table
+      const { error } = await supabase.from('movies').delete().eq('id', id);
+      if (error) console.warn('Supabase deleteMovie error:', error);
+      return !error;
+    } catch (e) {
+      console.warn('deleteMovie error:', e);
+      return false;
+    }
   },
 
   // Reviews
@@ -211,30 +278,12 @@ export const supabaseService = {
 
     let { error } = await supabase.from('reviews').upsert(payload);
     
-    // If foreign key constraint failed on movie_id (e.g. TMDB movie), ensure an ARCHIVED movie record exists first
+    // If foreign key constraint failed on movie_id (e.g. deleted movie or external TMDB movie),
+    // fallback immediately to movie_id = null so the review is NEVER lost and no unwanted movie stubs are created
     if (error && (error.message?.includes('foreign key') || error.message?.includes('reviews_movie_id_fkey') || error.code === '23503')) {
-      if (review.movieId && !isTheater) {
-        try {
-          await supabase.from('movies').upsert({
-            id: review.movieId,
-            title: review.movieTitle || review.movieId,
-            poster_url: review.posterUrl || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500',
-            status: 'ARCHIVED',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'id', ignoreDuplicates: true });
-          const retryResult = await supabase.from('reviews').upsert(payload);
-          error = retryResult.error;
-        } catch (e) {
-          console.warn('Auto movie stub creation failed:', e);
-        }
-      }
-      // If foreign key violation persists, fallback to movie_id = null so review is NEVER lost
-      if (error && (error.message?.includes('foreign key') || error.code === '23503')) {
-        payload.movie_id = null;
-        const retryNull = await supabase.from('reviews').upsert(payload);
-        error = retryNull.error;
-      }
+      payload.movie_id = null;
+      const retryNull = await supabase.from('reviews').upsert(payload);
+      error = retryNull.error;
     }
 
     if (error) {
@@ -256,6 +305,28 @@ export const supabaseService = {
     if (!supabase) return false;
     const { error } = await supabase.from('reviews').delete().eq('id', id);
     return !error;
+  },
+
+  async updateReviewLikes(reviewId, likesCount) {
+    const supabase = getSupabaseClient();
+    if (!supabase || !reviewId) return false;
+    try {
+      const { error } = await supabase
+        .from('reviews')
+        .update({
+          likes_count: Math.max(0, Number(likesCount) || 0),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', reviewId);
+      if (error) {
+        console.warn('Supabase updateReviewLikes error:', error);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.warn('Supabase updateReviewLikes error:', e);
+      return false;
+    }
   },
 
   // Users — reads from system_users_data collection (cross-device sync layer)
@@ -780,6 +851,50 @@ export const supabaseService = {
       return true;
     } catch (e) {
       console.warn('Supabase saveNotificationsData error:', e);
+      return false;
+    }
+  },
+
+  async getHelpfulVotesData() {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('collections')
+        .select('*')
+        .eq('id', 'system_helpful_votes_data')
+        .maybeSingle();
+
+      if (error || !data || !data.description) return null;
+      const parsed = JSON.parse(data.description);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.warn('Supabase getHelpfulVotesData error:', e);
+      return null;
+    }
+  },
+
+  async saveHelpfulVotesData(votesList) {
+    const supabase = getSupabaseClient();
+    if (!supabase || !votesList) return false;
+    try {
+      const trimmed = Array.isArray(votesList) ? votesList.slice(0, 500) : [];
+      const { error } = await supabase.from('collections').upsert({
+        id: 'system_helpful_votes_data',
+        user_id: 'system',
+        name: 'helpful_votes_state',
+        description: JSON.stringify(trimmed),
+        visibility: 'public',
+        movie_ids: [],
+        updated_at: new Date().toISOString(),
+      });
+      if (error) {
+        console.warn('Supabase saveHelpfulVotesData error:', error);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.warn('Supabase saveHelpfulVotesData error:', e);
       return false;
     }
   },

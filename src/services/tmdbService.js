@@ -116,7 +116,7 @@ export function setCachedMovieDetails(key, details) {
 /**
  * Helper to perform TMDB fetch with key rotation fallback and 429 rate limit backoff
  */
-async function tmdbFetch(endpoint) {
+export async function tmdbFetch(endpoint) {
   const apiKey = getTmdbApiKey();
   const sep = endpoint.includes('?') ? '&' : '?';
   const url = `${TMDB_BASE_URL}${endpoint}${sep}api_key=${apiKey}`;

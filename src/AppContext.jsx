@@ -7,6 +7,12 @@ import { supabaseService, isSupabaseConfigured, getSupabaseClient } from './serv
 import { syncWeekendPickDataFromCloud, pushWeekendPickDataToCloud, deleteUserVotes } from './services/weekendPickService';
 import { syncUserLibraryWithCloud, syncUserPublicStats, syncAllCommunityUserStats, wipeUserLibraryData } from './services/movieLibraryService';
 import { DEFAULT_PRO_APPLICATIONS, getUserApplication as getProAppFromService } from './services/proReviewerService';
+import {
+  syncLiveTheatricalCatalog,
+  getLastCatalogUpdateTime,
+  isAutoCatalogSyncEnabled,
+  setAutoCatalogSyncEnabled,
+} from './services/movieCatalogService';
 
 const AppContext = createContext(null);
 
@@ -48,6 +54,33 @@ export function sanitizeReviews(reviewsList) {
         ...r,
         userDisplayName: r.userDisplayName.replace(/\s*\(Admin\)/gi, '').trim()
       };
+    }
+    return r;
+  });
+}
+
+export function reconcileReviewLikes(reviewsList, helpfulVotes = [], notifications = []) {
+  if (!Array.isArray(reviewsList)) return [];
+  const votesCountMap = {};
+  for (const v of (helpfulVotes || [])) {
+    if (v && v.reviewId) {
+      votesCountMap[v.reviewId] = (votesCountMap[v.reviewId] || 0) + 1;
+    }
+  }
+  const notifsCountMap = {};
+  for (const n of (notifications || [])) {
+    if (n && n.type === 'REVIEW_LIKE' && n.reviewId) {
+      notifsCountMap[n.reviewId] = (notifsCountMap[n.reviewId] || 0) + 1;
+    }
+  }
+
+  return reviewsList.map(r => {
+    if (!r || !r.id) return r;
+    const fromVotes = votesCountMap[r.id] || 0;
+    const fromNotifs = notifsCountMap[r.id] || 0;
+    const maxLikes = Math.max(r.likesCount || 0, fromVotes, fromNotifs);
+    if (maxLikes !== r.likesCount) {
+      return { ...r, likesCount: maxLikes };
     }
     return r;
   });
@@ -163,7 +196,13 @@ if (loadedCurrentUser && (loadedCurrentUser.role === 'ADMIN' || loadedCurrentUse
 }
 
 const rawReviews = loadStorage('cinemascope_reviews', initialReviews);
-const sanitizedReviews = sanitizeReviews(Array.isArray(rawReviews) ? rawReviews : initialReviews);
+const initialHelpfulVotes = loadStorage('cinemascope_helpful_votes', []);
+const initialNotifications = loadStorage('cinemascope_notifications', []);
+const sanitizedReviews = reconcileReviewLikes(
+  sanitizeReviews(Array.isArray(rawReviews) ? rawReviews : initialReviews),
+  initialHelpfulVotes,
+  initialNotifications
+);
 saveStorage('cinemascope_reviews', sanitizedReviews);
 
 export function isLegitimateMovie(m, baseMovies = initialMovies) {
@@ -175,9 +214,12 @@ export function isLegitimateMovie(m, baseMovies = initialMovies) {
   return false;
 }
 
+const rawDeletedMovieIds = loadStorage('cinemascope_deleted_movie_ids', []);
+export const deletedMovieIdsSet = new Set(Array.isArray(rawDeletedMovieIds) ? rawDeletedMovieIds : []);
+
 const rawMovies = loadStorage('cinemascope_movies', initialMovies);
 const sanitizedMovies = (Array.isArray(rawMovies) ? rawMovies : initialMovies)
-  .filter(m => isLegitimateMovie(m, initialMovies))
+  .filter(m => m?.id && !deletedMovieIdsSet.has(m.id) && isLegitimateMovie(m, initialMovies))
   .map(m => {
     const initMatch = initialMovies.find(im => im.id === m.id);
     return {
@@ -189,9 +231,9 @@ const sanitizedMovies = (Array.isArray(rawMovies) ? rawMovies : initialMovies)
     };
   });
 
-// Guarantee all verified base movies from movies.json are included
+// Guarantee verified base movies from movies.json are included ONLY IF NOT explicitly deleted by admin
 initialMovies.forEach(im => {
-  if (!sanitizedMovies.some(m => m.id === im.id)) {
+  if (!deletedMovieIdsSet.has(im.id) && !sanitizedMovies.some(m => m.id === im.id)) {
     sanitizedMovies.push(im);
   }
 });
@@ -389,19 +431,38 @@ function reducer(state, action) {
       }
       return newState;
 
-    case 'DELETE_MOVIE':
-      const remainingMovies = state.movies.filter(m => m.id !== action.payload);
+    case 'DELETE_MOVIE': {
+      const deletedId = action.payload;
+      if (deletedId) {
+        deletedMovieIdsSet.add(deletedId);
+        saveStorage('cinemascope_deleted_movie_ids', Array.from(deletedMovieIdsSet));
+      }
+      const remainingMovies = state.movies.filter(m => m.id !== deletedId);
       newState = { ...state, movies: remainingMovies };
       saveStorage('cinemascope_movies', remainingMovies);
-      if (isSupabaseConfigured()) supabaseService.deleteMovie(action.payload);
+      if (isSupabaseConfigured() && deletedId) {
+        supabaseService.deleteMovie(deletedId).catch(console.warn);
+      }
       return newState;
+    }
 
     // --- REVIEW ACTIONS ---
-    case 'SET_REVIEWS':
+    case 'SET_REVIEWS': {
       const sanitizedPayload = sanitizeReviews(action.payload);
-      newState = { ...state, reviews: sanitizedPayload };
-      saveStorage('cinemascope_reviews', sanitizedPayload);
+      const reconciledPayload = reconcileReviewLikes(sanitizedPayload, state.helpfulVotes, state.notifications);
+      newState = { ...state, reviews: reconciledPayload };
+      saveStorage('cinemascope_reviews', reconciledPayload);
       return newState;
+    }
+
+    case 'SET_HELPFUL_VOTES': {
+      const mergedVotes = Array.isArray(action.payload) ? action.payload : [];
+      const reconciled = reconcileReviewLikes(state.reviews, mergedVotes, state.notifications);
+      newState = { ...state, helpfulVotes: mergedVotes, reviews: reconciled };
+      saveStorage('cinemascope_helpful_votes', mergedVotes);
+      saveStorage('cinemascope_reviews', reconciled);
+      return newState;
+    }
 
     case 'ADD_REVIEW':
       const newReviews = [action.payload, ...state.reviews];
@@ -494,12 +555,18 @@ function reducer(state, action) {
         }
       }
 
+      const finalTargetReview = updatedRevs.find(r => r.id === reviewId);
+      const finalLikesCount = finalTargetReview?.likesCount ?? (existing ? 0 : 1);
+
       newState = { ...state, helpfulVotes: updatedVotes, reviews: updatedRevs, notifications: updatedNotifs };
       saveStorage('cinemascope_helpful_votes', updatedVotes);
       saveStorage('cinemascope_reviews', updatedRevs);
       saveStorage('cinemascope_notifications', updatedNotifs);
       if (isSupabaseConfigured()) {
         supabaseService.saveNotificationsData(updatedNotifs).catch(console.warn);
+        supabaseService.updateReviewLikes(reviewId, finalLikesCount).catch(console.warn);
+        supabaseService.saveHelpfulVotesData(updatedVotes).catch(console.warn);
+        if (authorId) syncUserPublicStats(authorId).catch(() => {});
       }
       return newState;
     }
@@ -535,8 +602,11 @@ function reducer(state, action) {
     }
 
     case 'SET_NOTIFICATIONS': {
-      newState = { ...state, notifications: action.payload };
-      saveStorage('cinemascope_notifications', action.payload);
+      const notifs = Array.isArray(action.payload) ? action.payload : [];
+      const reconciled = reconcileReviewLikes(state.reviews, state.helpfulVotes, notifs);
+      newState = { ...state, notifications: notifs, reviews: reconciled };
+      saveStorage('cinemascope_notifications', notifs);
+      saveStorage('cinemascope_reviews', reconciled);
       return newState;
     }
 
@@ -764,6 +834,7 @@ export function AppProvider({ children }) {
         supabaseService.getProApplicationsData(),
         supabaseService.getNotificationsData(),
         supabaseService.getDeletionRequestsData(),
+        supabaseService.getDeletedMovieIds(),
       ]);
 
       const remoteMovies = results[0].status === 'fulfilled' ? results[0].value : null;
@@ -774,12 +845,18 @@ export function AppProvider({ children }) {
       const remoteProApps = results[6].status === 'fulfilled' ? results[6].value : null;
       const remoteNotifs = results[7].status === 'fulfilled' ? results[7].value : null;
       const remoteDeletionReqs = results[8].status === 'fulfilled' ? results[8].value : null;
+      const remoteDeletedIds = results[9].status === 'fulfilled' ? results[9].value : null;
+
+      if (Array.isArray(remoteDeletedIds) && remoteDeletedIds.length > 0) {
+        remoteDeletedIds.forEach(id => deletedMovieIdsSet.add(id));
+        saveStorage('cinemascope_deleted_movie_ids', Array.from(deletedMovieIdsSet));
+      }
 
       let moviesCount = 0;
       let reviewsCount = 0;
 
       if (remoteMovies && remoteMovies.length > 0) {
-        const legitimateRemote = remoteMovies.filter(m => isLegitimateMovie(m, initialMovies));
+        const legitimateRemote = remoteMovies.filter(m => m?.id && !deletedMovieIdsSet.has(m.id) && isLegitimateMovie(m, initialMovies));
         const formatted = legitimateRemote.map(m => {
           const initMatch = initialMovies.find(im => im.id === m.id);
           return {
@@ -811,9 +888,9 @@ export function AppProvider({ children }) {
           };
         });
 
-        // Ensure all verified base movies from movies.json are present
+        // Ensure verified base movies from movies.json are present ONLY IF NOT explicitly deleted by admin
         initialMovies.forEach(im => {
-          if (!formatted.some(m => m.id === im.id)) {
+          if (!deletedMovieIdsSet.has(im.id) && !formatted.some(m => m.id === im.id)) {
             formatted.push(im);
           }
         });
@@ -823,7 +900,7 @@ export function AppProvider({ children }) {
         saveStorage('cinemascope_movies', formatted);
       } else if (currentState.movies && currentState.movies.length > 0) {
         // Supabase has no movies; auto-seed remote database with legitimate local movies!
-        const legitimateToSeed = currentState.movies.filter(m => isLegitimateMovie(m, initialMovies));
+        const legitimateToSeed = currentState.movies.filter(m => m?.id && !deletedMovieIdsSet.has(m.id) && isLegitimateMovie(m, initialMovies));
         for (const m of legitimateToSeed) {
           supabaseService.saveMovie(m).catch(console.warn);
         }
@@ -861,8 +938,9 @@ export function AppProvider({ children }) {
           loc => !remoteMap.has(loc.id)
         );
         const mergedList = sanitizeReviews([...remoteReviews, ...localOnlyEntries]);
-        reviewsCount = mergedList.length;
-        dispatch({ type: 'SET_REVIEWS', payload: mergedList });
+        const reconciled = reconcileReviewLikes(mergedList, currentState.helpfulVotes, currentState.notifications);
+        reviewsCount = reconciled.length;
+        dispatch({ type: 'SET_REVIEWS', payload: reconciled });
 
         // Auto-push any local published reviews that haven't reached Supabase yet
         if (localOnlyEntries.length > 0) {
@@ -872,6 +950,21 @@ export function AppProvider({ children }) {
             }
           }
         }
+
+        // Auto-heal remote review likes count in Supabase if behind
+        for (const r of reconciled) {
+          const rem = remoteMap.get(r.id);
+          if (rem && (r.likesCount || 0) > (rem.likesCount || 0)) {
+            supabaseService.updateReviewLikes(r.id, r.likesCount).catch(() => {});
+          }
+        }
+
+        // Cross-device sync for helpful votes
+        supabaseService.getHelpfulVotesData().then(remoteVotes => {
+          if (remoteVotes && Array.isArray(remoteVotes) && remoteVotes.length > 0) {
+            dispatch({ type: 'SET_HELPFUL_VOTES', payload: remoteVotes });
+          }
+        }).catch(() => {});
       }
 
       // Theaters Synchronization across all devices (Desktop, Mobile, Tablet)
@@ -1010,6 +1103,15 @@ export function AppProvider({ children }) {
       saveStorage('cinemascope_last_synced_at', now);
       setSyncStatus('success');
       setSyncMessage('Cloud synchronized successfully.');
+
+      // Background check to keep theatrical movie catalog fresh if 24 hours have passed
+      syncLiveTheatricalCatalog({
+        force: false,
+        existingMovies: formatted || currentState.movies,
+        deletedMovieIds: Array.from(deletedMovieIdsSet),
+        dispatch,
+      }).catch(console.warn);
+
       return { success: true, timestamp: now, moviesCount, reviewsCount, theatersCount: (currentState.theatersList?.length || 0), citiesCount: (currentState.citiesList?.length || 0) };
     } catch (e) {
       console.warn('Supabase remote sync skipped or failed:', e);
@@ -1076,6 +1178,12 @@ export function AppProvider({ children }) {
       supabaseService.getUsers().then((remoteUsers) => {
         if (remoteUsers && remoteUsers.length > 0) {
           dispatch({ type: 'SET_USERS', payload: remoteUsers });
+        }
+      }).catch(() => {});
+
+      supabaseService.getHelpfulVotesData().then((remoteVotes) => {
+        if (remoteVotes && Array.isArray(remoteVotes) && remoteVotes.length > 0) {
+          dispatch({ type: 'SET_HELPFUL_VOTES', payload: remoteVotes });
         }
       }).catch(() => {});
     };
@@ -1626,6 +1734,15 @@ export function AppProvider({ children }) {
     return (state.deletionRequests || []).find(r => r.userId === userId) || null;
   }, [state.deletionRequests]);
 
+  const updateMovieCatalog = useCallback(async ({ force = true } = {}) => {
+    return await syncLiveTheatricalCatalog({
+      force,
+      existingMovies: state.movies,
+      deletedMovieIds: Array.from(deletedMovieIdsSet),
+      dispatch,
+    });
+  }, [state.movies]);
+
   return (
     <AppContext.Provider value={{
       state,
@@ -1638,6 +1755,11 @@ export function AppProvider({ children }) {
       rejectDeletionRequest,
       approveDeletionRequest,
       getUserDeletionRequest,
+      deletedMovieIds: Array.from(deletedMovieIdsSet),
+      updateMovieCatalog,
+      getLastCatalogUpdateTime,
+      isAutoCatalogSyncEnabled,
+      setAutoCatalogSyncEnabled,
       getCityTheaters,
       getTheater,
       getScreen,
