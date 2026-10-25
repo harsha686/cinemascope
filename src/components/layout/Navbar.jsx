@@ -330,35 +330,48 @@ export default function Navbar() {
 
         {/* Right: User Menu / Auth Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-          {/* Desktop City Switcher */}
+          {/* Desktop City Switcher (Icon Only) */}
           <div className="desktop-only" style={{ display: 'flex', alignItems: 'center' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid var(--border-neutral)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '4px 8px',
-              gap: 6,
-            }}>
-              <MapPin size={13} color="var(--gold)" />
+            <div
+              title={`Selected City: ${activeCity?.name || 'Visakhapatnam'} (Click to change)`}
+              style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--border-neutral)',
+                cursor: 'pointer',
+                transition: 'all var(--transition-fast)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.borderColor = 'var(--gold-dim)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                e.currentTarget.style.borderColor = 'var(--border-neutral)';
+              }}
+            >
+              <MapPin size={15} color="var(--gold)" />
               <select
-                aria-label="Select City"
+                aria-label={`Current city: ${activeCity?.name || 'Visakhapatnam'}. Click to change.`}
                 value={activeCity?.id || 'visakhapatnam'}
                 onChange={(e) => {
                   const selected = allCities.find(c => c.id === e.target.value);
                   if (selected) dispatch({ type: 'SET_CITY', payload: selected });
                 }}
                 style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-primary)',
-                  fontSize: 12,
-                  fontFamily: 'var(--font-sans)',
-                  fontWeight: 600,
-                  outline: 'none',
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  opacity: 0,
                   cursor: 'pointer',
-                  paddingRight: 2,
+                  appearance: 'none',
                 }}
               >
                 {allCities.map(c => (
