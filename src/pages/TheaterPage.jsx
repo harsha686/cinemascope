@@ -220,7 +220,8 @@ export default function TheaterPage() {
     <div className="page-enter">
       {/* Hero */}
       <div style={{
-        padding: '60px 24px 40px',
+        marginTop: 'calc(-1 * var(--nav-height))',
+        padding: 'calc(var(--nav-height) + 32px) 24px 40px',
         borderBottom: '1px solid var(--border-subtle)',
         background: 'linear-gradient(135deg, rgba(201,168,76,0.04) 0%, transparent 60%)',
         position: 'relative',

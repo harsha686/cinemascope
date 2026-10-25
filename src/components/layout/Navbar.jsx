@@ -107,11 +107,11 @@ export default function Navbar() {
       className={`nav ${scrolled ? 'nav-scrolled' : 'nav-transparent'}`}
       style={{
         background: scrolled
-          ? 'rgba(10, 8, 6, 0.85)'
-          : 'linear-gradient(to bottom, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.2) 60%, transparent 100%)',
+          ? 'rgba(10, 8, 6, 0.6)'
+          : 'transparent',
         backdropFilter: scrolled ? 'blur(16px)' : 'none',
         WebkitBackdropFilter: scrolled ? 'blur(16px)' : 'none',
-        borderBottom: scrolled ? '1px solid var(--border-subtle)' : '1px solid transparent',
+        borderBottom: scrolled ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid transparent',
       }}
     >
       <div

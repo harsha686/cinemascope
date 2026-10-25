@@ -65,7 +65,12 @@ export default function MoviesPage() {
   return (
     <div className="page-enter">
       {/* Header */}
-      <div style={{ padding: 'clamp(48px, 6vw, 64px) 24px 32px', borderBottom: '1px solid var(--border-subtle)', background: 'linear-gradient(to bottom, var(--bg-card), var(--bg-primary))' }}>
+      <div style={{
+        marginTop: 'calc(-1 * var(--nav-height))',
+        padding: 'calc(var(--nav-height) + clamp(24px, 4vw, 40px)) 24px 32px',
+        borderBottom: '1px solid var(--border-subtle)',
+        background: 'linear-gradient(to bottom, var(--bg-card), var(--bg-primary))'
+      }}>
         <div className="container">
           <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 8 }}>
             Now Showing & Catalog

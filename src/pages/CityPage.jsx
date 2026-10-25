@@ -161,7 +161,12 @@ export default function CityPage() {
   return (
     <div className="page-enter">
       {/* Hero */}
-      <div style={{ padding: '60px 24px 40px', borderBottom: '1px solid var(--border-subtle)', background: 'linear-gradient(to bottom, rgba(201,168,76,0.03), transparent)' }}>
+      <div style={{
+        marginTop: 'calc(-1 * var(--nav-height))',
+        padding: 'calc(var(--nav-height) + 32px) 24px 40px',
+        borderBottom: '1px solid var(--border-subtle)',
+        background: 'linear-gradient(to bottom, rgba(201,168,76,0.03), transparent)'
+      }}>
         <div className="container">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <button onClick={() => navigate('/')} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>

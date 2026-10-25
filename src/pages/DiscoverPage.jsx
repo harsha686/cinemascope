@@ -277,10 +277,11 @@ export default function DiscoverPage() {
 
   return (
     <div className="page-enter" style={{ minHeight: '100vh', paddingBottom: '2.5rem' }}>
-      {/* Hero Section — with generous top padding to prevent fixed navbar clipping */}
+      {/* Hero Section — seamlessly extends underneath the transparent fixed navbar */}
       <div style={{
         background: 'linear-gradient(to bottom, var(--bg-card), var(--bg-primary))',
-        padding: 'clamp(56px, 7vw, 76px) 1.5rem 36px',
+        marginTop: 'calc(-1 * var(--nav-height))',
+        padding: 'calc(var(--nav-height) + clamp(24px, 4vw, 44px)) 1.5rem 36px',
         textAlign: 'center',
         borderBottom: '1px solid var(--border-subtle)'
       }}>

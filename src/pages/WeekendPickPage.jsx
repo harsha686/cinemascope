@@ -124,7 +124,8 @@ export default function WeekendPickPage() {
       <div style={{
         background: 'linear-gradient(135deg, rgba(201,168,76,0.12) 0%, rgba(10,10,14,0.98) 60%)',
         borderBottom: '1px solid var(--border)',
-        padding: '50px 24px 40px',
+        marginTop: 'calc(-1 * var(--nav-height))',
+        padding: 'calc(var(--nav-height) + 32px) 24px 40px',
         position: 'relative',
         overflow: 'hidden',
       }}>

@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, ChevronDown, ChevronUp, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2, Users, Bell, Search, Tv, X, Sparkles, SlidersHorizontal, Trash2, AlertTriangle, Clock, Send } from 'lucide-react';
 import { useApp } from '../AppContext';
@@ -432,7 +432,12 @@ export default function ProfilePage() {
   return (
     <div className="page-enter">
       {/* Header */}
-      <div style={{ padding: '60px 24px 40px', borderBottom: '1px solid var(--border-subtle)', background: 'linear-gradient(to bottom, rgba(220,182,91,0.03), transparent)' }}>
+      <div style={{
+        marginTop: 'calc(-1 * var(--nav-height))',
+        padding: 'calc(var(--nav-height) + 32px) 24px 40px',
+        borderBottom: '1px solid var(--border-subtle)',
+        background: 'linear-gradient(to bottom, rgba(220,182,91,0.03), transparent)'
+      }}>
         <div className="container" style={{ maxWidth: 900 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
             {/* Avatar & User Details */}

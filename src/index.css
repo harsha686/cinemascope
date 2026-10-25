@@ -522,10 +522,10 @@ select optgroup {
 }
 
 .nav.nav-scrolled {
-  background: rgba(10, 8, 6, 0.85);
+  background: rgba(10, 8, 6, 0.6);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* --- Page Transitions --- */

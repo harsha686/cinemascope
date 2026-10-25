@@ -105,8 +105,9 @@ export default function HomePage() {
         {/* ========== HERO ========== */}
         <section style={{
           minHeight: '85vh',
+          marginTop: 'calc(-1 * var(--nav-height))',
+          padding: 'calc(var(--nav-height) + clamp(32px, 6vw, 64px)) 24px clamp(32px, 5vw, 48px)',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: 'clamp(48px, 8vw, 80px) 24px clamp(32px, 5vw, 48px)',
           textAlign: 'center',
         }}>
 
