@@ -117,6 +117,8 @@ export default function MovieDetailPage() {
   const currentUserIsPro = currentUser ? isVerifiedPro(currentUser.id) : false;
 
   const [sortOption, setSortOption] = useState('newest');
+  const [visibleReviews, setVisibleReviews] = useState(5);
+  const REVIEWS_PER_PAGE = 5;
   const [showComposer, setShowComposer] = useState(false);
   const [editingReview, setEditingReview] = useState(null);
   const [reviewTab, setReviewTab] = useState('all'); // 'all' | 'audience' | 'professional'
@@ -284,6 +286,9 @@ export default function MovieDetailPage() {
     else if (sortOption === 'helpful') list.sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0));
     return list;
   }, [activeReviews, sortOption]);
+
+  // Reset visible count when sort or tab changes
+  useEffect(() => { setVisibleReviews(REVIEWS_PER_PAGE); }, [sortOption, reviewTab]);
 
   // Loading state for TMDB movies & TV series
   if (isTmdbMovie && tmdbLoading) {
@@ -1773,7 +1778,7 @@ export default function MovieDetailPage() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {sortedReviews.map(rev =>
+                  {sortedReviews.slice(0, visibleReviews).map(rev =>
                     rev.reviewType === 'PROFESSIONAL' ? (
                       <ProfessionalReviewCard
                         key={rev.id}
@@ -1789,6 +1794,16 @@ export default function MovieDetailPage() {
                         onDelete={handleDeleteOwnReview}
                       />
                     )
+                  )}
+                  {visibleReviews < sortedReviews.length && (
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      style={{ alignSelf: 'center', marginTop: 4, fontSize: 13 }}
+                      onClick={() => setVisibleReviews(v => v + REVIEWS_PER_PAGE)}
+                    >
+                      Show more ({sortedReviews.length - visibleReviews} remaining)
+                    </button>
                   )}
                 </div>
               )}

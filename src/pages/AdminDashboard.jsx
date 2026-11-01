@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ShieldAlert, Film, MessageSquare, Users, MapPin, Plus, Search, Edit3, Trash2, CheckCircle2, EyeOff, Sparkles, AlertCircle, ArrowLeft, ExternalLink, Check, Image as ImageIcon, Database, RefreshCw, ShieldCheck, Building2, Trophy, Clock, X, AlertTriangle } from 'lucide-react';
 import { useApp, getEffectiveMovieStatus } from '../AppContext';
@@ -42,6 +42,11 @@ export default function AdminDashboard() {
   const [isUpdatingCatalog, setIsUpdatingCatalog] = useState(false);
   const [catalogFeedback, setCatalogFeedback] = useState('');
   const [autoSyncOn, setAutoSyncOn] = useState(typeof isAutoCatalogSyncEnabled === 'function' ? isAutoCatalogSyncEnabled() : true);
+  // Review Moderation State
+  const [reviewSearch, setReviewSearch] = useState('');
+  const [reviewStatusFilter, setReviewStatusFilter] = useState('all');
+  const [reviewPageSize, setReviewPageSize] = useState(20);
+  const [reviewPage, setReviewPage] = useState(1);
 
   // Delete User State (Direct Admin Deletion)
   const [userToDelete, setUserToDelete] = useState(null);
@@ -235,6 +240,32 @@ export default function AdminDashboard() {
     const matchStatus = movieStatusFilter === 'all' || effectiveStatus === movieStatusFilter;
     return matchQuery && matchStatus;
   });
+
+  // Filtered & Paginated Reviews for Admin Moderation
+  const filteredReviews = useMemo(() => {
+    let list = state.reviews || [];
+    if (reviewStatusFilter !== 'all') {
+      list = list.filter(r => (r.status || 'PUBLISHED') === reviewStatusFilter);
+    }
+    if (reviewSearch.trim()) {
+      const q = reviewSearch.toLowerCase().trim();
+      list = list.filter(r =>
+        (r.userDisplayName || '').toLowerCase().includes(q) ||
+        (r.movieTitle || '').toLowerCase().includes(q) ||
+        (r.movieId || '').toLowerCase().includes(q) ||
+        (r.theaterName || '').toLowerCase().includes(q) ||
+        (r.reviewText || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [state.reviews, reviewStatusFilter, reviewSearch]);
+
+  const totalReviewPages = reviewPageSize > 0 ? Math.max(1, Math.ceil(filteredReviews.length / reviewPageSize)) : 1;
+  const paginatedReviews = useMemo(() => {
+    if (reviewPageSize <= 0) return filteredReviews;
+    const start = (reviewPage - 1) * reviewPageSize;
+    return filteredReviews.slice(start, start + reviewPageSize);
+  }, [filteredReviews, reviewPage, reviewPageSize]);
 
   const handleOpenAddMovie = () => {
     setEditingMovieId(null);
@@ -939,7 +970,48 @@ export default function AdminDashboard() {
             {/* REVIEWS MODERATION TAB */}
             {activeTab === 'reviews' && (
               <div>
-                <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', marginBottom: 16 }}>Review Moderation</h3>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+                  <div>
+                    <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', margin: 0 }}>Review Moderation</h3>
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>
+                      Showing {paginatedReviews.length} of {filteredReviews.length} reviews{reviewPageSize > 0 ? ` (Page ${reviewPage} of ${totalReviewPages})` : ' (All loaded)'}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <div style={{ position: 'relative', width: 200 }}>
+                      <Search size={13} color="var(--text-muted)" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+                      <input
+                        type="text"
+                        placeholder="Search reviews..."
+                        value={reviewSearch}
+                        onChange={e => { setReviewSearch(e.target.value); setReviewPage(1); }}
+                        className="input"
+                        style={{ paddingLeft: 30, height: 32, fontSize: 12 }}
+                      />
+                    </div>
+                    <select
+                      className="input"
+                      value={reviewStatusFilter}
+                      onChange={e => { setReviewStatusFilter(e.target.value); setReviewPage(1); }}
+                      style={{ width: 'auto', height: 32, fontSize: 12 }}
+                    >
+                      <option value="all">All Statuses</option>
+                      <option value="PUBLISHED">Published</option>
+                      <option value="HIDDEN">Hidden</option>
+                    </select>
+                    <select
+                      className="input"
+                      value={reviewPageSize}
+                      onChange={e => { setReviewPageSize(Number(e.target.value)); setReviewPage(1); }}
+                      style={{ width: 'auto', height: 32, fontSize: 12 }}
+                    >
+                      <option value="20">20 per page</option>
+                      <option value="50">50 per page</option>
+                      <option value="100">100 per page</option>
+                      <option value="0">Show All ({filteredReviews.length})</option>
+                    </select>
+                  </div>
+                </div>
                 <div style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
@@ -953,7 +1025,14 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {state.reviews.map(rev => {
+                      {paginatedReviews.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            No reviews found matching current filter criteria.
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedReviews.map(rev => {
                         const isTheater = !!rev.theaterId;
                         return (
                         <tr key={rev.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
@@ -1024,10 +1103,57 @@ export default function AdminDashboard() {
                           </td>
                         </tr>
                       );
-                    })}
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>
+                {reviewPageSize > 0 && totalReviewPages > 1 ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, flexWrap: 'wrap', gap: 10, fontSize: 12, color: 'var(--text-muted)' }}>
+                    <div>
+                      Page {reviewPage} of {totalReviewPages} ({filteredReviews.length} total reviews)
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm"
+                        disabled={reviewPage <= 1}
+                        onClick={() => setReviewPage(p => Math.max(1, p - 1))}
+                        style={{ fontSize: 12, opacity: reviewPage <= 1 ? 0.4 : 1 }}
+                      >
+                        ‹ Prev
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm"
+                        disabled={reviewPage >= totalReviewPages}
+                        onClick={() => setReviewPage(p => Math.min(totalReviewPages, p + 1))}
+                        style={{ fontSize: 12, opacity: reviewPage >= totalReviewPages ? 0.4 : 1 }}
+                      >
+                        Next ›
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setReviewPageSize(0)}
+                        style={{ fontSize: 11, color: 'var(--gold)' }}
+                      >
+                        Show All
+                      </button>
+                    </div>
+                  </div>
+                ) : reviewPageSize === 0 && filteredReviews.length > 20 && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => { setReviewPageSize(20); setReviewPage(1); }}
+                      style={{ fontSize: 11, color: 'var(--text-muted)' }}
+                    >
+                      Switch to Paginated View (20 / page)
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

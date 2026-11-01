@@ -122,6 +122,8 @@ export default function TheaterPage() {
   const [showComposer, setShowComposer] = useState(false);
   const [editingReview, setEditingReview] = useState(null);
   const [sortOption, setSortOption] = useState('newest');
+  const [visibleReviews, setVisibleReviews] = useState(5);
+  const REVIEWS_PER_PAGE = 5;
 
   useEffect(() => {
     refreshData();
@@ -139,6 +141,8 @@ export default function TheaterPage() {
     else if (sortOption === 'helpful') list.sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0));
     return list;
   }, [allTheaterReviews, sortOption]);
+
+  useEffect(() => { setVisibleReviews(REVIEWS_PER_PAGE); }, [sortOption, theaterId]);
 
   const handleWriteClick = () => {
     if (!currentUser) {
@@ -543,7 +547,7 @@ export default function TheaterPage() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {sortedReviews.map(rev => (
+                {sortedReviews.slice(0, visibleReviews).map(rev => (
                   <ReviewCard
                     key={rev.id}
                     review={rev}
@@ -551,6 +555,16 @@ export default function TheaterPage() {
                     onDelete={handleDeleteOwnReview}
                   />
                 ))}
+                {visibleReviews < sortedReviews.length && (
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    style={{ alignSelf: 'center', marginTop: 4, fontSize: 13 }}
+                    onClick={() => setVisibleReviews(v => v + REVIEWS_PER_PAGE)}
+                  >
+                    Show more ({sortedReviews.length - visibleReviews} remaining)
+                  </button>
+                )}
               </div>
             )}
           </div>

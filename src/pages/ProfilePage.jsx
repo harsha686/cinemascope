@@ -100,6 +100,25 @@ export default function ProfilePage() {
   const [collectionsList, setCollectionsList] = useState([]);
   const [loadingArchive, setLoadingArchive] = useState(true);
 
+  // Pagination state for each tab list
+  const GRID_PAGE = 12;   // watched / favorites / watchlist grid
+  const DIARY_PAGE = 8;
+  const COLL_PAGE = 6;
+  const REV_PAGE = 5;
+  const VOTES_PAGE = 10;
+  const [visibleGrid, setVisibleGrid] = useState(GRID_PAGE);
+  const [visibleDiary, setVisibleDiary] = useState(DIARY_PAGE);
+  const [visibleColl, setVisibleColl] = useState(COLL_PAGE);
+  const [visibleRevs, setVisibleRevs] = useState(REV_PAGE);
+  const [visibleVotes, setVisibleVotes] = useState(VOTES_PAGE);
+
+  // Reset pagination when tab or filters change
+  useEffect(() => { setVisibleGrid(GRID_PAGE); }, [activeArchiveTab, mediaTypeFilter, searchQuery, sortBy]);
+  useEffect(() => { setVisibleDiary(DIARY_PAGE); }, [activeArchiveTab]);
+  useEffect(() => { setVisibleColl(COLL_PAGE); }, [activeArchiveTab]);
+  useEffect(() => { setVisibleRevs(REV_PAGE); }, [activeArchiveTab]);
+  useEffect(() => { setVisibleVotes(VOTES_PAGE); }, [activeArchiveTab]);
+
   useEffect(() => {
     if (!profileUser?.id) {
       setLibStats({ totalWatchlist: 0, totalWatched: 0, totalFavorites: 0, totalRated: 0, avgRating: 0 });
@@ -1071,7 +1090,7 @@ export default function ProfilePage() {
                     gap: 14,
                   }}
                 >
-                  {currentTabItems.map(item => {
+                  {currentTabItems.slice(0, visibleGrid).map(item => {
                     const isTv = item.isTv || item.mediaType === 'tv';
                     const targetMovieUrl = isTv
                       ? (String(item.tmdbId).startsWith('tv-') ? `/movie/tmdb-${item.tmdbId}` : `/movie/tmdb-tv-${item.tmdbId}`)
@@ -1262,6 +1281,18 @@ export default function ProfilePage() {
                     );
                   })}
                 </div>
+                {visibleGrid < currentTabItems.length && (
+                  <div style={{ textAlign: 'center', marginTop: 16 }}>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      style={{ fontSize: 13 }}
+                      onClick={() => setVisibleGrid(v => v + GRID_PAGE)}
+                    >
+                      Show more ({currentTabItems.length - visibleGrid} remaining)
+                    </button>
+                  </div>
+                )}
               )}
             </div>
           )}
@@ -1286,7 +1317,7 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {diaryEntries.map((entry, idx) => {
+                  {diaryEntries.slice(0, visibleDiary).map((entry, idx) => {
                     const dateObj = new Date(entry.watched_on || entry.created_at);
                     const movieUrl = entry.tmdb_id ? `/movie/tmdb-${entry.tmdb_id}` : null;
 
@@ -1373,6 +1404,18 @@ export default function ProfilePage() {
                     );
                   })}
                 </div>
+                {visibleDiary < diaryEntries.length && (
+                  <div style={{ textAlign: 'center', marginTop: 16 }}>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      style={{ fontSize: 13 }}
+                      onClick={() => setVisibleDiary(v => v + DIARY_PAGE)}
+                    >
+                      Show more ({diaryEntries.length - visibleDiary} remaining)
+                    </button>
+                  </div>
+                )}
               )}
             </div>
           )}
@@ -1397,7 +1440,7 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
-                  {collectionsList.map(col => (
+                  {collectionsList.slice(0, visibleColl).map(col => (
                     <div
                       key={col.id}
                       onClick={() => navigate(`/collection/${col.id}`)}
@@ -1438,6 +1481,18 @@ export default function ProfilePage() {
                     </div>
                   ))}
                 </div>
+                {visibleColl < collectionsList.length && (
+                  <div style={{ textAlign: 'center', marginTop: 16 }}>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      style={{ fontSize: 13 }}
+                      onClick={() => setVisibleColl(v => v + COLL_PAGE)}
+                    >
+                      Show more ({collectionsList.length - visibleColl} remaining)
+                    </button>
+                  </div>
+                )}
               )}
             </div>
           )}
@@ -1462,7 +1517,7 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {userReviews.map(rev => {
+                  {userReviews.slice(0, visibleRevs).map(rev => {
                     const isTheater = !!rev.theaterId;
                     const targetMovie = !isTheater && rev.movieId ? getMovie(rev.movieId) : null;
                     const targetTheater = isTheater ? getTheater(rev.theaterId) : null;
@@ -1502,6 +1557,18 @@ export default function ProfilePage() {
                     );
                   })}
                 </div>
+                {visibleRevs < userReviews.length && (
+                  <div style={{ textAlign: 'center', marginTop: 16 }}>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      style={{ fontSize: 13 }}
+                      onClick={() => setVisibleRevs(v => v + REV_PAGE)}
+                    >
+                      Show more ({userReviews.length - visibleRevs} remaining)
+                    </button>
+                  </div>
+                )}
               )}
             </div>
           )}
@@ -1554,7 +1621,7 @@ export default function ProfilePage() {
                     Recent Poll Votes
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {userPastVotes.map((v, i) => (
+                    {userPastVotes.slice(0, visibleVotes).map((v, i) => (
                       <div
                         key={i}
                         style={{
@@ -1580,6 +1647,18 @@ export default function ProfilePage() {
                       </div>
                     ))}
                   </div>
+                  {visibleVotes < userPastVotes.length && (
+                    <div style={{ textAlign: 'center', marginTop: 12 }}>
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm"
+                        style={{ fontSize: 13 }}
+                        onClick={() => setVisibleVotes(v => v + VOTES_PAGE)}
+                      >
+                        Show more ({userPastVotes.length - visibleVotes} remaining)
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
