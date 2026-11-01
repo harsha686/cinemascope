@@ -1083,8 +1083,9 @@ export default function ProfilePage() {
                   )}
                 </div>
               ) : (
-                <div
-                  style={{
+                <>
+                  <div
+                    style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
                     gap: 14,
@@ -1293,7 +1294,8 @@ export default function ProfilePage() {
                     </button>
                   </div>
                 )}
-              )}
+              </>
+            )}
             </div>
           )}
 
@@ -1316,7 +1318,8 @@ export default function ProfilePage() {
                   )}
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {diaryEntries.slice(0, visibleDiary).map((entry, idx) => {
                     const dateObj = new Date(entry.watched_on || entry.created_at);
                     const movieUrl = entry.tmdb_id ? `/movie/tmdb-${entry.tmdb_id}` : null;
@@ -1416,7 +1419,8 @@ export default function ProfilePage() {
                     </button>
                   </div>
                 )}
-              )}
+              </>
+            )}
             </div>
           )}
 
@@ -1439,7 +1443,8 @@ export default function ProfilePage() {
                   )}
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
                   {collectionsList.slice(0, visibleColl).map(col => (
                     <div
                       key={col.id}
@@ -1493,7 +1498,8 @@ export default function ProfilePage() {
                     </button>
                   </div>
                 )}
-              )}
+              </>
+            )}
             </div>
           )}
 
@@ -1516,7 +1522,8 @@ export default function ProfilePage() {
                   )}
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   {userReviews.slice(0, visibleRevs).map(rev => {
                     const isTheater = !!rev.theaterId;
                     const targetMovie = !isTheater && rev.movieId ? getMovie(rev.movieId) : null;
@@ -1569,7 +1576,8 @@ export default function ProfilePage() {
                     </button>
                   </div>
                 )}
-              )}
+              </>
+            )}
             </div>
           )}
 

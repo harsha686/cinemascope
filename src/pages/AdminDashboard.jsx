@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShieldAlert, Film, MessageSquare, Users, MapPin, Plus, Search, Edit3, Trash2, CheckCircle2, EyeOff, Sparkles, AlertCircle, ArrowLeft, ExternalLink, Check, Image as ImageIcon, Database, RefreshCw, ShieldCheck, Building2, Trophy, Clock, X, AlertTriangle } from 'lucide-react';
+import { ShieldAlert, Film, MessageSquare, Users, MapPin, Plus, Search, Edit3, Trash2, CheckCircle2, Eye, EyeOff, Sparkles, AlertCircle, ArrowLeft, ExternalLink, Check, Image as ImageIcon, Database, RefreshCw, ShieldCheck, Building2, Trophy, Clock, X, AlertTriangle } from 'lucide-react';
 import { useApp, getEffectiveMovieStatus } from '../AppContext';
 import TMDBImportHelper from '../components/admin/TMDBImportHelper';
 import XPosterDiscoveryModal from '../components/admin/XPosterDiscoveryModal';
 import AdminTheaterFormModal from '../components/admin/AdminTheaterFormModal';
+import ModificationReflectionModal, { computeMovieDiff } from '../components/admin/ModificationReflectionModal';
 import WeekendVotingAdminTab from '../components/admin/WeekendVotingAdminTab';
 import { isSupabaseConfigured, setCustomSupabaseCredentials, supabaseService, getSupabaseClient } from '../services/supabase';
 import { getApplications, updateApplicationStatus, syncProApplicationsFromCloud } from '../services/proReviewerService';
@@ -125,6 +126,8 @@ export default function AdminDashboard() {
   const [showMovieForm, setShowMovieForm] = useState(false);
   const [editingMovieId, setEditingMovieId] = useState(null);
   const [formStep, setFormStep] = useState(1); // 1: Metadata | 2: Poster & X Discovery | 3: Cities & Status
+  const [originalMovieData, setOriginalMovieData] = useState(null);
+  const [reflectionModalData, setReflectionModalData] = useState(null);
 
   // X Discovery Modal state
   const [showXModal, setShowXModal] = useState(false);
@@ -269,6 +272,7 @@ export default function AdminDashboard() {
 
   const handleOpenAddMovie = () => {
     setEditingMovieId(null);
+    setOriginalMovieData(null);
     setFormData(emptyMovieForm);
     setFormStep(1);
     setShowMovieForm(true);
@@ -276,6 +280,7 @@ export default function AdminDashboard() {
 
   const handleOpenEditMovie = (m) => {
     setEditingMovieId(m.id);
+    setOriginalMovieData({ ...m });
     setFormData({
       title: m.title || '',
       originalTitle: m.originalTitle || '',
@@ -412,6 +417,8 @@ export default function AdminDashboard() {
       ottUrl: formData.ottUrl ? formData.ottUrl.trim() : '',
     };
 
+    const diffs = computeMovieDiff(originalMovieData, movieObj, allTheaters, allCities);
+
     if (editingMovieId) {
       dispatch({ type: 'UPDATE_MOVIE', payload: movieObj });
     } else {
@@ -419,6 +426,13 @@ export default function AdminDashboard() {
     }
 
     setShowMovieForm(false);
+
+    // Open reflection modal so admin immediately sees what changed and live verification status
+    setReflectionModalData({
+      movie: movieObj,
+      diffs,
+      isNew: !editingMovieId,
+    });
   };
 
   const handleToggleCityForMovie = (cityId) => {
@@ -476,7 +490,13 @@ export default function AdminDashboard() {
   };
 
   const handleArchiveMovie = (m) => {
-    dispatch({ type: 'UPDATE_MOVIE', payload: { ...m, status: 'ARCHIVED' } });
+    const updated = { ...m, status: 'ARCHIVED' };
+    dispatch({ type: 'UPDATE_MOVIE', payload: updated });
+    setReflectionModalData({
+      movie: updated,
+      diffs: [{ field: 'Status', label: 'Listing Status', oldVal: m.status, newVal: 'Archived (Hidden from public Now Showing)' }],
+      isNew: false,
+    });
   };
 
   const handleFileUpload = (e) => {
@@ -787,7 +807,33 @@ export default function AdminDashboard() {
                               {m.cities ? m.cities.join(', ') : 'None'}
                             </td>
                             <td style={{ padding: '10px 16px', textAlign: 'right' }}>
-                              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                              <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
+                                <a
+                                  href={`/movie/${m.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn btn-ghost btn-sm"
+                                  style={{ padding: '4px 8px', fontSize: 11, color: '#4ade80', display: 'inline-flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}
+                                  title="View Public Movie Page as User"
+                                >
+                                  <Eye size={12} /> Live View ↗
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => setReflectionModalData({
+                                    movie: m,
+                                    diffs: [
+                                      { field: 'Listing Status', label: 'Current Public Status', oldVal: null, newVal: m.status === 'CURRENTLY_SHOWING' ? 'Now Showing' : m.status === 'COMING_SOON' ? 'Coming Soon' : 'Archived' },
+                                      { field: 'Theaters', label: 'Active Theaters', oldVal: null, newVal: `${(m.theaters || []).length} assigned` }
+                                    ],
+                                    isNew: false,
+                                  })}
+                                  className="btn btn-ghost btn-sm"
+                                  style={{ padding: '4px 8px', fontSize: 11, color: '#60a5fa' }}
+                                  title="Check Live Reflection Status"
+                                >
+                                  Status
+                                </button>
                                 <button type="button" onClick={() => handleOpenEditMovie(m)} className="btn btn-ghost btn-sm" style={{ padding: '4px 8px', fontSize: 11 }}>
                                   <Edit3 size={12} /> Edit
                                 </button>
@@ -2506,6 +2552,17 @@ CREATE POLICY "Public all collections" ON public.collections FOR ALL USING (true
         theaterToEdit={editingTheater}
         allCities={allCities}
         defaultCityId={allCities[0]?.id || 'visakhapatnam'}
+      />
+
+      {/* MODIFICATION REFLECTION TO USERS MODAL */}
+      <ModificationReflectionModal
+        isOpen={Boolean(reflectionModalData)}
+        onClose={() => setReflectionModalData(null)}
+        movie={reflectionModalData?.movie}
+        diffs={reflectionModalData?.diffs}
+        isNew={reflectionModalData?.isNew}
+        allTheaters={allTheaters}
+        allCities={allCities}
       />
       <style>{`
         .admin-layout {
