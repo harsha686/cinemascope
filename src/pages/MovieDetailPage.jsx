@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck, Tv, Film, Users, Layers, Share2, Copy, Check, ExternalLink, Send, MessageCircle, Ticket } from 'lucide-react';
-import { useApp } from '../AppContext';
+import { useApp, getEffectiveMovieStatus } from '../AppContext';
 import RatingBreakdown from '../components/reviews/RatingBreakdown';
 import ReviewCard from '../components/reviews/ReviewCard';
 import ProfessionalReviewCard from '../components/reviews/ProfessionalReviewCard';
@@ -102,7 +102,8 @@ export default function MovieDetailPage() {
 
   const adminMovie = getMovie(movieId);
   const movie = isTmdbMovie ? tmdbMovie : adminMovie;
-  const isNowShowing = movie?.status === 'CURRENTLY_SHOWING';
+  const effectiveStatus = movie ? (movie.status === 'ARCHIVED' ? 'ARCHIVED' : getEffectiveMovieStatus(movie)) : '';
+  const isNowShowing = effectiveStatus === 'CURRENTLY_SHOWING';
   const currentUser = state.currentUser;
   const currentCity = useMemo(() => {
     if (typeof state.selectedCity === 'object' && state.selectedCity?.id) {
@@ -245,13 +246,13 @@ export default function MovieDetailPage() {
   // Theaters showing this movie in the current city
   const localTheaters = useMemo(() => {
     if (!currentCity || !movie || isTmdbMovie || isOldMovie) return [];
-    if (movie.status !== 'CURRENTLY_SHOWING') return [];
+    if (effectiveStatus !== 'CURRENTLY_SHOWING') return [];
     const cityTheaters = getCityTheaters(currentCity.id);
     if (movie.theaters && Array.isArray(movie.theaters) && movie.theaters.length > 0) {
       return cityTheaters.filter(t => movie.theaters.includes(t.id));
     }
     return [];
-  }, [getCityTheaters, currentCity, movie, isTmdbMovie, isOldMovie]);
+  }, [getCityTheaters, currentCity, movie, isTmdbMovie, isOldMovie, effectiveStatus]);
 
   // Cities that have confirmed theater screenings for this movie
   const citiesWithScreenings = useMemo(() => {
@@ -486,9 +487,9 @@ export default function MovieDetailPage() {
                     SERIES
                   </span>
                 ) : (
-                  (movie.status === 'CURRENTLY_SHOWING' || movie.status === 'COMING_SOON') && (
-                    <span className="badge badge-verified">
-                      {movie.status === 'CURRENTLY_SHOWING' ? 'Now Showing' : 'Coming Soon'}
+                  (effectiveStatus === 'CURRENTLY_SHOWING' || effectiveStatus === 'COMING_SOON') && (
+                    <span className={`badge ${effectiveStatus === 'CURRENTLY_SHOWING' ? 'badge-verified' : 'badge-estimated'}`}>
+                      {effectiveStatus === 'CURRENTLY_SHOWING' ? 'Now Showing' : 'Coming Soon'}
                     </span>
                   )
                 )}

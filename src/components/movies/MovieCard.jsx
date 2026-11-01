@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Star, Trophy, Medal, Award } from 'lucide-react';
 import StarRating from '../reviews/StarRating';
-import { useApp } from '../../AppContext';
+import { useApp, getEffectiveMovieStatus } from '../../AppContext';
 import PosterPlaceholder from '../shared/PosterPlaceholder';
 
 export default function MovieCard({ movie, compact = false, topRank = null }) {
@@ -13,11 +13,13 @@ export default function MovieCard({ movie, compact = false, topRank = null }) {
 
   const { average, count } = getMovieRating(movie.id);
 
+  const effStatus = movie.status === 'ARCHIVED' ? 'ARCHIVED' : getEffectiveMovieStatus(movie);
+
   const statusBadge = {
     CURRENTLY_SHOWING: { label: 'Now Showing', class: 'badge-verified' },
     COMING_SOON: { label: 'Coming Soon', class: 'badge-dim' },
     ARCHIVED: { label: 'Archived', class: 'badge-dim' },
-  }[movie.status] || { label: movie.status, class: 'badge-dim' };
+  }[effStatus] || { label: effStatus, class: 'badge-dim' };
 
   const rankConfig = {
     1: {

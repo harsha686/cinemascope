@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ShieldAlert, Film, MessageSquare, Users, MapPin, Plus, Search, Edit3, Trash2, CheckCircle2, EyeOff, Sparkles, AlertCircle, ArrowLeft, ExternalLink, Check, Image as ImageIcon, Database, RefreshCw, ShieldCheck, Building2, Trophy, Clock, X, AlertTriangle } from 'lucide-react';
-import { useApp } from '../AppContext';
+import { useApp, getEffectiveMovieStatus } from '../AppContext';
 import TMDBImportHelper from '../components/admin/TMDBImportHelper';
 import XPosterDiscoveryModal from '../components/admin/XPosterDiscoveryModal';
 import AdminTheaterFormModal from '../components/admin/AdminTheaterFormModal';
@@ -231,7 +231,8 @@ export default function AdminDashboard() {
   const filteredMovies = state.movies.filter(m => {
     const q = movieSearch.toLowerCase();
     const matchQuery = !q || m.title.toLowerCase().includes(q) || (m.language && m.language.toLowerCase().includes(q));
-    const matchStatus = movieStatusFilter === 'all' || m.status === movieStatusFilter;
+    const effectiveStatus = m.status === 'ARCHIVED' ? 'ARCHIVED' : getEffectiveMovieStatus(m);
+    const matchStatus = movieStatusFilter === 'all' || effectiveStatus === movieStatusFilter;
     return matchQuery && matchStatus;
   });
 
@@ -467,8 +468,8 @@ export default function AdminDashboard() {
   };
 
   // Stats
-  const currentlyShowingCount = state.movies.filter(m => m.status === 'CURRENTLY_SHOWING').length;
-  const comingSoonCount = state.movies.filter(m => m.status === 'COMING_SOON').length;
+  const currentlyShowingCount = state.movies.filter(m => (m.status === 'ARCHIVED' ? 'ARCHIVED' : getEffectiveMovieStatus(m)) === 'CURRENTLY_SHOWING').length;
+  const comingSoonCount = state.movies.filter(m => (m.status === 'ARCHIVED' ? 'ARCHIVED' : getEffectiveMovieStatus(m)) === 'COMING_SOON').length;
   const archivedCount = state.movies.filter(m => m.status === 'ARCHIVED').length;
 
   // Pending deletion requests for admin review
@@ -742,9 +743,14 @@ export default function AdminDashboard() {
                               )}
                             </td>
                             <td style={{ padding: '10px 16px' }}>
-                              <span className={`badge ${m.status === 'CURRENTLY_SHOWING' ? 'badge-verified' : m.status === 'COMING_SOON' ? 'badge-estimated' : 'badge-dim'}`} style={{ fontSize: 9 }}>
-                                {m.status === 'CURRENTLY_SHOWING' ? 'Showing' : m.status === 'COMING_SOON' ? 'Coming Soon' : 'Archived'}
-                              </span>
+                              {(() => {
+                                const effStatus = m.status === 'ARCHIVED' ? 'ARCHIVED' : getEffectiveMovieStatus(m);
+                                return (
+                                  <span className={`badge ${effStatus === 'CURRENTLY_SHOWING' ? 'badge-verified' : effStatus === 'COMING_SOON' ? 'badge-estimated' : 'badge-dim'}`} style={{ fontSize: 9 }}>
+                                    {effStatus === 'CURRENTLY_SHOWING' ? 'Showing' : effStatus === 'COMING_SOON' ? 'Coming Soon' : 'Archived'}
+                                  </span>
+                                );
+                              })()}
                             </td>
                             <td style={{ padding: '10px 16px', fontSize: 11, color: 'var(--text-secondary)' }}>
                               {m.cities ? m.cities.join(', ') : 'None'}

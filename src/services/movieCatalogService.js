@@ -48,6 +48,42 @@ export function getLastCatalogUpdateTime() {
 }
 
 /**
+ * Returns today's ISO date string (YYYY-MM-DD)
+ */
+export function getTodayDateString() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Computes the real-time dynamic movie status:
+ * - If status is explicitly 'ARCHIVED', it remains 'ARCHIVED'
+ * - If releaseDate <= today, it has been released and is 'CURRENTLY_SHOWING' (Now Showing)
+ * - If releaseDate > today, it is 'COMING_SOON' (Coming Soon)
+ */
+export function getEffectiveMovieStatus(movie, today = getTodayDateString()) {
+  if (!movie) return 'COMING_SOON';
+  if (movie.status === 'ARCHIVED') return 'ARCHIVED';
+
+  const rawDate = (movie.releaseDate || movie.release_date || '').toString().trim();
+  const dateMatch = rawDate.match(/^\d{4}-\d{2}-\d{2}/);
+  const releaseDateStr = dateMatch ? dateMatch[0] : rawDate;
+
+  if (releaseDateStr && /^\d{4}-\d{2}-\d{2}$/.test(releaseDateStr)) {
+    if (releaseDateStr <= today) {
+      return 'CURRENTLY_SHOWING';
+    } else {
+      return 'COMING_SOON';
+    }
+  }
+
+  return movie.status || 'CURRENTLY_SHOWING';
+}
+
+/**
  * Normalizes title into a clean URL-friendly ID
  */
 function slugify(text) {
@@ -279,8 +315,32 @@ export async function syncLiveTheatricalCatalog({
     }
   }
 
-  const existingIds = new Set((existingMovies || []).map(m => m.id?.toLowerCase()));
-  const existingTitles = new Set((existingMovies || []).map(m => (m.title || '').trim().toLowerCase()));
+  const today = getTodayDateString();
+
+  // 1. Auto-transition any existing movies whose release date has arrived or passed to CURRENTLY_SHOWING
+  let existingChanged = false;
+  const normalizedExisting = (existingMovies || []).map(m => {
+    const effStatus = getEffectiveMovieStatus(m, today);
+    if (m.status !== effStatus) {
+      existingChanged = true;
+      const updated = { ...m, status: effStatus };
+      if (isSupabaseConfigured()) {
+        supabaseService.saveMovie(updated).catch(console.warn);
+      }
+      return updated;
+    }
+    return m;
+  });
+
+  if (existingChanged && dispatch) {
+    dispatch({ type: 'SET_MOVIES', payload: normalizedExisting });
+    try {
+      localStorage.setItem('cinemascope_movies', JSON.stringify(normalizedExisting));
+    } catch (_) {}
+  }
+
+  const existingIds = new Set(normalizedExisting.map(m => m.id?.toLowerCase()));
+  const existingTitles = new Set(normalizedExisting.map(m => (m.title || '').trim().toLowerCase()));
 
   const fetched = await fetchLiveIndianCatalog({
     deletedMovieIds,
@@ -288,21 +348,26 @@ export async function syncLiveTheatricalCatalog({
   });
 
   if (!fetched || fetched.length === 0) {
+    if (existingChanged) {
+      return { success: true, addedCount: 0, message: 'Updated released movies to Now Showing.' };
+    }
     return { success: false, addedCount: 0, message: 'No new movies found from TMDB.' };
   }
 
   // Filter only genuinely new movies
-  const newMovies = fetched.filter(m => {
-    const idLower = m.id.toLowerCase();
-    const titleLower = m.title.trim().toLowerCase();
-    if (existingIds.has(idLower)) return false;
-    if (existingTitles.has(titleLower)) return false;
-    return true;
-  });
+  const newMovies = fetched
+    .map(m => ({ ...m, status: getEffectiveMovieStatus(m, today) }))
+    .filter(m => {
+      const idLower = m.id.toLowerCase();
+      const titleLower = m.title.trim().toLowerCase();
+      if (existingIds.has(idLower)) return false;
+      if (existingTitles.has(titleLower)) return false;
+      return true;
+    });
 
   if (newMovies.length === 0) {
     localStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
-    return { success: true, addedCount: 0, message: 'All latest releases are already in catalog.' };
+    return { success: true, addedCount: 0, message: existingChanged ? 'Promoted released movies to Now Showing!' : 'All latest releases are already in catalog.' };
   }
 
   // Save new movies to Supabase
@@ -314,7 +379,7 @@ export async function syncLiveTheatricalCatalog({
 
   // Dispatch new movies to AppContext state if dispatch provided
   if (dispatch) {
-    const combined = [...existingMovies, ...newMovies];
+    const combined = [...normalizedExisting, ...newMovies];
     dispatch({ type: 'SET_MOVIES', payload: combined });
     try {
       localStorage.setItem('cinemascope_movies', JSON.stringify(combined));

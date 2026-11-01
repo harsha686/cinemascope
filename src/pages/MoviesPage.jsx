@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Filter, Film, Star } from 'lucide-react';
-import { useApp } from '../AppContext';
+import { useApp, getEffectiveMovieStatus } from '../AppContext';
 import MovieCard from '../components/movies/MovieCard';
 
 export default function MoviesPage() {
@@ -27,7 +27,8 @@ export default function MoviesPage() {
         (m.genres && m.genres.some(g => g.toLowerCase().includes(q)));
 
       // Status
-      const matchStatus = selectedStatus === 'all' || m.status === selectedStatus;
+      const effStatus = m.status === 'ARCHIVED' ? 'ARCHIVED' : getEffectiveMovieStatus(m);
+      const matchStatus = selectedStatus === 'all' || effStatus === selectedStatus;
 
       // City
       const matchCity = selectedCity === 'all' || (m.cities && m.cities.includes(selectedCity));

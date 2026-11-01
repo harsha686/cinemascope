@@ -12,7 +12,11 @@ import {
   getLastCatalogUpdateTime,
   isAutoCatalogSyncEnabled,
   setAutoCatalogSyncEnabled,
+  getTodayDateString,
+  getEffectiveMovieStatus,
 } from './services/movieCatalogService';
+
+export { getTodayDateString, getEffectiveMovieStatus };
 
 const AppContext = createContext(null);
 
@@ -218,23 +222,29 @@ const rawDeletedMovieIds = loadStorage('cinemascope_deleted_movie_ids', []);
 export const deletedMovieIdsSet = new Set(Array.isArray(rawDeletedMovieIds) ? rawDeletedMovieIds : []);
 
 const rawMovies = loadStorage('cinemascope_movies', initialMovies);
+const todayInitialStr = getTodayDateString();
 const sanitizedMovies = (Array.isArray(rawMovies) ? rawMovies : initialMovies)
   .filter(m => m?.id && !deletedMovieIdsSet.has(m.id) && isLegitimateMovie(m, initialMovies))
   .map(m => {
     const initMatch = initialMovies.find(im => im.id === m.id);
-    return {
+    const merged = {
       ...initMatch,
       ...m,
       ottPlatform: m.ottPlatform || initMatch?.ottPlatform || '',
       ottReleaseDate: m.ottReleaseDate || initMatch?.ottReleaseDate || '',
       ottUrl: m.ottUrl || initMatch?.ottUrl || '',
     };
+    merged.status = getEffectiveMovieStatus(merged, todayInitialStr);
+    return merged;
   });
 
 // Guarantee verified base movies from movies.json are included ONLY IF NOT explicitly deleted by admin
 initialMovies.forEach(im => {
   if (!deletedMovieIdsSet.has(im.id) && !sanitizedMovies.some(m => m.id === im.id)) {
-    sanitizedMovies.push(im);
+    sanitizedMovies.push({
+      ...im,
+      status: getEffectiveMovieStatus(im, todayInitialStr),
+    });
   }
 });
 saveStorage('cinemascope_movies', sanitizedMovies);
@@ -409,20 +419,37 @@ function reducer(state, action) {
     }
 
     // --- MOVIE ACTIONS (ADMIN) ---
-    case 'SET_MOVIES':
-      newState = { ...state, movies: action.payload };
-      saveStorage('cinemascope_movies', action.payload);
+    case 'SET_MOVIES': {
+      const today = getTodayDateString();
+      const normalized = (action.payload || []).map(m => ({
+        ...m,
+        status: m.status === 'ARCHIVED' ? 'ARCHIVED' : getEffectiveMovieStatus(m, today),
+      }));
+      newState = { ...state, movies: normalized };
+      saveStorage('cinemascope_movies', normalized);
       return newState;
+    }
 
-    case 'ADD_MOVIE':
-      const newMovies = [action.payload, ...state.movies];
+    case 'ADD_MOVIE': {
+      const today = getTodayDateString();
+      const normalizedM = {
+        ...action.payload,
+        status: action.payload.status === 'ARCHIVED' ? 'ARCHIVED' : getEffectiveMovieStatus(action.payload, today),
+      };
+      const newMovies = [normalizedM, ...state.movies];
       newState = { ...state, movies: newMovies };
       saveStorage('cinemascope_movies', newMovies);
-      if (isSupabaseConfigured()) supabaseService.saveMovie(action.payload);
+      if (isSupabaseConfigured()) supabaseService.saveMovie(normalizedM);
       return newState;
+    }
 
-    case 'UPDATE_MOVIE':
-      const modifiedMovies = state.movies.map(m => m.id === action.payload.id ? { ...m, ...action.payload } : m);
+    case 'UPDATE_MOVIE': {
+      const today = getTodayDateString();
+      const normalizedUpdate = {
+        ...action.payload,
+        status: action.payload.status === 'ARCHIVED' ? 'ARCHIVED' : getEffectiveMovieStatus(action.payload, today),
+      };
+      const modifiedMovies = state.movies.map(m => m.id === action.payload.id ? { ...m, ...normalizedUpdate } : m);
       newState = { ...state, movies: modifiedMovies };
       saveStorage('cinemascope_movies', modifiedMovies);
       if (isSupabaseConfigured()) {
@@ -430,6 +457,7 @@ function reducer(state, action) {
         if (updatedM) supabaseService.saveMovie(updatedM);
       }
       return newState;
+    }
 
     case 'DELETE_MOVIE': {
       const deletedId = action.payload;
@@ -856,9 +884,19 @@ export function AppProvider({ children }) {
       let reviewsCount = 0;
 
       if (remoteMovies && remoteMovies.length > 0) {
+        const todayStr = getTodayDateString();
         const legitimateRemote = remoteMovies.filter(m => m?.id && !deletedMovieIdsSet.has(m.id) && isLegitimateMovie(m, initialMovies));
         const formatted = legitimateRemote.map(m => {
           const initMatch = initialMovies.find(im => im.id === m.id);
+          const rawStatus = m.status || initMatch?.status;
+          const rawReleaseDate = m.release_date || m.releaseDate || initMatch?.releaseDate;
+          const effStatus = rawStatus === 'ARCHIVED' ? 'ARCHIVED' : getEffectiveMovieStatus({ status: rawStatus, releaseDate: rawReleaseDate }, todayStr);
+
+          // If database had stale COMING_SOON status after release date, auto-sync back to Supabase
+          if (m.status && m.status !== effStatus && isSupabaseConfigured()) {
+            supabaseService.saveMovie({ ...m, status: effStatus }).catch(console.warn);
+          }
+
           return {
             id: m.id,
             title: m.title,
@@ -869,7 +907,7 @@ export function AppProvider({ children }) {
             backdropUrl: m.backdrop_url || initMatch?.backdropUrl,
             language: m.language || initMatch?.language,
             runtime: m.runtime || initMatch?.runtime,
-            releaseDate: m.release_date || initMatch?.releaseDate,
+            releaseDate: rawReleaseDate,
             genres: m.genres || initMatch?.genres || [],
             overview: m.overview || initMatch?.overview,
             cast: m.cast_list || initMatch?.cast || [],
@@ -877,7 +915,7 @@ export function AppProvider({ children }) {
             certificate: m.certificate || initMatch?.certificate,
             trailerUrl: m.trailer_url || initMatch?.trailerUrl,
             aspectRatio: m.aspect_ratio || initMatch?.aspectRatio,
-            status: m.status || initMatch?.status,
+            status: effStatus,
             cities: m.cities || initMatch?.cities || ['visakhapatnam'],
             theaters: m.theaters || initMatch?.theaters || [],
             ottPlatform: m.ott_platform || m.ottPlatform || initMatch?.ottPlatform || '',
@@ -891,7 +929,10 @@ export function AppProvider({ children }) {
         // Ensure verified base movies from movies.json are present ONLY IF NOT explicitly deleted by admin
         initialMovies.forEach(im => {
           if (!deletedMovieIdsSet.has(im.id) && !formatted.some(m => m.id === im.id)) {
-            formatted.push(im);
+            formatted.push({
+              ...im,
+              status: im.status === 'ARCHIVED' ? 'ARCHIVED' : getEffectiveMovieStatus(im, todayStr),
+            });
           }
         });
 
@@ -1391,7 +1432,12 @@ export function AppProvider({ children }) {
 
   // Derived data helpers for Movies & Reviews
   const getMovie = useCallback((movieId) => {
-    return state.movies.find(m => m.id === movieId) || null;
+    const movie = state.movies.find(m => m.id === movieId);
+    if (!movie) return null;
+    return {
+      ...movie,
+      status: movie.status === 'ARCHIVED' ? 'ARCHIVED' : getEffectiveMovieStatus(movie),
+    };
   }, [state.movies]);
 
   const isMovieMatch = useCallback((r, movieId) => {
@@ -1460,9 +1506,11 @@ export function AppProvider({ children }) {
   }, [state.reviews, isMovieMatch]);
 
   const getCityMovies = useCallback((cityId, statusFilter = 'CURRENTLY_SHOWING') => {
+    const today = getTodayDateString();
     return state.movies.filter(m => {
       const matchCity = !cityId || (m.cities && m.cities.includes(cityId));
-      const matchStatus = !statusFilter || m.status === statusFilter;
+      const effStatus = m.status === 'ARCHIVED' ? 'ARCHIVED' : getEffectiveMovieStatus(m, today);
+      const matchStatus = !statusFilter || effStatus === statusFilter;
       return matchCity && matchStatus;
     });
   }, [state.movies]);
