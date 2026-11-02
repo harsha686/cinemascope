@@ -459,7 +459,7 @@ export default function CollectionPage() {
                 }}
                 variant="outline"
                 size="sm"
-                customLabel="✨ Create Aesthetic"
+                customLabel="Share"
               />
 
               {/* Viewer: Save to personal library */}

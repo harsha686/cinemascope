@@ -75,7 +75,7 @@ export default function PublicReviewPage() {
             data={shareData}
             variant="primary"
             size="md"
-            customLabel="✨ Create Aesthetic Card"
+            customLabel="Share"
           />
         </div>
 

@@ -567,7 +567,7 @@ export default function ProfilePage() {
                 }}
                 variant="primary"
                 size="sm"
-                customLabel={isOwnProfile ? "✨ Share My Stats" : "✨ Share Profile"}
+                customLabel="Share"
               />
 
               {isOwnProfile ? (

@@ -661,7 +661,7 @@ export default function WeekendRecommendationHero() {
                     data={winner}
                     variant="ghost"
                     size="sm"
-                    customLabel="✨ Share Pick"
+                    customLabel="Share"
                   />
                 </div>
               </div>

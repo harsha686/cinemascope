@@ -1,4 +1,4 @@
-mport React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck, Tv, Film, Users, Layers, Share2, Copy, Check, ExternalLink, Send, MessageCircle, Ticket } from 'lucide-react';
 import { useApp, getEffectiveMovieStatus } from '../AppContext';

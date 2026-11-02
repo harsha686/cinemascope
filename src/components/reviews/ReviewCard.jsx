@@ -247,7 +247,7 @@ export default function ReviewCard({ review, onEdit, onDelete }) {
             data={review}
             variant="ghost"
             size="sm"
-            customLabel="✨ Share"
+            customLabel="Share"
           />
 
           {isOwnReview ? (

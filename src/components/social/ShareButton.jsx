@@ -170,46 +170,26 @@ export default function ShareButton({
         <button
           type="button"
           onClick={() => setShowMenu(!showMenu)}
-          title="Share / Create Aesthetic Card"
+          title="Share"
           className="btn btn-ghost btn-sm"
           style={{ padding: '6px', color: 'var(--text-secondary)', ...style }}
         >
           <Share2 size={15} />
         </button>
       ) : (
-        <div style={{ display: 'inline-flex', borderRadius: 4, overflow: 'hidden' }}>
-          {/* Main action: Opens Aesthetic Studio */}
-          <button
-            type="button"
-            onClick={() => setShowModal(true)}
-            className={`${btnClass} ${className}`}
-            style={{
-              ...buttonStyle,
-              borderTopRightRadius: 0,
-              borderBottomRightRadius: 0,
-              fontSize: size === 'sm' ? 11 : 13,
-            }}
-          >
-            <Sparkles size={size === 'sm' ? 13 : 15} />
-            <span>{customLabel || '✨ Create Aesthetic'}</span>
-          </button>
-
-          {/* Sub-menu trigger: Copy Link / Social options */}
-          <button
-            type="button"
-            onClick={() => setShowMenu(!showMenu)}
-            className={btnClass}
-            style={{
-              padding: size === 'sm' ? '0 7px' : '0 10px',
-              borderLeft: '1px solid rgba(255,255,255,0.15)',
-              borderTopLeftRadius: 0,
-              borderBottomLeftRadius: 0,
-            }}
-            title="More share options"
-          >
-            <MoreHorizontal size={14} />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowMenu(!showMenu)}
+          className={`${btnClass} ${className}`}
+          style={{
+            ...buttonStyle,
+            fontSize: size === 'sm' ? 11 : 13,
+          }}
+          title="Share"
+        >
+          <Share2 size={size === 'sm' ? 13 : 15} />
+          <span>{customLabel || 'Share'}</span>
+        </button>
       )}
 
       {/* Dropdown Menu */}
