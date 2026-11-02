@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+mport React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck, Tv, Film, Users, Layers, Share2, Copy, Check, ExternalLink, Send, MessageCircle, Ticket } from 'lucide-react';
 import { useApp, getEffectiveMovieStatus } from '../AppContext';
@@ -103,7 +103,27 @@ export default function MovieDetailPage() {
   const adminMovie = getMovie(movieId);
   const movie = isTmdbMovie ? tmdbMovie : adminMovie;
   const effectiveStatus = movie ? (movie.status === 'ARCHIVED' ? 'ARCHIVED' : getEffectiveMovieStatus(movie)) : '';
-  const isNowShowing = effectiveStatus === 'CURRENTLY_SHOWING';
+
+  // isNowShowing must only be true when the movie is *genuinely* playing in theaters right now.
+  // Admin-managed movies: trust the explicit CURRENTLY_SHOWING status set by the admin.
+  // Pure TMDB movies (not in admin catalog): only flag as in-theaters if:
+  //   - released within the last 90 days (still plausibly in cinemas)
+  //   - no OTT digital release date has passed yet
+  // This prevents old/catalog films from showing a "Watch In Theaters" section.
+  const isNowShowing = (() => {
+    if (effectiveStatus !== 'CURRENTLY_SHOWING') return false;
+    // Admin-managed movie — trust the explicit status
+    if (!isTmdbMovie || adminMovie) return true;
+    // Pure TMDB movie — gate on recency and absence of OTT release
+    const rawDate = (movie?.releaseDate || movie?.release_date || '').toString().trim();
+    const dateMatch = rawDate.match(/^\d{4}-\d{2}-\d{2}/);
+    if (!dateMatch) return false;
+    const releaseDateStr = dateMatch[0];
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const daysSinceRelease = (new Date(todayStr) - new Date(releaseDateStr)) / (1000 * 60 * 60 * 24);
+    const hasOtt = !!(movie?.ottReleaseDate && movie.ottReleaseDate <= todayStr);
+    return daysSinceRelease >= 0 && daysSinceRelease <= 90 && !hasOtt;
+  })();
   const currentUser = state.currentUser;
   const currentCity = useMemo(() => {
     if (typeof state.selectedCity === 'object' && state.selectedCity?.id) {
@@ -722,7 +742,7 @@ export default function MovieDetailPage() {
                   }}
                   variant="outline"
                   size="md"
-                  customLabel="✨ Create Aesthetic"
+                  customLabel="Share"
                 />
 
                 {movie.trailerUrl && (
