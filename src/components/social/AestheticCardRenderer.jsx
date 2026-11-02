@@ -1,16 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Star, Trophy, Film, Sparkles, Heart, Bookmark, ShieldCheck, Check } from 'lucide-react';
+import { Star, Trophy, Film, Sparkles, Heart, Bookmark, ShieldCheck, Check, Trash2 } from 'lucide-react';
 import { SOCIAL_CONTENT_TYPES } from '../../services/socialSharingService';
 
 /**
  * DraggableBox: Allows any element on the poster canvas to be freely dragged and repositioned.
- * When exporting (isExporting = true), all drag handles and hover borders are completely hidden.
+ * Also renders a Bin (Trash) icon on hover so users can easily delete unwanted elements.
+ * When exporting (isExporting = true), all drag handles, bin buttons, and hover borders are completely hidden.
  */
 export function DraggableBox({
   id,
   children,
   offset = { x: 0, y: 0 },
   onOffsetChange,
+  onRemove,
   isExporting = false,
   style = {},
   className = '',
@@ -22,7 +24,10 @@ export function DraggableBox({
 
   const handlePointerDown = (e) => {
     if (isExporting) return;
-    // Don't drag if user clicked directly on an already focused contentEditable
+    // Don't drag if user clicked directly on a button (like the trash bin) or active editable text
+    if (e.target.closest('button')) {
+      return;
+    }
     if (e.target.isContentEditable && document.activeElement === e.target) {
       return;
     }
@@ -94,29 +99,76 @@ export function DraggableBox({
         transition: isDragging ? 'none' : 'outline 150ms ease, box-shadow 150ms ease',
       }}
     >
+      {/* Floating Drag & Bin Actions on Hover */}
       {!isExporting && (isHovered || isDragging) && (
         <div
           style={{
             position: 'absolute',
-            top: -17,
+            top: -22,
             right: 0,
-            background: 'rgba(20,17,13,0.92)',
-            border: '1px solid var(--gold, #dcb65b)',
-            color: 'var(--gold, #dcb65b)',
-            borderRadius: 3,
-            padding: '1px 5px',
-            fontSize: 8.5,
-            fontWeight: 700,
-            display: 'flex',
+            display: 'inline-flex',
             alignItems: 'center',
-            gap: 2,
-            zIndex: 99,
-            pointerEvents: 'none',
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
+            gap: 4,
+            zIndex: 9999,
+            pointerEvents: 'auto',
           }}
         >
-          ⠿ Drag
+          <div
+            style={{
+              background: 'rgba(20,17,13,0.95)',
+              border: '1px solid var(--gold, #dcb65b)',
+              color: 'var(--gold, #dcb65b)',
+              borderRadius: 3,
+              padding: '1px 5px',
+              fontSize: 8.5,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              pointerEvents: 'none',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+            }}
+          >
+            ⠿ Drag
+          </div>
+
+          {onRemove && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onRemove(id);
+              }}
+              title="Remove this element from poster"
+              style={{
+                background: 'rgba(220, 38, 38, 0.95)',
+                border: '1px solid #ef4444',
+                color: '#ffffff',
+                borderRadius: 3,
+                width: 19,
+                height: 17,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                padding: 0,
+                boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
+                transition: 'transform 100ms ease, background 100ms ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.15)';
+                e.currentTarget.style.background = '#dc2626';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.background = 'rgba(220, 38, 38, 0.95)';
+              }}
+            >
+              <Trash2 size={10} />
+            </button>
+          )}
         </div>
       )}
       {children}
@@ -213,7 +265,9 @@ export default function AestheticCardRenderer({
     customBottomLeft = '',
     customBottomRight = '',
     dragOffsets = {},
+    hiddenElements = {},
     onUpdateDragOffset,
+    onRemoveElement,
     onUpdateText,
     isExporting = false,
   } = options;
@@ -225,8 +279,8 @@ export default function AestheticCardRenderer({
   const isSquare = format.id === 'square';
   const isPortrait = format.id === 'portrait';
 
-  const headline = customHeadline || content.headline;
-  const quote = customQuote !== undefined && customQuote !== '' ? customQuote : (content.quote || '');
+  const headline = customHeadline !== undefined ? customHeadline : (content.headline || '');
+  const quote = customQuote !== undefined ? customQuote : (content.quote || '');
   // For reviews, prioritize personal userRating; for movies and other content, prioritize content.rating
   const effectiveRating = customRating !== ''
     ? customRating
@@ -300,85 +354,128 @@ export default function AestheticCardRenderer({
         }} />
 
         {/* ================= TOP SECTION: STUDIO ACCOLADE MASTHEAD (DRAGGABLE & INLINE EDITABLE) ================= */}
-        <DraggableBox
-          id="keyart_top"
-          offset={dragOffsets.keyart_top}
-          onOffsetChange={onUpdateDragOffset}
-          isExporting={isExporting}
-          style={{ position: 'relative', zIndex: 2, textAlign: 'center', width: '100%', flexShrink: 0 }}
-        >
+        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', width: '100%', flexShrink: 0 }}>
           {/* App Name — centered, smaller */}
-          <h1 style={{
-            fontSize: isStory ? 15 : isLandscape ? 13 : 14,
-            fontWeight: 800,
-            letterSpacing: '0.28em',
-            textTransform: 'uppercase',
-            margin: '0 0 8px',
-            color: '#ffffff',
-            textAlign: 'center',
-            textShadow: '0 2px 10px rgba(0,0,0,0.95)',
-          }}>
-            <EditableText
-              value={customAppName || 'CINEMASCOPE'}
-              onChange={v => onUpdateText && onUpdateText('appName', v)}
+          {!hiddenElements.appName && (
+            <DraggableBox
+              id="appName"
+              offset={dragOffsets.appName}
+              onOffsetChange={onUpdateDragOffset}
+              onRemove={onRemoveElement}
               isExporting={isExporting}
-            />
-          </h1>
+              style={{ display: 'inline-block' }}
+            >
+              <h1 style={{
+                fontSize: isStory ? 15 : isLandscape ? 13 : 14,
+                fontWeight: 800,
+                letterSpacing: '0.28em',
+                textTransform: 'uppercase',
+                margin: '0 0 8px',
+                color: '#ffffff',
+                textAlign: 'center',
+                textShadow: '0 2px 10px rgba(0,0,0,0.95)',
+              }}>
+                <EditableText
+                  value={customAppName !== undefined ? customAppName : 'CINEMASCOPE'}
+                  onChange={v => onUpdateText && onUpdateText('appName', v)}
+                  isExporting={isExporting}
+                />
+              </h1>
+            </DraggableBox>
+          )}
 
           {/* Underline Rule */}
-          <div style={{
-            width: '80%',
-            height: 2,
-            margin: '0 auto 10px',
-            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.95) 20%, rgba(255,255,255,0.95) 80%, transparent 100%)',
-          }} />
+          {!hiddenElements.appName && !hiddenElements.headline && (
+            <div style={{
+              width: '80%',
+              height: 2,
+              margin: '0 auto 10px',
+              background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.95) 20%, rgba(255,255,255,0.95) 80%, transparent 100%)',
+            }} />
+          )}
 
           {/* Headline / Award Category */}
-          <p style={{
-            fontSize: isStory ? 12 : 11,
-            fontWeight: 800,
-            textTransform: 'uppercase',
-            letterSpacing: '0.12em',
-            color: '#ffffff',
-            margin: '0 0 6px',
-            textShadow: '0 2px 8px rgba(0,0,0,0.9)',
-          }}>
-            <EditableText
-              value={headline || 'FEATURE FILM OF THE YEAR'}
-              onChange={v => onUpdateText && onUpdateText('headline', v)}
-              isExporting={isExporting}
-            />
-          </p>
-
-          {/* Review excerpt / Quote line */}
-          {quote && (
-            <p style={{
-              fontSize: isStory ? 11 : 10,
-              fontWeight: 500,
-              letterSpacing: '0.06em',
-              color: 'rgba(255,255,255,0.88)',
-              margin: '0 auto',
-              textShadow: '0 2px 8px rgba(0,0,0,0.9)',
-              maxWidth: '90%',
-              lineHeight: 1.5,
-              fontStyle: 'italic',
-            }}>
-              “<EditableText
-                value={quote}
-                multiline
-                onChange={v => onUpdateText && onUpdateText('quote', v)}
+          {!hiddenElements.headline && (headline || !isExporting) && (
+            <div style={{ display: 'block', margin: '0 auto 6px' }}>
+              <DraggableBox
+                id="headline"
+                offset={dragOffsets.headline}
+                onOffsetChange={onUpdateDragOffset}
+                onRemove={onRemoveElement}
                 isExporting={isExporting}
-              />”
-            </p>
+                style={{ display: 'inline-block' }}
+              >
+                <p style={{
+                  fontSize: isStory ? 12 : 11,
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.12em',
+                  color: '#ffffff',
+                  margin: 0,
+                  textShadow: '0 2px 8px rgba(0,0,0,0.9)',
+                }}>
+                  <EditableText
+                    value={headline || (isExporting ? '' : 'FEATURE FILM OF THE YEAR')}
+                    onChange={v => onUpdateText && onUpdateText('headline', v)}
+                    isExporting={isExporting}
+                  />
+                </p>
+              </DraggableBox>
+            </div>
           )}
-        </DraggableBox>
+
+          {/* Review excerpt / Quote line (Draggable & with Bin Icon!) */}
+          {!hiddenElements.quote && (quote || !isExporting) && (
+            <div style={{ display: 'block', margin: '0 auto', maxWidth: '90%' }}>
+              <DraggableBox
+                id="quote"
+                offset={dragOffsets.quote}
+                onOffsetChange={onUpdateDragOffset}
+                onRemove={onRemoveElement}
+                isExporting={isExporting}
+                style={{ display: 'inline-block' }}
+              >
+                <p style={{
+                  fontSize: isStory ? 11 : 10,
+                  fontWeight: 500,
+                  letterSpacing: '0.06em',
+                  color: 'rgba(255,255,255,0.88)',
+                  margin: 0,
+                  textShadow: '0 2px 8px rgba(0,0,0,0.9)',
+                  lineHeight: 1.5,
+                  fontStyle: 'italic',
+                }}>
+                  {quote ? (
+                    <>
+                      “<EditableText
+                        value={quote}
+                        multiline
+                        onChange={v => onUpdateText && onUpdateText('quote', v)}
+                        isExporting={isExporting}
+                      />”
+                    </>
+                  ) : !isExporting ? (
+                    <EditableText
+                      value=""
+                      placeholder="Click to add quote..."
+                      multiline
+                      onChange={v => onUpdateText && onUpdateText('quote', v)}
+                      isExporting={isExporting}
+                    />
+                  ) : null}
+                </p>
+              </DraggableBox>
+            </div>
+          )}
+        </div>
 
         {/* ================= CENTER ACCENT: RATING PILL (DRAGGABLE & INLINE EDITABLE) ================= */}
-        {showRating && (
+        {showRating && !hiddenElements.rating && (
           <DraggableBox
-            id="keyart_rating"
-            offset={dragOffsets.keyart_rating}
+            id="rating"
+            offset={dragOffsets.rating}
             onOffsetChange={onUpdateDragOffset}
+            onRemove={onRemoveElement}
             isExporting={isExporting}
             style={{
               position: 'relative',
@@ -414,114 +511,143 @@ export default function AestheticCardRenderer({
         )}
 
         {/* ================= BOTTOM SECTION: STUDIO TITLE & BRANDING (DRAGGABLE & INLINE EDITABLE) ================= */}
-        <DraggableBox
-          id="keyart_title_block"
-          offset={dragOffsets.keyart_title_block}
-          onOffsetChange={onUpdateDragOffset}
-          isExporting={isExporting}
-          style={{ position: 'relative', zIndex: 2, textAlign: 'center', width: '100%', flexShrink: 0, boxSizing: 'border-box' }}
-        >
+        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', width: '100%', flexShrink: 0, boxSizing: 'border-box' }}>
           {/* Genre / Studio Mini Badge */}
-          <div style={{
-            display: 'inline-block',
-            padding: '3px 12px',
-            border: '1px solid rgba(255,255,255,0.85)',
-            fontSize: 9,
-            fontWeight: 800,
-            letterSpacing: '0.22em',
-            textTransform: 'uppercase',
-            color: '#ffffff',
-            marginBottom: 10,
-            backdropFilter: 'blur(6px)',
-          }}>
-            <EditableText
-              value={customGenreBadge || (content.genres && content.genres.length > 0 ? content.genres[0] : 'CINEMASCOPE SELECTION')}
-              onChange={v => onUpdateText && onUpdateText('genreBadge', v)}
-              isExporting={isExporting}
-            />
-          </div>
+          {!hiddenElements.genreBadge && (
+            <div style={{ display: 'block', marginBottom: 10 }}>
+              <DraggableBox
+                id="genreBadge"
+                offset={dragOffsets.genreBadge}
+                onOffsetChange={onUpdateDragOffset}
+                onRemove={onRemoveElement}
+                isExporting={isExporting}
+                style={{ display: 'inline-block' }}
+              >
+                <div style={{
+                  padding: '3px 12px',
+                  border: '1px solid rgba(255,255,255,0.85)',
+                  fontSize: 9,
+                  fontWeight: 800,
+                  letterSpacing: '0.22em',
+                  textTransform: 'uppercase',
+                  color: '#ffffff',
+                  backdropFilter: 'blur(6px)',
+                }}>
+                  <EditableText
+                    value={customGenreBadge || (content.genres && content.genres.length > 0 ? content.genres[0] : 'CINEMASCOPE SELECTION')}
+                    onChange={v => onUpdateText && onUpdateText('genreBadge', v)}
+                    isExporting={isExporting}
+                  />
+                </div>
+              </DraggableBox>
+            </div>
+          )}
 
           {/* Movie Title */}
-          <div>
-            <h2 style={{
-              fontSize: isStory ? 'clamp(18px, 4.8vw, 28px)' : isLandscape ? '22px' : '24px',
-              fontWeight: 700,
-              letterSpacing: '0.16em',
-              textTransform: 'uppercase',
-              fontFamily: 'var(--font-serif, "Cinzel", Georgia, serif)',
-              color: '#ffffff',
-              margin: '0 0 6px',
-              lineHeight: 1.15,
-              textShadow: '0 2px 16px rgba(0,0,0,0.95)',
-            }}>
-              <EditableText
-                value={customTitle || content.title}
-                onChange={v => onUpdateText && onUpdateText('title', v)}
-                isExporting={isExporting}
-              />
-            </h2>
-
-            {/* Title Underline Separator */}
-            <div style={{
-              width: '65%',
-              height: 1,
-              margin: '0 auto 8px',
-              background: 'rgba(255,255,255,0.7)',
-            }} />
-
-            {/* Subtitle / Release Info */}
-            <p style={{
-              fontSize: 10,
-              letterSpacing: '0.22em',
-              textTransform: 'uppercase',
-              color: 'rgba(255,255,255,0.85)',
-              margin: 0,
-              fontWeight: 600,
-            }}>
-              <EditableText
-                value={customSubtitle || content.subtitle || ''}
-                onChange={v => onUpdateText && onUpdateText('subtitle', v)}
-                isExporting={isExporting}
-              />
-            </p>
-          </div>
-        </DraggableBox>
-
-        {/* Bottom Bar: Left & Right labels (Draggable & Editable) */}
-        <DraggableBox
-          id="keyart_footer"
-          offset={dragOffsets.keyart_footer}
-          onOffsetChange={onUpdateDragOffset}
-          isExporting={isExporting}
-          style={{
-            position: 'relative',
-            zIndex: 2,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginTop: 16,
-            paddingTop: 10,
-            borderTop: '1px solid rgba(255,255,255,0.2)',
-            fontSize: 9,
-            fontWeight: 800,
-            width: '100%',
-          }}
-        >
-          <span style={{ letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.9)' }}>
-            <EditableText
-              value={customBottomLeft || 'CINEMASCOPE EXCLUSIVE'}
-              onChange={v => onUpdateText && onUpdateText('bottomLeft', v)}
+          {!hiddenElements.title && (
+            <DraggableBox
+              id="title"
+              offset={dragOffsets.title}
+              onOffsetChange={onUpdateDragOffset}
+              onRemove={onRemoveElement}
               isExporting={isExporting}
-            />
-          </span>
-          <span style={{ letterSpacing: '0.14em', textTransform: 'uppercase', color: '#fce08b' }}>
-            <EditableText
-              value={customBottomRight || 'NOW STREAMING'}
-              onChange={v => onUpdateText && onUpdateText('bottomRight', v)}
+              style={{ display: 'block' }}
+            >
+              <h2 style={{
+                fontSize: isStory ? 'clamp(18px, 4.8vw, 28px)' : isLandscape ? '22px' : '24px',
+                fontWeight: 700,
+                letterSpacing: '0.16em',
+                textTransform: 'uppercase',
+                fontFamily: 'var(--font-serif, "Cinzel", Georgia, serif)',
+                color: '#ffffff',
+                margin: '0 0 6px',
+                lineHeight: 1.15,
+                textShadow: '0 2px 16px rgba(0,0,0,0.95)',
+              }}>
+                <EditableText
+                  value={customTitle !== undefined ? customTitle : (content.title || '')}
+                  onChange={v => onUpdateText && onUpdateText('title', v)}
+                  isExporting={isExporting}
+                />
+              </h2>
+
+              <div style={{
+                width: '65%',
+                height: 1,
+                margin: '0 auto 8px',
+                background: 'rgba(255,255,255,0.7)',
+              }} />
+            </DraggableBox>
+          )}
+
+          {/* Subtitle / Release Info */}
+          {!hiddenElements.subtitle && (
+            <div style={{ display: 'block' }}>
+              <DraggableBox
+                id="subtitle"
+                offset={dragOffsets.subtitle}
+                onOffsetChange={onUpdateDragOffset}
+                onRemove={onRemoveElement}
+                isExporting={isExporting}
+                style={{ display: 'inline-block' }}
+              >
+                <p style={{
+                  fontSize: 10,
+                  letterSpacing: '0.22em',
+                  textTransform: 'uppercase',
+                  color: 'rgba(255,255,255,0.85)',
+                  margin: 0,
+                  fontWeight: 600,
+                }}>
+                  <EditableText
+                    value={customSubtitle !== undefined ? customSubtitle : (content.subtitle || '')}
+                    onChange={v => onUpdateText && onUpdateText('subtitle', v)}
+                    isExporting={isExporting}
+                  />
+                </p>
+              </DraggableBox>
+            </div>
+          )}
+
+          {/* Bottom Bar: Left & Right labels (Draggable & Editable) */}
+          {!hiddenElements.footer && (
+            <DraggableBox
+              id="footer"
+              offset={dragOffsets.footer}
+              onOffsetChange={onUpdateDragOffset}
+              onRemove={onRemoveElement}
               isExporting={isExporting}
-            />
-          </span>
-        </DraggableBox>
+              style={{
+                position: 'relative',
+                zIndex: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginTop: 16,
+                paddingTop: 10,
+                borderTop: '1px solid rgba(255,255,255,0.2)',
+                fontSize: 9,
+                fontWeight: 800,
+                width: '100%',
+              }}
+            >
+              <span style={{ letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.9)' }}>
+                <EditableText
+                  value={customBottomLeft || 'CINEMASCOPE EXCLUSIVE'}
+                  onChange={v => onUpdateText && onUpdateText('bottomLeft', v)}
+                  isExporting={isExporting}
+                />
+              </span>
+              <span style={{ letterSpacing: '0.14em', textTransform: 'uppercase', color: '#fce08b' }}>
+                <EditableText
+                  value={customBottomRight || 'NOW STREAMING'}
+                  onChange={v => onUpdateText && onUpdateText('bottomRight', v)}
+                  isExporting={isExporting}
+                />
+              </span>
+            </DraggableBox>
+          )}
+        </div>
       </div>
     );
   }
@@ -634,48 +760,51 @@ export default function AestheticCardRenderer({
       )}
 
       {/* ================= HEADER SECTION (DRAGGABLE & INLINE EDITABLE) ================= */}
-      <DraggableBox
-        id="card_header"
-        offset={dragOffsets.card_header}
-        onOffsetChange={onUpdateDragOffset}
-        isExporting={isExporting}
-        style={{ position: 'relative', zIndex: 2, flexShrink: 0 }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: isStory ? 8 : 4 }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 5,
-            padding: '3px 10px',
-            borderRadius: template.isScrapbook ? 0 : 20,
-            background: template.badgeBg,
-            border: `1px solid ${template.borderColor}`,
-            fontSize: isStory ? 10.5 : 10,
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.12em',
-            color: template.accentColor,
-            maxWidth: '75%',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}>
-            {isWeekendWinner ? <Trophy size={12} style={{ flexShrink: 0 }} /> : <Film size={12} style={{ flexShrink: 0 }} />}
-            <EditableText
-              value={headline}
-              onChange={v => onUpdateText && onUpdateText('headline', v)}
-              isExporting={isExporting}
-              style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-            />
-          </div>
+      {!hiddenElements.card_header && (
+        <DraggableBox
+          id="card_header"
+          offset={dragOffsets.card_header}
+          onOffsetChange={onUpdateDragOffset}
+          onRemove={onRemoveElement}
+          isExporting={isExporting}
+          style={{ position: 'relative', zIndex: 2, flexShrink: 0 }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: isStory ? 8 : 4 }}>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '3px 10px',
+              borderRadius: template.isScrapbook ? 0 : 20,
+              background: template.badgeBg,
+              border: `1px solid ${template.borderColor}`,
+              fontSize: isStory ? 10.5 : 10,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.12em',
+              color: template.accentColor,
+              maxWidth: '75%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}>
+              {isWeekendWinner ? <Trophy size={12} style={{ flexShrink: 0 }} /> : <Film size={12} style={{ flexShrink: 0 }} />}
+              <EditableText
+                value={headline}
+                onChange={v => onUpdateText && onUpdateText('headline', v)}
+                isExporting={isExporting}
+                style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              />
+            </div>
 
-          {content.dateStr && (
-            <span style={{ fontSize: 10, opacity: 0.6, letterSpacing: '0.05em', whiteSpace: 'nowrap', flexShrink: 0 }}>
-              {content.dateStr}
-            </span>
-          )}
-        </div>
-      </DraggableBox>
+            {content.dateStr && (
+              <span style={{ fontSize: 10, opacity: 0.6, letterSpacing: '0.05em', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                {content.dateStr}
+              </span>
+            )}
+          </div>
+        </DraggableBox>
+      )}
 
       {/* ================= BODY / MEDIA SECTION ================= */}
       <div style={{
@@ -802,12 +931,13 @@ export default function AestheticCardRenderer({
         ) : (
           /* Scenario 3: Single Movie / Review / Rating / Weekend Winner */
           <>
-            {/* Poster Card (Draggable) */}
-            {content.posterUrl && (
+            {/* Poster Card (Draggable with Bin Button) */}
+            {!hiddenElements.card_poster && content.posterUrl && (
               <DraggableBox
                 id="card_poster"
                 offset={dragOffsets.card_poster}
                 onOffsetChange={onUpdateDragOffset}
+                onRemove={onRemoveElement}
                 isExporting={isExporting}
                 style={{
                   position: 'relative',
@@ -876,64 +1006,68 @@ export default function AestheticCardRenderer({
               alignItems: isLandscape || isSquare ? 'flex-start' : 'center',
               justifyContent: 'center',
             }}>
-              <DraggableBox
-                id="card_title"
-                offset={dragOffsets.card_title}
-                onOffsetChange={onUpdateDragOffset}
-                isExporting={isExporting}
-                style={{ width: '100%' }}
-              >
-                <h2 style={{
-                  fontSize: isStory
-                    ? 'clamp(18px, 3.8vw, 24px)'
-                    : isLandscape
-                    ? 'clamp(16px, 2.6vw, 21px)'
-                    : isSquare
-                    ? 'clamp(15px, 2.5vw, 19px)'
-                    : 'clamp(15px, 3vw, 19px)',
-                  lineHeight: 1.15,
-                  margin: '0 0 3px',
-                  color: template.textColor,
-                  letterSpacing: template.fontFamily === 'serif' ? '0.03em' : '-0.01em',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                  width: '100%',
-                }}>
-                  <EditableText
-                    value={customTitle || content.title}
-                    onChange={v => onUpdateText && onUpdateText('title', v)}
-                    isExporting={isExporting}
-                  />
-                </h2>
-
-                {showMeta && (customSubtitle || content.subtitle) && (
-                  <div style={{
-                    fontSize: 10.5,
-                    color: template.accentColor,
-                    marginBottom: 6,
-                    opacity: 0.9,
-                    whiteSpace: 'nowrap',
+              {!hiddenElements.card_title && (
+                <DraggableBox
+                  id="card_title"
+                  offset={dragOffsets.card_title}
+                  onOffsetChange={onUpdateDragOffset}
+                  onRemove={onRemoveElement}
+                  isExporting={isExporting}
+                  style={{ width: '100%' }}
+                >
+                  <h2 style={{
+                    fontSize: isStory
+                      ? 'clamp(18px, 3.8vw, 24px)'
+                      : isLandscape
+                      ? 'clamp(16px, 2.6vw, 21px)'
+                      : isSquare
+                      ? 'clamp(15px, 2.5vw, 19px)'
+                      : 'clamp(15px, 3vw, 19px)',
+                    lineHeight: 1.15,
+                    margin: '0 0 3px',
+                    color: template.textColor,
+                    letterSpacing: template.fontFamily === 'serif' ? '0.03em' : '-0.01em',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
                     overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    maxWidth: '100%',
+                    width: '100%',
                   }}>
                     <EditableText
-                      value={customSubtitle || content.subtitle}
-                      onChange={v => onUpdateText && onUpdateText('subtitle', v)}
+                      value={customTitle !== undefined ? customTitle : (content.title || '')}
+                      onChange={v => onUpdateText && onUpdateText('title', v)}
                       isExporting={isExporting}
                     />
-                  </div>
-                )}
-              </DraggableBox>
+                  </h2>
+
+                  {showMeta && (!hiddenElements.card_subtitle) && (
+                    <div style={{
+                      fontSize: 10.5,
+                      color: template.accentColor,
+                      marginBottom: 6,
+                      opacity: 0.9,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      maxWidth: '100%',
+                    }}>
+                      <EditableText
+                        value={customSubtitle !== undefined ? customSubtitle : (content.subtitle || '')}
+                        onChange={v => onUpdateText && onUpdateText('subtitle', v)}
+                        isExporting={isExporting}
+                      />
+                    </div>
+                  )}
+                </DraggableBox>
+              )}
 
               {/* Star Rating Display */}
-              {showRating && (
+              {showRating && !hiddenElements.card_rating && (
                 <DraggableBox
                   id="card_rating"
                   offset={dragOffsets.card_rating}
                   onOffsetChange={onUpdateDragOffset}
+                  onRemove={onRemoveElement}
                   isExporting={isExporting}
                   style={{
                     display: 'flex',
@@ -964,11 +1098,12 @@ export default function AestheticCardRenderer({
               )}
 
               {/* User Review / Quote */}
-              {quote && (
+              {!hiddenElements.card_quote && (quote || !isExporting) && (
                 <DraggableBox
                   id="card_quote"
                   offset={dragOffsets.card_quote}
                   onOffsetChange={onUpdateDragOffset}
+                  onRemove={onRemoveElement}
                   isExporting={isExporting}
                   style={{ width: '100%' }}
                 >
@@ -991,12 +1126,22 @@ export default function AestheticCardRenderer({
                     maxWidth: '100%',
                     boxSizing: 'border-box',
                   }}>
-                    “<EditableText
-                      value={quote}
-                      multiline
-                      onChange={v => onUpdateText && onUpdateText('quote', v)}
-                      isExporting={isExporting}
-                    />”
+                    {quote ? (
+                      <>“<EditableText
+                        value={quote}
+                        multiline
+                        onChange={v => onUpdateText && onUpdateText('quote', v)}
+                        isExporting={isExporting}
+                      />”</>
+                    ) : !isExporting ? (
+                      <EditableText
+                        value=""
+                        placeholder="Click to add quote..."
+                        multiline
+                        onChange={v => onUpdateText && onUpdateText('quote', v)}
+                        isExporting={isExporting}
+                      />
+                    ) : null}
                   </div>
                 </DraggableBox>
               )}
@@ -1006,19 +1151,21 @@ export default function AestheticCardRenderer({
       </div>
 
       {/* ================= FOOTER SECTION (DRAGGABLE) ================= */}
-      <DraggableBox
-        id="card_footer"
-        offset={dragOffsets.card_footer}
-        onOffsetChange={onUpdateDragOffset}
-        isExporting={isExporting}
-        style={{
-          position: 'relative',
-          zIndex: 2,
-          flexShrink: 0,
-          borderTop: `1px solid ${template.borderColor}`,
-          paddingTop: isStory ? 10 : 8,
-          display: 'flex',
-          alignItems: 'center',
+      {!hiddenElements.card_footer && (
+        <DraggableBox
+          id="card_footer"
+          offset={dragOffsets.card_footer}
+          onOffsetChange={onUpdateDragOffset}
+          onRemove={onRemoveElement}
+          isExporting={isExporting}
+          style={{
+            position: 'relative',
+            zIndex: 2,
+            flexShrink: 0,
+            borderTop: `1px solid ${template.borderColor}`,
+            paddingTop: isStory ? 10 : 8,
+            display: 'flex',
+            alignItems: 'center',
           justifyContent: 'space-between',
           gap: 8,
           width: '100%',
@@ -1078,6 +1225,7 @@ export default function AestheticCardRenderer({
           </div>
         )}
       </DraggableBox>
-    </div>
-  );
+    )}
+  </div>
+);
 }

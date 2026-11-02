@@ -53,17 +53,33 @@ export default function AestheticImageModal({
   const [copiedLink, setCopiedLink] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [dragOffsets, setDragOffsets] = useState({});
+  const [hiddenElements, setHiddenElements] = useState({});
   const [hasCustomEdits, setHasCustomEdits] = useState(false);
 
   const hasCustomDrags = Object.keys(dragOffsets).some(
     k => (dragOffsets[k]?.x || 0) !== 0 || (dragOffsets[k]?.y || 0) !== 0
   );
+  const hasHiddenElements = Object.keys(hiddenElements).some(k => hiddenElements[k]);
+  const hiddenCount = Object.values(hiddenElements).filter(Boolean).length;
 
   const handleUpdateDragOffset = (id, offset) => {
     setDragOffsets(prev => ({
       ...prev,
       [id]: offset,
     }));
+  };
+
+  const handleRemoveElement = (id) => {
+    setHiddenElements(prev => ({
+      ...prev,
+      [id]: true,
+    }));
+    setToastMessage('🗑️ Element removed. Click "Restore" or "Reset" anytime to bring it back.');
+  };
+
+  const handleRestoreHidden = () => {
+    setHiddenElements({});
+    setToastMessage('All removed elements restored to poster.');
   };
 
   const handleUpdateText = (field, val) => {
@@ -81,6 +97,7 @@ export default function AestheticImageModal({
 
   const handleResetPosterEdits = () => {
     setDragOffsets({});
+    setHiddenElements({});
     setCustomHeadline(normalized?.headline || '');
     setCustomQuote(normalized?.quote || '');
     setCustomTitle(normalized?.title || '');
@@ -94,7 +111,7 @@ export default function AestheticImageModal({
     setCustomBottomLeft('CINEMASCOPE EXCLUSIVE');
     setCustomBottomRight('NOW STREAMING');
     setHasCustomEdits(false);
-    setToastMessage('↺ Poster edits and element positions reset to default');
+    setToastMessage('↺ Poster edits, positions, and removed elements reset to default');
   };
 
   useEffect(() => {
@@ -550,7 +567,31 @@ export default function AestheticImageModal({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {(hasCustomEdits || hasCustomDrags) && (
+            {hasHiddenElements && (
+              <button
+                type="button"
+                onClick={handleRestoreHidden}
+                className="btn btn-ghost btn-sm"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  fontSize: 11,
+                  color: '#ffffff',
+                  background: 'rgba(239, 68, 68, 0.2)',
+                  border: '1px solid rgba(239, 68, 68, 0.5)',
+                  padding: '5px 10px',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+                title="Restore removed elements"
+              >
+                <RefreshCw size={12} />
+                <span>Restore ({hiddenCount})</span>
+              </button>
+            )}
+            {(hasCustomEdits || hasCustomDrags || hasHiddenElements) && (
               <button
                 type="button"
                 onClick={handleResetPosterEdits}
@@ -642,6 +683,7 @@ export default function AestheticImageModal({
             <div style={{
               display: 'inline-flex',
               alignItems: 'center',
+              flexWrap: 'wrap',
               gap: 6,
               marginBottom: 10,
               fontSize: 11,
@@ -652,8 +694,28 @@ export default function AestheticImageModal({
               borderRadius: 14,
             }}>
               <span style={{ color: 'var(--gold)', fontWeight: 700 }}>✦ Direct Canvas:</span>
-              <span>Click text on poster to edit · Drag any element to move freely</span>
-              {(hasCustomEdits || hasCustomDrags) && (
+              <span>Click text to edit · Drag to move · Click red bin 🗑️ to delete</span>
+              {hasHiddenElements && (
+                <button
+                  type="button"
+                  onClick={handleRestoreHidden}
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.2)',
+                    border: '1px solid rgba(239, 68, 68, 0.5)',
+                    color: '#ffffff',
+                    borderRadius: 10,
+                    padding: '1px 8px',
+                    fontSize: 10,
+                    cursor: 'pointer',
+                    marginLeft: 4,
+                    fontWeight: 700,
+                  }}
+                  title="Restore removed elements to poster"
+                >
+                  ↺ Restore ({hiddenCount})
+                </button>
+              )}
+              {(hasCustomEdits || hasCustomDrags || hasHiddenElements) && (
                 <button
                   type="button"
                   onClick={handleResetPosterEdits}
@@ -664,12 +726,12 @@ export default function AestheticImageModal({
                     textDecoration: 'underline',
                     fontSize: 10.5,
                     cursor: 'pointer',
-                    marginLeft: 6,
+                    marginLeft: 4,
                     fontWeight: 600,
                   }}
-                  title="Reset edits and positions"
+                  title="Reset all edits, positions, and restored items"
                 >
-                  Reset
+                  Reset All
                 </button>
               )}
             </div>
@@ -712,7 +774,9 @@ export default function AestheticImageModal({
                   customBottomLeft,
                   customBottomRight,
                   dragOffsets,
+                  hiddenElements,
                   onUpdateDragOffset: handleUpdateDragOffset,
+                  onRemoveElement: handleRemoveElement,
                   onUpdateText: handleUpdateText,
                   isExporting: isGenerating,
                 }}
@@ -958,20 +1022,33 @@ export default function AestheticImageModal({
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Sparkles size={16} color="var(--gold)" style={{ flexShrink: 0 }} />
                   <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.35 }}>
-                    <strong style={{ color: 'var(--gold)' }}>Direct Poster Canvas:</strong> Click any text directly on the poster to edit. Drag any item to reposition freely!
+                    <strong style={{ color: 'var(--gold)' }}>Direct Poster Canvas:</strong> Click text to edit · Drag to move · Click red bin 🗑️ to delete
                   </div>
                 </div>
-                {(hasCustomEdits || hasCustomDrags) && (
-                  <button
-                    type="button"
-                    onClick={handleResetPosterEdits}
-                    className="btn btn-ghost btn-sm"
-                    style={{ fontSize: 10, padding: '3px 8px', color: 'var(--gold)', border: '1px solid rgba(201,168,76,0.3)', flexShrink: 0 }}
-                    title="Reset text edits and positions"
-                  >
-                    ↺ Reset
-                  </button>
-                )}
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+                  {hasHiddenElements && (
+                    <button
+                      type="button"
+                      onClick={handleRestoreHidden}
+                      className="btn btn-ghost btn-sm"
+                      style={{ fontSize: 10, padding: '3px 8px', color: '#ffffff', background: 'rgba(239, 68, 68, 0.25)', border: '1px solid rgba(239, 68, 68, 0.5)' }}
+                      title="Restore removed elements"
+                    >
+                      ↺ Restore ({hiddenCount})
+                    </button>
+                  )}
+                  {(hasCustomEdits || hasCustomDrags || hasHiddenElements) && (
+                    <button
+                      type="button"
+                      onClick={handleResetPosterEdits}
+                      className="btn btn-ghost btn-sm"
+                      style={{ fontSize: 10, padding: '3px 8px', color: 'var(--gold)', border: '1px solid rgba(201,168,76,0.3)' }}
+                      title="Reset all edits, positions, and restored items"
+                    >
+                      Reset All
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Toggle Switches */}
