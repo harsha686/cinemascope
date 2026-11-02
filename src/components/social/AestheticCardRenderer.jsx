@@ -52,8 +52,8 @@ export default function AestheticCardRenderer({
   const isWeekendWinner = content.type === SOCIAL_CONTENT_TYPES.WEEKEND_WINNER;
   const isKeyArt = template.isKeyArt;
 
-  // Background image source priority for full-bleed key-art mode
-  const keyArtImage = content.backdropUrl || content.posterUrl;
+  // Background image source priority for full-bleed key-art mode (prioritizes active selected/favorite poster)
+  const keyArtImage = content.selectedPosterUrl || content.posterUrl || content.backdropUrl;
 
   if (isKeyArt) {
     return (

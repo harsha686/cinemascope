@@ -13,6 +13,10 @@ import {
   Send,
   MessageCircle,
   Image as ImageIcon,
+  Star,
+  Upload,
+  Link,
+  Plus,
 } from 'lucide-react';
 import { toPng, toBlob } from 'html-to-image';
 import {
@@ -25,6 +29,12 @@ import {
 } from '../../services/socialSharingService';
 import AestheticCardRenderer from './AestheticCardRenderer';
 import { useApp } from '../../AppContext';
+import {
+  getUserFavoritePoster,
+  setUserFavoritePoster,
+  removeUserFavoritePoster,
+  fetchAvailablePostersForMovie,
+} from '../../services/userPosterService';
 
 export default function AestheticImageModal({
   isOpen,
@@ -80,6 +90,13 @@ export default function AestheticImageModal({
   const [customBottomLeft, setCustomBottomLeft] = useState('');
   const [customBottomRight, setCustomBottomRight] = useState('');
 
+  // Movie Poster Selection & Customization
+  const [availablePosters, setAvailablePosters] = useState([]);
+  const [activePosterUrl, setActivePosterUrl] = useState('');
+  const [loadingPosters, setLoadingPosters] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [manualPosterUrl, setManualPosterUrl] = useState('');
+
   // Helper to convert an image URL to Data URL (base64) using fetch with CORS
   const urlToDataUrl = async (url) => {
     if (!url || typeof url !== 'string' || url.startsWith('data:')) return url;
@@ -127,12 +144,19 @@ export default function AestheticImageModal({
       setCustomRating(initialRatingStr);
       setCustomBottomLeft('CINEMASCOPE EXCLUSIVE');
       setCustomBottomRight('NOW STREAMING');
-      setResolvedContent(normalized);
+
+      const favPoster = getUserFavoritePoster(data?.id || data?.tmdbId);
+      const effectivePosterToUse = favPoster || normalized.posterUrl;
+
+      setResolvedContent({
+        ...normalized,
+        ...(effectivePosterToUse ? { posterUrl: effectivePosterToUse, selectedPosterUrl: effectivePosterToUse } : {})
+      });
 
       // Pre-convert poster and backdrop to base64 Data URLs
       let isCancelled = false;
       const convertImages = async () => {
-        const posterPromise = normalized.posterUrl ? urlToDataUrl(normalized.posterUrl) : Promise.resolve(null);
+        const posterPromise = effectivePosterToUse ? urlToDataUrl(effectivePosterToUse) : Promise.resolve(null);
         const backdropPromise = normalized.backdropUrl ? urlToDataUrl(normalized.backdropUrl) : Promise.resolve(null);
         const postersPromises = (normalized.posters && normalized.posters.length > 0)
           ? Promise.all(normalized.posters.map(p => urlToDataUrl(p)))
@@ -147,7 +171,7 @@ export default function AestheticImageModal({
         if (!isCancelled) {
           setResolvedContent(prev => ({
             ...(prev || normalized),
-            ...(posterUrl ? { posterUrl } : {}),
+            ...(posterUrl ? { posterUrl, selectedPosterUrl: posterUrl } : {}),
             ...(backdropUrl ? { backdropUrl } : {}),
             ...(posters ? { posters } : {}),
           }));
@@ -160,6 +184,85 @@ export default function AestheticImageModal({
       };
     }
   }, [normalized]);
+
+  // Load and discover alternative posters for movie
+  useEffect(() => {
+    if (!isOpen || !data) return;
+    const movieId = data.id || data.tmdbId;
+    const fav = getUserFavoritePoster(movieId);
+    const initialPoster = fav || data.posterUrl || normalized?.posterUrl || '';
+    setActivePosterUrl(initialPoster);
+
+    setLoadingPosters(true);
+    fetchAvailablePostersForMovie(data)
+      .then(posters => {
+        setAvailablePosters(posters);
+        setLoadingPosters(false);
+      })
+      .catch(() => setLoadingPosters(false));
+  }, [isOpen, data]);
+
+  const handleSelectPoster = async (posterUrl) => {
+    if (!posterUrl) return;
+    setActivePosterUrl(posterUrl);
+    const dataUrl = await urlToDataUrl(posterUrl);
+    setResolvedContent(prev => ({
+      ...prev,
+      posterUrl: dataUrl,
+      selectedPosterUrl: dataUrl,
+    }));
+  };
+
+  const handleSaveAsFavorite = () => {
+    const movieId = data?.id || data?.tmdbId;
+    if (!movieId || !activePosterUrl) return;
+    setUserFavoritePoster(movieId, activePosterUrl);
+    setToastMessage('★ Saved as your favorite poster for this movie!');
+  };
+
+  const handleResetToDefault = () => {
+    const movieId = data?.id || data?.tmdbId;
+    if (!movieId) return;
+    removeUserFavoritePoster(movieId);
+    const defaultUrl = data.posterUrl || normalized?.posterUrl;
+    if (defaultUrl) handleSelectPoster(defaultUrl);
+    setToastMessage('Reverted to official theatrical poster.');
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target.result;
+      const customItem = {
+        id: `custom-${Date.now()}`,
+        url: dataUrl,
+        label: 'Uploaded Poster',
+        type: 'custom',
+      };
+      setAvailablePosters(prev => [customItem, ...prev]);
+      handleSelectPoster(dataUrl);
+      setToastMessage('Custom poster uploaded! Click "Keep as Favorite" to save it.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAddUrl = () => {
+    if (!manualPosterUrl.trim()) return;
+    const url = manualPosterUrl.trim();
+    const customItem = {
+      id: `url-${Date.now()}`,
+      url,
+      label: 'Custom Link Poster',
+      type: 'custom',
+    };
+    setAvailablePosters(prev => [customItem, ...prev]);
+    handleSelectPoster(url);
+    setManualPosterUrl('');
+    setShowUrlInput(false);
+    setToastMessage('Custom poster applied! Click "Keep as Favorite" to save it.');
+  };
 
   // Lock body scroll while modal is open & reset controls to hidden by default
   useEffect(() => {
@@ -572,6 +675,167 @@ export default function AestheticImageModal({
             }}
           >
             <div>
+              {/* Choose Poster / Artwork & Set Favorite */}
+              <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--border-subtle)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontFamily: 'var(--font-serif)', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--gold)', fontWeight: 700, margin: 0 }}>
+                    <ImageIcon size={13} color="var(--gold)" />
+                    <span>Choose Poster Artwork ({availablePosters.length || 1})</span>
+                  </label>
+                  {activePosterUrl && activePosterUrl === getUserFavoritePoster(data?.id || data?.tmdbId) && (
+                    <span style={{ fontSize: 10, color: 'var(--gold)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <Star size={11} fill="var(--gold)" /> Favorite
+                    </span>
+                  )}
+                </div>
+
+                {/* Posters Carousel Strip */}
+                <div style={{
+                  display: 'flex',
+                  gap: 8,
+                  overflowX: 'auto',
+                  paddingBottom: 6,
+                  scrollbarWidth: 'thin',
+                }}>
+                  {availablePosters.map((p, idx) => {
+                    const isSelected = activePosterUrl === p.url;
+                    const isFav = p.url === getUserFavoritePoster(data?.id || data?.tmdbId);
+                    return (
+                      <button
+                        key={p.id || idx}
+                        type="button"
+                        onClick={() => handleSelectPoster(p.url)}
+                        title={p.label || 'Select poster'}
+                        style={{
+                          position: 'relative',
+                          width: 52,
+                          height: 78,
+                          flexShrink: 0,
+                          borderRadius: 4,
+                          overflow: 'hidden',
+                          border: isSelected ? '2px solid var(--gold)' : '1px solid rgba(255,255,255,0.15)',
+                          padding: 0,
+                          background: '#000',
+                          cursor: 'pointer',
+                          boxShadow: isSelected ? '0 0 10px rgba(201,168,76,0.5)' : 'none',
+                          transform: isSelected ? 'scale(1.04)' : 'none',
+                          transition: 'all 150ms ease',
+                        }}
+                      >
+                        <img
+                          src={p.url}
+                          alt={p.label}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          onError={e => e.target.src = '/demo-frame.jpg'}
+                        />
+                        {isFav && (
+                          <span style={{
+                            position: 'absolute',
+                            top: 2,
+                            right: 2,
+                            background: 'rgba(0,0,0,0.85)',
+                            color: 'var(--gold)',
+                            borderRadius: '50%',
+                            width: 14,
+                            height: 14,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 9,
+                          }}>
+                            ★
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+
+                  {/* Upload button thumbnail */}
+                  <label
+                    title="Upload custom image from your device"
+                    style={{
+                      width: 52,
+                      height: 78,
+                      flexShrink: 0,
+                      borderRadius: 4,
+                      border: '1px dashed var(--gold)',
+                      background: 'rgba(201,168,76,0.06)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      gap: 4,
+                      color: 'var(--gold)',
+                      fontSize: 9,
+                      textAlign: 'center',
+                      padding: 2,
+                    }}
+                  >
+                    <Upload size={14} />
+                    <span>Upload</span>
+                    <input type="file" accept="image/*" onChange={handleFileUpload} style={{ display: 'none' }} />
+                  </label>
+                </div>
+
+                {/* Favorite Actions & Paste Link */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleSaveAsFavorite}
+                    className="btn btn-outline btn-sm"
+                    style={{
+                      fontSize: 11,
+                      padding: '4px 10px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      borderColor: 'var(--gold)',
+                      color: 'var(--gold)',
+                      background: activePosterUrl === getUserFavoritePoster(data?.id || data?.tmdbId) ? 'rgba(201,168,76,0.18)' : 'transparent',
+                    }}
+                  >
+                    <Star size={12} fill={activePosterUrl === getUserFavoritePoster(data?.id || data?.tmdbId) ? 'var(--gold)' : 'none'} />
+                    <span>{activePosterUrl === getUserFavoritePoster(data?.id || data?.tmdbId) ? '✓ Saved as Favorite' : 'Keep as My Favorite Poster'}</span>
+                  </button>
+
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {getUserFavoritePoster(data?.id || data?.tmdbId) && (
+                      <button
+                        type="button"
+                        onClick={handleResetToDefault}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 10, cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        Reset
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowUrlInput(!showUrlInput)}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 10, cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                      {showUrlInput ? 'Cancel' : 'Paste Link'}
+                    </button>
+                  </div>
+                </div>
+
+                {showUrlInput && (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                    <input
+                      type="text"
+                      className="input"
+                      style={{ flex: 1, fontSize: 11, padding: '4px 8px' }}
+                      value={manualPosterUrl}
+                      onChange={e => setManualPosterUrl(e.target.value)}
+                      placeholder="https://... image URL"
+                    />
+                    <button type="button" onClick={handleAddUrl} className="btn btn-primary btn-sm" style={{ fontSize: 11, padding: '4px 10px' }}>
+                      Apply
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Template Style Selector */}
               <div style={{ marginBottom: 20 }}>
                 <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-serif)', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>

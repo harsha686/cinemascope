@@ -1,16 +1,33 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Star, Trophy, Medal, Award } from 'lucide-react';
 import StarRating from '../reviews/StarRating';
 import { useApp, getEffectiveMovieStatus } from '../../AppContext';
 import PosterPlaceholder from '../shared/PosterPlaceholder';
+import { getUserFavoritePoster } from '../../services/userPosterService';
 
 export default function MovieCard({ movie, compact = false, topRank = null }) {
   const navigate = useNavigate();
   const { getMovieRating } = useApp();
 
+  const movieId = movie?.id || movie?.tmdbId;
+  const [favPoster, setFavPoster] = useState(() => getUserFavoritePoster(movieId));
+
+  useEffect(() => {
+    setFavPoster(getUserFavoritePoster(movieId));
+    const handleFavChange = (e) => {
+      const cleanId = String(movieId).toLowerCase().trim();
+      if (e.detail?.movieId === cleanId) {
+        setFavPoster(e.detail.posterUrl || null);
+      }
+    };
+    window.addEventListener('cinemascope_fav_poster_changed', handleFavChange);
+    return () => window.removeEventListener('cinemascope_fav_poster_changed', handleFavChange);
+  }, [movieId]);
+
   if (!movie) return null;
 
+  const displayPoster = favPoster || movie.posterUrl;
   const { average, count } = getMovieRating(movie.id);
 
   const effStatus = movie.status === 'ARCHIVED' ? 'ARCHIVED' : getEffectiveMovieStatus(movie);
@@ -92,9 +109,9 @@ export default function MovieCard({ movie, compact = false, topRank = null }) {
     >
       {/* Poster Image Container */}
       <div style={{ position: 'relative', width: '100%', aspectRatio: '2/3', background: '#080705', overflow: 'hidden', borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0' }}>
-        {movie.posterUrl ? (
+        {displayPoster ? (
           <img
-            src={movie.posterUrl}
+            src={displayPoster}
             alt={`${movie.title} movie poster`}
             loading="lazy"
             style={{
@@ -117,11 +134,35 @@ export default function MovieCard({ movie, compact = false, topRank = null }) {
           style={{
             position: 'absolute',
             inset: 0,
-            display: movie.posterUrl ? 'none' : 'flex',
+            display: displayPoster ? 'none' : 'flex',
           }}
         >
           <PosterPlaceholder title={movie.title} style={{ position: 'absolute', inset: 0 }} />
         </div>
+
+        {/* Favorite Poster Badge if user selected one */}
+        {favPoster && (
+          <div style={{ position: 'absolute', bottom: 6, right: 6, zIndex: 2 }}>
+            <span
+              style={{
+                fontSize: 8,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                background: 'rgba(0,0,0,0.85)',
+                color: 'var(--gold)',
+                border: '1px solid var(--gold)',
+                padding: '2px 5px',
+                borderRadius: 3,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 2,
+              }}
+              title="Your saved favorite poster"
+            >
+              <Star size={8} fill="var(--gold)" /> FAV
+            </span>
+          </div>
+        )}
 
         {/* Status Badge Overlay */}
         <div style={{ position: 'absolute', top: 6, left: 6, zIndex: 2 }}>

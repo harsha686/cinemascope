@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck, Tv, Film, Users, Layers, Share2, Copy, Check, ExternalLink, Send, MessageCircle, Ticket } from 'lucide-react';
+import { Calendar, Clock, Play, MapPin, Monitor, Sliders, MessageSquare, ChevronRight, Globe, ShieldCheck, Tv, Film, Users, Layers, Share2, Copy, Check, ExternalLink, Send, MessageCircle, Ticket, Star } from 'lucide-react';
 import { useApp, getEffectiveMovieStatus } from '../AppContext';
 import RatingBreakdown from '../components/reviews/RatingBreakdown';
 import ReviewCard from '../components/reviews/ReviewCard';
@@ -12,6 +12,8 @@ import OttStreamingInfo from '../components/movies/OttStreamingInfo';
 import WeekendWinnerBadge from '../components/weekend/WeekendWinnerBadge';
 import ShareButton from '../components/social/ShareButton';
 import SocialMetaTags from '../components/social/SocialMetaTags';
+import FavoritePosterPickerModal from '../components/movies/FavoritePosterPickerModal';
+import { getUserFavoritePoster } from '../services/userPosterService';
 import { SOCIAL_CONTENT_TYPES } from '../services/socialSharingService';
 import { getMovieWinningHistory, isWeekendSeries } from '../services/weekendPickService';
 import { fetchFullTmdbMovieDetails } from '../services/tmdbService';
@@ -146,6 +148,20 @@ export default function MovieDetailPage() {
   const [activeSectionTab, setActiveSectionTab] = useState('reviews'); // 'reviews' | 'streaming' | 'watch-in' | 'watch-now' | 'about' | 'cast' | 'all'
   const [sharingPoster, setSharingPoster] = useState(false);
   const [copiedDmText, setCopiedDmText] = useState(false);
+  const [showPosterModal, setShowPosterModal] = useState(false);
+  const [userFavPoster, setUserFavPoster] = useState(() => getUserFavoritePoster(movieId));
+
+  useEffect(() => {
+    setUserFavPoster(getUserFavoritePoster(movieId));
+    const handleFavChange = (e) => {
+      const cleanId = String(movieId).toLowerCase().trim();
+      if (e.detail?.movieId === cleanId) {
+        setUserFavPoster(e.detail.posterUrl || null);
+      }
+    };
+    window.addEventListener('cinemascope_fav_poster_changed', handleFavChange);
+    return () => window.removeEventListener('cinemascope_fav_poster_changed', handleFavChange);
+  }, [movieId]);
 
   const handleCopyDmText = () => {
     if (!movie) return;
@@ -156,7 +172,8 @@ export default function MovieDetailPage() {
   };
 
   const handleSharePoster = async () => {
-    if (!movie || !movie.posterUrl) return;
+    const posterToShare = userFavPoster || movie?.posterUrl;
+    if (!movie || !posterToShare) return;
     setSharingPoster(true);
     const title = movie.title;
     const url = `${window.location.origin}/#/movie/${movie.id || movie.tmdbId}`;
@@ -164,7 +181,7 @@ export default function MovieDetailPage() {
 
     if (navigator.canShare) {
       try {
-        const res = await fetch(movie.posterUrl, { mode: 'cors' });
+        const res = await fetch(posterToShare, { mode: 'cors' });
         if (res.ok) {
           const blob = await res.blob();
           const file = new File([blob], `${title.replace(/[^a-zA-Z0-9]/g, '_')}_poster.jpg`, { type: blob.type || 'image/jpeg' });
@@ -431,69 +448,113 @@ export default function MovieDetailPage() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 32, alignItems: 'end' }} className="hero-grid">
-            {/* Real Official Poster */}
+            {/* Real Official / User Favorite Poster */}
             <div style={{
               width: 220,
               aspectRatio: '2/3',
               borderRadius: 'var(--radius-sm)',
               overflow: 'hidden',
-              boxShadow: 'var(--shadow-card), 0 0 30px rgba(0,0,0,0.8)',
-              border: '1px solid var(--border)',
+              boxShadow: userFavPoster ? 'var(--shadow-card), 0 0 35px rgba(220, 182, 91, 0.45)' : 'var(--shadow-card), 0 0 30px rgba(0,0,0,0.8)',
+              border: userFavPoster ? '2px solid var(--gold)' : '1px solid var(--border)',
               flexShrink: 0,
               position: 'relative',
             }}>
               <img
-                src={movie.posterUrl}
-                alt={`${movie.title} official poster`}
+                src={userFavPoster || movie.posterUrl}
+                alt={`${movie.title} poster`}
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 onError={(e) => { e.target.src = '/demo-frame.jpg'; }}
               />
-              {/* Direct Share Poster Button */}
-              {movie.posterUrl && (
+
+              {/* Direct Choose Poster & Share Buttons */}
+              <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 6, zIndex: 3 }}>
                 <button
                   type="button"
-                  onClick={handleSharePoster}
-                  title="Share poster directly with link"
+                  onClick={() => setShowPosterModal(true)}
+                  title="Choose, upload, or set your favorite poster cut"
                   style={{
-                    position: 'absolute',
-                    top: 8,
-                    right: 8,
-                    background: 'rgba(0, 0, 0, 0.78)',
+                    background: userFavPoster ? 'rgba(220, 182, 91, 0.95)' : 'rgba(0, 0, 0, 0.78)',
                     backdropFilter: 'blur(8px)',
-                    border: '1px solid rgba(255, 255, 255, 0.25)',
-                    color: '#ffffff',
+                    border: '1px solid ' + (userFavPoster ? 'var(--gold)' : 'rgba(255, 255, 255, 0.25)'),
+                    color: userFavPoster ? '#000000' : '#ffffff',
                     borderRadius: 4,
                     padding: '3px 8px',
                     fontSize: 10,
-                    fontWeight: 600,
+                    fontWeight: 700,
                     letterSpacing: '0.04em',
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 4,
                     cursor: 'pointer',
-                    zIndex: 3,
                     boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
                     transition: 'all var(--transition-fast)',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.95)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.78)'}
+                  onMouseEnter={e => {
+                    if (!userFavPoster) e.currentTarget.style.background = 'rgba(0, 0, 0, 0.95)';
+                  }}
+                  onMouseLeave={e => {
+                    if (!userFavPoster) e.currentTarget.style.background = 'rgba(0, 0, 0, 0.78)';
+                  }}
                 >
-                  <Share2 size={11} />
-                  <span>{sharingPoster ? 'Sharing...' : 'Share Poster'}</span>
+                  <Star size={11} fill={userFavPoster ? '#000000' : 'none'} />
+                  <span>{userFavPoster ? 'Fav Poster' : 'Choose Poster'}</span>
                 </button>
-              )}
+
+                {(userFavPoster || movie.posterUrl) && (
+                  <button
+                    type="button"
+                    onClick={handleSharePoster}
+                    title="Share poster directly with link"
+                    style={{
+                      background: 'rgba(0, 0, 0, 0.78)',
+                      backdropFilter: 'blur(8px)',
+                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                      color: '#ffffff',
+                      borderRadius: 4,
+                      padding: '3px 8px',
+                      fontSize: 10,
+                      fontWeight: 600,
+                      letterSpacing: '0.04em',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      cursor: 'pointer',
+                      zIndex: 3,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                      transition: 'all var(--transition-fast)',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.95)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.78)'}
+                  >
+                    <Share2 size={11} />
+                    <span>{sharingPoster ? 'Sharing...' : 'Share'}</span>
+                  </button>
+                )}
+              </div>
+
               <div style={{
                 position: 'absolute',
                 bottom: 8,
                 left: 8,
                 fontSize: 9,
                 fontFamily: 'var(--font-serif)',
-                background: 'rgba(0,0,0,0.75)',
+                background: 'rgba(0,0,0,0.82)',
                 color: 'var(--gold)',
                 padding: '2px 6px',
                 borderRadius: 2,
+                border: userFavPoster ? '1px solid rgba(220, 182, 91, 0.4)' : 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
               }}>
-                {movie.isTv ? 'OFFICIAL SERIES POSTER' : (movie.posterSourceType || 'OFFICIAL') + ' POSTER'}
+                {userFavPoster ? (
+                  <>
+                    <Star size={10} fill="var(--gold)" />
+                    <span>YOUR FAVORITE POSTER</span>
+                  </>
+                ) : (
+                  <span>{movie.isTv ? 'OFFICIAL SERIES POSTER' : (movie.posterSourceType || 'OFFICIAL') + ' POSTER'}</span>
+                )}
               </div>
             </div>
 
@@ -736,6 +797,8 @@ export default function MovieDetailPage() {
                   contentType={SOCIAL_CONTENT_TYPES.MOVIE}
                   data={{
                     ...movie,
+                    posterUrl: userFavPoster || movie.posterUrl,
+                    selectedPosterUrl: userFavPoster || movie.posterUrl,
                     rating: movieDisplayScore,
                     displayScore: movieDisplayScore,
                     personalRating: userExistingReview?.rating || movie.personalRating || null,
@@ -1871,6 +1934,14 @@ export default function MovieDetailPage() {
           </button>
         </div>
       </div>
+
+      {/* Modal to choose / upload favorite movie poster artwork */}
+      <FavoritePosterPickerModal
+        isOpen={showPosterModal}
+        onClose={() => setShowPosterModal(false)}
+        movie={movie}
+        onPosterChanged={(newPoster) => setUserFavPoster(newPoster)}
+      />
 
       <style>{`
         @media (max-width: 768px) {
