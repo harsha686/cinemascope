@@ -174,9 +174,23 @@ export default function AestheticImageModal({
   // Movie Poster Selection & Customization
   const [availablePosters, setAvailablePosters] = useState([]);
   const [activePosterUrl, setActivePosterUrl] = useState('');
+  const activePosterUrlRef = useRef('');
+  const initializedMovieIdRef = useRef(null);
+  const postersLoadedMovieIdRef = useRef(null);
   const [loadingPosters, setLoadingPosters] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [manualPosterUrl, setManualPosterUrl] = useState('');
+
+  const movieId = data?.id || data?.tmdbId;
+
+  // Reset tracking refs when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      initializedMovieIdRef.current = null;
+      postersLoadedMovieIdRef.current = null;
+      activePosterUrlRef.current = '';
+    }
+  }, [isOpen]);
 
   // Helper to convert an image URL to Data URL (base64) using fetch with CORS
   const urlToDataUrl = async (url) => {
@@ -213,66 +227,66 @@ export default function AestheticImageModal({
   const [resolvedContent, setResolvedContent] = useState(null);
 
   useEffect(() => {
-    if (normalized) {
-      setCustomHeadline(normalized.headline || '');
-      setCustomQuote(normalized.quote || '');
-      setCustomAppName('CINEMASCOPE');
-      setCustomTitle(normalized.title || '');
-      setCustomSubtitle(normalized.subtitle || '');
-      const initialRatingStr = contentType === SOCIAL_CONTENT_TYPES.REVIEW
-        ? (normalized.userRating != null ? String(normalized.userRating) : (normalized.rating != null ? String(normalized.rating) : '5.0'))
-        : (normalized.rating != null ? String(normalized.rating) : (normalized.userRating != null ? String(normalized.userRating) : '5.0'));
-      setCustomRating(initialRatingStr);
-      setCustomBottomLeft('CINEMASCOPE EXCLUSIVE');
-      setCustomBottomRight('NOW STREAMING');
+    if (!isOpen || !normalized || !movieId) return;
+    if (initializedMovieIdRef.current === movieId) return;
+    initializedMovieIdRef.current = movieId;
 
-      const favPoster = getUserFavoritePoster(data?.id || data?.tmdbId);
-      const effectivePosterToUse = favPoster || normalized.posterUrl;
+    setCustomHeadline(normalized.headline || '');
+    setCustomQuote(normalized.quote || '');
+    setCustomAppName('CINEMASCOPE');
+    setCustomTitle(normalized.title || '');
+    setCustomSubtitle(normalized.subtitle || '');
+    const initialRatingStr = contentType === SOCIAL_CONTENT_TYPES.REVIEW
+      ? (normalized.userRating != null ? String(normalized.userRating) : (normalized.rating != null ? String(normalized.rating) : '5.0'))
+      : (normalized.rating != null ? String(normalized.rating) : (normalized.userRating != null ? String(normalized.userRating) : '5.0'));
+    setCustomRating(initialRatingStr);
+    setCustomBottomLeft('CINEMASCOPE EXCLUSIVE');
+    setCustomBottomRight('NOW STREAMING');
 
-      setResolvedContent({
-        ...normalized,
-        ...(effectivePosterToUse ? { posterUrl: effectivePosterToUse, selectedPosterUrl: effectivePosterToUse } : {})
-      });
+    const favPoster = getUserFavoritePoster(movieId);
+    const effectivePosterToUse = favPoster || normalized.posterUrl || '';
+    setActivePosterUrl(effectivePosterToUse);
+    activePosterUrlRef.current = effectivePosterToUse;
 
-      // Pre-convert poster and backdrop to base64 Data URLs
-      let isCancelled = false;
-      const convertImages = async () => {
-        const posterPromise = effectivePosterToUse ? urlToDataUrl(effectivePosterToUse) : Promise.resolve(null);
-        const backdropPromise = normalized.backdropUrl ? urlToDataUrl(normalized.backdropUrl) : Promise.resolve(null);
-        const postersPromises = (normalized.posters && normalized.posters.length > 0)
-          ? Promise.all(normalized.posters.map(p => urlToDataUrl(p)))
-          : Promise.resolve(null);
+    setResolvedContent({
+      ...normalized,
+      ...(effectivePosterToUse ? { posterUrl: effectivePosterToUse, selectedPosterUrl: effectivePosterToUse } : {})
+    });
 
-        const [posterUrl, backdropUrl, posters] = await Promise.all([
-          posterPromise,
-          backdropPromise,
-          postersPromises,
-        ]);
+    // Pre-convert poster and backdrop to base64 Data URLs
+    let isCancelled = false;
+    const convertImages = async () => {
+      const posterPromise = effectivePosterToUse ? urlToDataUrl(effectivePosterToUse) : Promise.resolve(null);
+      const backdropPromise = normalized.backdropUrl ? urlToDataUrl(normalized.backdropUrl) : Promise.resolve(null);
 
-        if (!isCancelled) {
-          setResolvedContent(prev => ({
+      const [posterUrl, backdropUrl] = await Promise.all([
+        posterPromise,
+        backdropPromise,
+      ]);
+
+      if (!isCancelled) {
+        setResolvedContent(prev => {
+          const userHasSelectedAnother = activePosterUrlRef.current && activePosterUrlRef.current !== effectivePosterToUse;
+          return {
             ...(prev || normalized),
-            ...(posterUrl ? { posterUrl, selectedPosterUrl: posterUrl } : {}),
+            ...(userHasSelectedAnother ? {} : (posterUrl ? { posterUrl, selectedPosterUrl: posterUrl } : {})),
             ...(backdropUrl ? { backdropUrl } : {}),
-            ...(posters ? { posters } : {}),
-          }));
-        }
-      };
+          };
+        });
+      }
+    };
 
-      convertImages();
-      return () => {
-        isCancelled = true;
-      };
-    }
-  }, [normalized]);
+    convertImages();
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, normalized, movieId, contentType]);
 
-  // Load and discover alternative posters for movie
+  // Load and discover alternative posters for movie (once per movie session)
   useEffect(() => {
-    if (!isOpen || !data) return;
-    const movieId = data.id || data.tmdbId;
-    const fav = getUserFavoritePoster(movieId);
-    const initialPoster = fav || data.posterUrl || normalized?.posterUrl || '';
-    setActivePosterUrl(initialPoster);
+    if (!isOpen || !movieId) return;
+    if (postersLoadedMovieIdRef.current === movieId) return;
+    postersLoadedMovieIdRef.current = movieId;
 
     setLoadingPosters(true);
     fetchAvailablePostersForMovie(data)
@@ -281,17 +295,31 @@ export default function AestheticImageModal({
         setLoadingPosters(false);
       })
       .catch(() => setLoadingPosters(false));
-  }, [isOpen, data]);
+  }, [isOpen, movieId, data]);
 
   const handleSelectPoster = async (posterUrl) => {
     if (!posterUrl) return;
+    activePosterUrlRef.current = posterUrl;
     setActivePosterUrl(posterUrl);
-    const dataUrl = await urlToDataUrl(posterUrl);
+
+    // Update canvas immediately with selected poster URL (zero latency, zero revert)
     setResolvedContent(prev => ({
-      ...prev,
-      posterUrl: dataUrl,
-      selectedPosterUrl: dataUrl,
+      ...(prev || normalized),
+      posterUrl,
+      selectedPosterUrl: posterUrl,
     }));
+
+    // Pre-convert selected poster to Data URL in background for export
+    try {
+      const dataUrl = await urlToDataUrl(posterUrl);
+      if (activePosterUrlRef.current === posterUrl) {
+        setResolvedContent(prev => ({
+          ...(prev || normalized),
+          posterUrl: dataUrl,
+          selectedPosterUrl: dataUrl,
+        }));
+      }
+    } catch (_) {}
   };
 
   const handleSaveAsFavorite = () => {
@@ -520,6 +548,18 @@ export default function AestheticImageModal({
     });
     setTimeout(() => setCopiedLink(false), 2500);
   };
+
+  // Compute final content to render on the card, guaranteeing the active chosen poster stays active
+  const displayContent = React.useMemo(() => {
+    const base = resolvedContent || normalized;
+    if (!base) return null;
+    const currentPoster = activePosterUrl || base.selectedPosterUrl || base.posterUrl;
+    return {
+      ...base,
+      posterUrl: currentPoster,
+      selectedPosterUrl: currentPoster,
+    };
+  }, [resolvedContent, normalized, activePosterUrl]);
 
   return createPortal(
     <div
@@ -777,7 +817,7 @@ export default function AestheticImageModal({
             >
               <AestheticCardRenderer
                 cardRef={cardRef}
-                content={resolvedContent || normalized}
+                content={displayContent}
                 format={selectedFormat}
                 template={selectedTemplate}
                 options={{
