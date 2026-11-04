@@ -226,6 +226,18 @@ export default function AestheticImageModal({
 
   const [resolvedContent, setResolvedContent] = useState(null);
 
+  // Compute final content to render on the card, guaranteeing the active chosen poster stays active
+  const displayContent = React.useMemo(() => {
+    const base = resolvedContent || normalized;
+    if (!base) return null;
+    const currentPoster = activePosterUrl || base.selectedPosterUrl || base.posterUrl;
+    return {
+      ...base,
+      posterUrl: currentPoster,
+      selectedPosterUrl: currentPoster,
+    };
+  }, [resolvedContent, normalized, activePosterUrl]);
+
   useEffect(() => {
     if (!isOpen || !normalized || !movieId) return;
     if (initializedMovieIdRef.current === movieId) return;
@@ -548,18 +560,6 @@ export default function AestheticImageModal({
     });
     setTimeout(() => setCopiedLink(false), 2500);
   };
-
-  // Compute final content to render on the card, guaranteeing the active chosen poster stays active
-  const displayContent = React.useMemo(() => {
-    const base = resolvedContent || normalized;
-    if (!base) return null;
-    const currentPoster = activePosterUrl || base.selectedPosterUrl || base.posterUrl;
-    return {
-      ...base,
-      posterUrl: currentPoster,
-      selectedPosterUrl: currentPoster,
-    };
-  }, [resolvedContent, normalized, activePosterUrl]);
 
   return createPortal(
     <div
