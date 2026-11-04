@@ -1068,65 +1068,6 @@ export default function AestheticImageModal({
                 </div>
               </div>
 
-              {/* Direct Canvas Editing Helper Card */}
-              <div style={{
-                marginBottom: 16,
-                padding: '12px 14px',
-                background: 'rgba(201,168,76,0.07)',
-                border: '1px solid rgba(201,168,76,0.25)',
-                borderRadius: 6,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 10,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Sparkles size={16} color="var(--gold)" style={{ flexShrink: 0 }} />
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.35 }}>
-                    <strong style={{ color: 'var(--gold)' }}>Direct Poster Canvas:</strong> Click text to edit · Drag to move · Click red bin 🗑️ to delete
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                  {hasHiddenElements && (
-                    <button
-                      type="button"
-                      onClick={handleRestoreHidden}
-                      className="btn btn-ghost btn-sm"
-                      style={{ fontSize: 10, padding: '3px 8px', color: '#ffffff', background: 'rgba(239, 68, 68, 0.25)', border: '1px solid rgba(239, 68, 68, 0.5)' }}
-                      title="Restore removed elements"
-                    >
-                      ↺ Restore ({hiddenCount})
-                    </button>
-                  )}
-                  {(hasCustomEdits || hasCustomDrags || hasHiddenElements) && (
-                    <button
-                      type="button"
-                      onClick={handleResetPosterEdits}
-                      className="btn btn-ghost btn-sm"
-                      style={{ fontSize: 10, padding: '3px 8px', color: 'var(--gold)', border: '1px solid rgba(201,168,76,0.3)' }}
-                      title="Reset all edits, positions, and restored items"
-                    >
-                      Reset All
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Toggle Switches */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
-                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, cursor: 'pointer' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Show Star Rating</span>
-                  <input type="checkbox" checked={showRating} onChange={e => setShowRating(e.target.checked)} />
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, cursor: 'pointer' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Show Reviewer Name</span>
-                  <input type="checkbox" checked={showAuthor} onChange={e => setShowAuthor(e.target.checked)} />
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, cursor: 'pointer' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Include App Watermark</span>
-                  <input type="checkbox" checked={showBranding} onChange={e => setShowBranding(e.target.checked)} />
-                </label>
-              </div>
             </div>
 
             {/* Bottom Actions Bar */}
