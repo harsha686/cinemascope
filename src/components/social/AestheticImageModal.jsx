@@ -192,14 +192,14 @@ export default function AestheticImageModal({
     }
   }, [isOpen]);
 
-  // Helper to convert an image URL to Data URL (base64) using fetch with CORS
+  // Helper to convert an image URL to Data URL (base64) using CORS proxy for TMDB if needed
   const urlToDataUrl = async (url) => {
     if (!url || typeof url !== 'string' || url.startsWith('data:')) return url;
     try {
-      // Append a cache-buster so browser doesn't return non-CORS cached response
-      const separator = url.includes('?') ? '&' : '?';
-      const corsUrl = `${url}${separator}cors_ts=${Date.now()}`;
-      const response = await fetch(corsUrl, { mode: 'cors' });
+      const fetchUrl = url.includes('image.tmdb.org') || url.includes('tmdb.org')
+        ? `https://wsrv.nl/?url=${encodeURIComponent(url)}`
+        : url;
+      const response = await fetch(fetchUrl);
       if (!response.ok) return url;
       const blob = await response.blob();
       return new Promise((resolve) => {

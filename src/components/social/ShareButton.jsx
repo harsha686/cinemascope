@@ -88,7 +88,10 @@ export default function ShareButton({
 
     if (posterUrl && navigator.canShare) {
       try {
-        const res = await fetch(posterUrl, { mode: 'cors' });
+        const fetchUrl = (posterUrl.includes('image.tmdb.org') || posterUrl.includes('tmdb.org'))
+          ? `https://wsrv.nl/?url=${encodeURIComponent(posterUrl)}`
+          : posterUrl;
+        const res = await fetch(fetchUrl);
         if (res.ok) {
           const blob = await res.blob();
           const file = new File([blob], `${title.replace(/[^a-zA-Z0-9]/g, '_')}_poster.jpg`, { type: blob.type || 'image/jpeg' });
@@ -124,7 +127,10 @@ export default function ShareButton({
     // If posterUrl is available and navigator.canShare files is supported, share image file directly!
     if (posterUrl && navigator.canShare) {
       try {
-        const res = await fetch(posterUrl, { mode: 'cors' });
+        const fetchUrl = (posterUrl.includes('image.tmdb.org') || posterUrl.includes('tmdb.org'))
+          ? `https://wsrv.nl/?url=${encodeURIComponent(posterUrl)}`
+          : posterUrl;
+        const res = await fetch(fetchUrl);
         if (res.ok) {
           const blob = await res.blob();
           const file = new File([blob], `${title.replace(/[^a-zA-Z0-9]/g, '_')}_poster.jpg`, { type: blob.type || 'image/jpeg' });

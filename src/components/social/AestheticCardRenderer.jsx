@@ -324,7 +324,12 @@ export default function AestheticCardRenderer({
   const isKeyArt = template.isKeyArt;
 
   // Background image source priority for full-bleed key-art mode (prioritizes active selected/favorite poster)
-  const keyArtImage = content.selectedPosterUrl || content.posterUrl || content.backdropUrl;
+  const rawKeyArtImage = content.selectedPosterUrl || content.posterUrl || content.backdropUrl;
+  const keyArtImage = rawKeyArtImage?.startsWith('data:')
+    ? rawKeyArtImage
+    : (rawKeyArtImage && (rawKeyArtImage.includes('image.tmdb.org') || rawKeyArtImage.includes('tmdb.org'))
+      ? `https://wsrv.nl/?url=${encodeURIComponent(rawKeyArtImage)}`
+      : rawKeyArtImage);
 
   if (isKeyArt) {
     return (
@@ -356,7 +361,7 @@ export default function AestheticCardRenderer({
           <img
             src={keyArtImage}
             alt={content.title}
-            crossOrigin={keyArtImage.startsWith('data:') ? undefined : 'anonymous'}
+            crossOrigin="anonymous"
             style={{
               position: 'absolute',
               inset: 0,
@@ -969,21 +974,30 @@ export default function AestheticCardRenderer({
                   justifyContent: 'center',
                 }}
               >
-                <img
-                  src={content.posterUrl}
-                  alt={content.title}
-                  crossOrigin={content.posterUrl?.startsWith('data:') ? undefined : 'anonymous'}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    borderRadius: template.isScrapbook ? 1 : 7,
-                    display: 'block',
-                  }}
-                  onError={e => {
-                    console.warn('Poster failed to load:', content.posterUrl);
-                  }}
-                />
+                {(() => {
+                  const safePosterUrl = content.posterUrl?.startsWith('data:')
+                    ? content.posterUrl
+                    : (content.posterUrl && (content.posterUrl.includes('image.tmdb.org') || content.posterUrl.includes('tmdb.org'))
+                      ? `https://wsrv.nl/?url=${encodeURIComponent(content.posterUrl)}`
+                      : content.posterUrl);
+                  return (
+                    <img
+                      src={safePosterUrl}
+                      alt={content.title}
+                      crossOrigin="anonymous"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        borderRadius: template.isScrapbook ? 1 : 7,
+                        display: 'block',
+                      }}
+                      onError={e => {
+                        console.warn('Poster failed to load:', content.posterUrl);
+                      }}
+                    />
+                  );
+                })()}
                 {isWeekendWinner && (
                   <div style={{
                     position: 'absolute',
