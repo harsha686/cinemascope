@@ -70,24 +70,45 @@ export default function AestheticImageModal({
   };
 
   const handleRemoveElement = (id) => {
-    setHiddenElements(prev => ({
-      ...prev,
-      [id]: true,
-    }));
+    setHiddenElements(prev => {
+      const next = { ...prev, [id]: true };
+      if (id === 'quote' || id === 'card_quote') {
+        next.quote = true;
+        next.card_quote = true;
+      }
+      return next;
+    });
     setToastMessage('🗑️ Element removed. Click "Restore" or "Reset" anytime to bring it back.');
   };
 
   const handleRestoreHidden = () => {
     setHiddenElements({});
+    if (!customQuote || !customQuote.trim()) {
+      setCustomQuote(normalized?.quote || 'CinemaScope Official Selection');
+    }
+    if (!customHeadline || !customHeadline.trim()) {
+      setCustomHeadline(normalized?.headline || 'CINEMASCOPE SELECTION');
+    }
     setToastMessage('All removed elements restored to poster.');
   };
 
   const handleUpdateText = (field, val) => {
     setHasCustomEdits(true);
+    const trimmed = (val || '').trim();
     if (field === 'title') setCustomTitle(val);
     else if (field === 'subtitle') setCustomSubtitle(val);
-    else if (field === 'headline') setCustomHeadline(val);
-    else if (field === 'quote') setCustomQuote(val);
+    else if (field === 'headline') {
+      setCustomHeadline(val);
+      if (!trimmed) {
+        setHiddenElements(prev => ({ ...prev, headline: true }));
+      }
+    }
+    else if (field === 'quote') {
+      setCustomQuote(val);
+      if (!trimmed) {
+        setHiddenElements(prev => ({ ...prev, quote: true, card_quote: true }));
+      }
+    }
     else if (field === 'rating') setCustomRating(val);
     else if (field === 'appName') setCustomAppName(val);
     else if (field === 'genreBadge') setCustomGenreBadge(val);

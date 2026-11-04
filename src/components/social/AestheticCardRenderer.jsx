@@ -24,8 +24,8 @@ export function DraggableBox({
 
   const handlePointerDown = (e) => {
     if (isExporting) return;
-    // Don't drag if user clicked directly on a button (like the trash bin) or active editable text
-    if (e.target.closest('button')) {
+    // Don't drag if event was handled or clicked directly on a button (like the trash bin)
+    if (e.defaultPrevented || (e.target && e.target.closest && e.target.closest('button'))) {
       return;
     }
     if (e.target.isContentEditable && document.activeElement === e.target) {
@@ -136,37 +136,54 @@ export function DraggableBox({
           {onRemove && (
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
+              onPointerDown={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
+                onRemove(id);
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onRemove(id);
+              }}
+              onTouchStart={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onRemove(id);
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 onRemove(id);
               }}
               title="Remove this element from poster"
               style={{
-                background: 'rgba(220, 38, 38, 0.95)',
+                background: '#dc2626',
                 border: '1px solid #ef4444',
                 color: '#ffffff',
                 borderRadius: 3,
-                width: 19,
-                height: 17,
+                width: 22,
+                height: 20,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
                 padding: 0,
-                boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.7)',
                 transition: 'transform 100ms ease, background 100ms ease',
+                pointerEvents: 'auto',
+                userSelect: 'none',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'scale(1.15)';
-                e.currentTarget.style.background = '#dc2626';
+                e.currentTarget.style.background = '#ef4444';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.background = 'rgba(220, 38, 38, 0.95)';
+                e.currentTarget.style.background = '#dc2626';
               }}
             >
-              <Trash2 size={10} />
+              <Trash2 size={11} style={{ pointerEvents: 'none' }} />
             </button>
           )}
         </div>
@@ -208,6 +225,12 @@ export function EditableText({
     }
   };
 
+  const handleInput = (e) => {
+    if (onChange) {
+      onChange(e.currentTarget.innerText.trim());
+    }
+  };
+
   const handleKeyDown = (e) => {
     if (!multiline && e.key === 'Enter') {
       e.preventDefault();
@@ -222,6 +245,7 @@ export function EditableText({
       suppressContentEditableWarning={true}
       onFocus={() => setIsFocused(true)}
       onBlur={handleBlur}
+      onInput={handleInput}
       onKeyDown={handleKeyDown}
       title={isExporting ? undefined : 'Click to edit text directly'}
       className={`editable-poster-text ${className}`}
@@ -395,7 +419,7 @@ export default function AestheticCardRenderer({
           )}
 
           {/* Headline / Award Category */}
-          {!hiddenElements.headline && (headline || !isExporting) && (
+          {!hiddenElements.headline && Boolean(headline && headline.trim()) && (
             <div style={{ display: 'block', margin: '0 auto 6px' }}>
               <DraggableBox
                 id="headline"
@@ -415,7 +439,7 @@ export default function AestheticCardRenderer({
                   textShadow: '0 2px 8px rgba(0,0,0,0.9)',
                 }}>
                   <EditableText
-                    value={headline || (isExporting ? '' : 'FEATURE FILM OF THE YEAR')}
+                    value={headline}
                     onChange={v => onUpdateText && onUpdateText('headline', v)}
                     isExporting={isExporting}
                   />
@@ -425,7 +449,7 @@ export default function AestheticCardRenderer({
           )}
 
           {/* Review excerpt / Quote line (Draggable & with Bin Icon!) */}
-          {!hiddenElements.quote && (quote || !isExporting) && (
+          {!hiddenElements.quote && Boolean(quote && quote.trim()) && (
             <div style={{ display: 'block', margin: '0 auto', maxWidth: '90%' }}>
               <DraggableBox
                 id="quote"
@@ -445,24 +469,12 @@ export default function AestheticCardRenderer({
                   lineHeight: 1.5,
                   fontStyle: 'italic',
                 }}>
-                  {quote ? (
-                    <>
-                      “<EditableText
-                        value={quote}
-                        multiline
-                        onChange={v => onUpdateText && onUpdateText('quote', v)}
-                        isExporting={isExporting}
-                      />”
-                    </>
-                  ) : !isExporting ? (
-                    <EditableText
-                      value=""
-                      placeholder="Click to add quote..."
-                      multiline
-                      onChange={v => onUpdateText && onUpdateText('quote', v)}
-                      isExporting={isExporting}
-                    />
-                  ) : null}
+                  “<EditableText
+                    value={quote}
+                    multiline
+                    onChange={v => onUpdateText && onUpdateText('quote', v)}
+                    isExporting={isExporting}
+                  />”
                 </p>
               </DraggableBox>
             </div>
@@ -1098,7 +1110,7 @@ export default function AestheticCardRenderer({
               )}
 
               {/* User Review / Quote */}
-              {!hiddenElements.card_quote && (quote || !isExporting) && (
+              {!hiddenElements.card_quote && Boolean(quote && quote.trim()) && (
                 <DraggableBox
                   id="card_quote"
                   offset={dragOffsets.card_quote}
@@ -1126,22 +1138,12 @@ export default function AestheticCardRenderer({
                     maxWidth: '100%',
                     boxSizing: 'border-box',
                   }}>
-                    {quote ? (
-                      <>“<EditableText
-                        value={quote}
-                        multiline
-                        onChange={v => onUpdateText && onUpdateText('quote', v)}
-                        isExporting={isExporting}
-                      />”</>
-                    ) : !isExporting ? (
-                      <EditableText
-                        value=""
-                        placeholder="Click to add quote..."
-                        multiline
-                        onChange={v => onUpdateText && onUpdateText('quote', v)}
-                        isExporting={isExporting}
-                      />
-                    ) : null}
+                    “<EditableText
+                      value={quote}
+                      multiline
+                      onChange={v => onUpdateText && onUpdateText('quote', v)}
+                      isExporting={isExporting}
+                    />”
                   </div>
                 </DraggableBox>
               )}
