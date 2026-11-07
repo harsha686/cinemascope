@@ -103,6 +103,58 @@ export const supabaseService = {
     }
   },
 
+  // Get blacklisted deleted users (IDs & emails) so deleted users never resurrect across devices
+  async getDeletedUsers() {
+    const supabase = getSupabaseClient();
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('collections')
+        .select('description')
+        .eq('id', 'system_deleted_users')
+        .maybeSingle();
+      if (error || !data?.description) return [];
+      const parsed = JSON.parse(data.description);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  async recordDeletedUser({ id, email, displayName } = {}) {
+    const supabase = getSupabaseClient();
+    if (!supabase) return false;
+    try {
+      const current = await this.getDeletedUsers();
+      const normEmail = (email && email !== '—') ? email.toLowerCase().trim() : null;
+      const exists = current.some(u =>
+        (u.id && id && u.id === id) ||
+        (normEmail && u.email && u.email.toLowerCase().trim() === normEmail)
+      );
+      if (!exists) {
+        current.push({
+          id: id || null,
+          email: normEmail || null,
+          displayName: displayName || null,
+          deletedAt: new Date().toISOString(),
+        });
+        await supabase.from('collections').upsert({
+          id: 'system_deleted_users',
+          user_id: 'system',
+          name: 'deleted_users_blacklist',
+          description: JSON.stringify(current),
+          visibility: 'public',
+          movie_ids: [],
+          updated_at: new Date().toISOString(),
+        });
+      }
+      return true;
+    } catch (e) {
+      console.warn('recordDeletedUser error:', e);
+      return false;
+    }
+  },
+
   async recordDeletedMovieId(id) {
     if (!id) return false;
     const supabase = getSupabaseClient();
@@ -345,10 +397,16 @@ export const supabaseService = {
       if (!colErr && colData && colData.description) {
         const parsed = JSON.parse(colData.description);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Deduplicate by ID and DisplayName
+          const deletedUsers = await this.getDeletedUsers().catch(() => []);
+          const deletedIds = new Set(deletedUsers.map(u => u.id).filter(Boolean));
+          const deletedEmails = new Set(deletedUsers.map(u => (u.email || '').toLowerCase().trim()).filter(Boolean));
+
+          // Deduplicate by ID and DisplayName & exclude blacklisted
           const seen = new Set();
           return parsed.filter(u => {
             if (!u || !u.id) return false;
+            if (deletedIds.has(u.id)) return false;
+            if (u.email && deletedEmails.has(u.email.toLowerCase().trim())) return false;
             const normName = (u.displayName || '').trim().toLowerCase();
             const key = normName ? `name:${normName}` : `id:${u.id}`;
             if (seen.has(key) || seen.has(`id:${u.id}`)) return false;
@@ -367,13 +425,25 @@ export const supabaseService = {
   // Save the full users list to system_users_data collection
   async saveUsersData(usersList) {
     const supabase = getSupabaseClient();
-    if (!supabase || !usersList) return false;
+    if (!supabase || !Array.isArray(usersList)) return false;
     try {
+      const deletedUsers = await this.getDeletedUsers().catch(() => []);
+      const deletedIds = new Set(deletedUsers.map(u => u.id).filter(Boolean));
+      const deletedEmails = new Set(deletedUsers.map(u => (u.email || '').toLowerCase().trim()).filter(Boolean));
+
+      // Strictly exclude any blacklisted deleted users
+      const sanitized = usersList.filter(u => {
+        if (!u || !u.id) return false;
+        if (deletedIds.has(u.id)) return false;
+        if (u.email && deletedEmails.has(u.email.toLowerCase().trim())) return false;
+        return true;
+      });
+
       const { error } = await supabase.from('collections').upsert({
         id: 'system_users_data',
         user_id: 'system',
         name: 'users_state',
-        description: JSON.stringify(usersList),
+        description: JSON.stringify(sanitized),
         visibility: 'public',
         movie_ids: [],
         updated_at: new Date().toISOString(),
@@ -394,6 +464,13 @@ export const supabaseService = {
     const supabase = getSupabaseClient();
     if (!supabase || !user) return false;
     try {
+      const deletedUsers = await this.getDeletedUsers().catch(() => []);
+      const deletedIds = new Set(deletedUsers.map(u => u.id).filter(Boolean));
+      const deletedEmails = new Set(deletedUsers.map(u => (u.email || '').toLowerCase().trim()).filter(Boolean));
+
+      if (user.id && deletedIds.has(user.id)) return false;
+      if (user.email && deletedEmails.has(user.email.toLowerCase().trim())) return false;
+
       // Fetch current list
       const { data: colData } = await supabase
         .from('collections')
@@ -448,6 +525,9 @@ export const supabaseService = {
     if (!supabase) return false;
 
     try {
+      // 0. Record user in system_deleted_users blacklist so they never resurrect
+      await this.recordDeletedUser({ id: userId, email: userEmail, displayName }).catch(console.warn);
+
       // 1. Remove from system_users_data collection (community directory)
       const { data: colData } = await supabase
         .from('collections')
@@ -476,6 +556,33 @@ export const supabaseService = {
         }
       }
 
+      // 2. Remove any associated deletion requests from system_deletion_requests collection
+      try {
+        const { data: delData } = await supabase
+          .from('collections')
+          .select('description')
+          .eq('id', 'system_deletion_requests')
+          .maybeSingle();
+
+        if (delData && delData.description) {
+          const currentDelList = JSON.parse(delData.description);
+          if (Array.isArray(currentDelList)) {
+            const normEmail = (userEmail && userEmail !== '—') ? userEmail.toLowerCase().trim() : null;
+            const normName = (displayName || '').trim().toLowerCase();
+
+            const filteredDelList = currentDelList.filter(r => {
+              if (r.userId && userId && r.userId === userId) return false;
+              if (normEmail && r.userEmail && r.userEmail.toLowerCase().trim() === normEmail) return false;
+              if (normName && r.userDisplayName && r.userDisplayName.trim().toLowerCase() === normName) return false;
+              return true;
+            });
+
+            await this.saveDeletionRequestsData(filteredDelList);
+          }
+        }
+      } catch (e) {
+        console.warn('Error removing deletion requests in deleteUserAccount:', e);
+      }
 
       // 3. Remove reviews written by this user
       if (userId) {
