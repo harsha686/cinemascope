@@ -23,6 +23,7 @@ export default function Footer() {
     { to: `/city/${activeCity?.id || 'visakhapatnam'}`, label: `Theaters — ${activeCity?.name || 'Vizag'}` },
     { to: '/compare', label: 'Compare Screens' },
     { to: '/formats', label: 'Format Guide' },
+    { to: '/apply-professional', label: 'Apply for Critics' },
     { to: '/about', label: 'About & Data' },
     ...(currentUser?.role === 'ADMIN' ? [{ to: '/admin', label: 'Admin Portal' }] : []),
   ];

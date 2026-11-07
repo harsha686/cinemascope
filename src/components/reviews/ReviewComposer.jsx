@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, AlertCircle, Monitor } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { X, AlertCircle, Monitor, ShieldCheck } from 'lucide-react';
 import { useApp } from '../../AppContext';
 import { setPersonalRating } from '../../services/movieLibraryService';
 import { supabaseService, isSupabaseConfigured } from '../../services/supabase';
@@ -367,6 +368,30 @@ export default function ReviewComposer({
           <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', fontSize: 12, display: 'flex', alignItems: 'center', gap: 8, borderRadius: 3 }}>
             <AlertCircle size={14} />
             <span>{error}</span>
+          </div>
+        )}
+
+        {/* Optional critic application link for unverified users */}
+        {!isTheater && (!currentUser || !isVerifiedPro || !isVerifiedPro(currentUser.id)) && (
+          <div style={{
+            fontSize: 11,
+            color: 'var(--text-muted)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: 'rgba(16,185,129,0.05)',
+            border: '1px solid rgba(16,185,129,0.2)',
+            borderRadius: 4,
+            padding: '6px 12px',
+            marginTop: 4,
+          }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <ShieldCheck size={13} color="#10b981" />
+              <span>Are you a cinema journalist or critic?</span>
+            </span>
+            <Link to="/apply-professional" style={{ color: '#10b981', textDecoration: 'none', fontWeight: 600 }}>
+              Apply for Critics →
+            </Link>
           </div>
         )}
 

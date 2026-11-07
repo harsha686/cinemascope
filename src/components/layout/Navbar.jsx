@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Film, Menu, X, ChevronRight, ChevronDown, User, LogOut, ShieldAlert, MapPin, Bookmark, Calendar, Tv, Bell, Heart, Trash2 } from 'lucide-react';
+import { Film, Menu, X, ChevronRight, ChevronDown, User, LogOut, ShieldAlert, ShieldCheck, MapPin, Bookmark, Calendar, Tv, Bell, Heart, Trash2 } from 'lucide-react';
 import { useApp } from '../../AppContext';
 
 function formatTimeAgo(isoString) {
@@ -25,7 +25,7 @@ export default function Navbar() {
   const [notifDropdown, setNotifDropdown] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { state, dispatch, allCities } = useApp();
+  const { state, dispatch, allCities, isVerifiedPro } = useApp();
   const userDropdownRef = useRef(null);
   const moreDropdownRef = useRef(null);
   const notifDropdownRef = useRef(null);
@@ -86,6 +86,7 @@ export default function Navbar() {
     { to: '/movies', label: 'Now Showing' },
     { to: '/formats', label: 'Format Guide' },
     { to: '/weekend-winners', label: 'Weekend Winners' },
+    { to: '/apply-professional', label: 'Apply for Critics' },
     { to: '/users', label: 'Find Members' },
     { to: '/about', label: 'About & Data' },
   ];
@@ -850,6 +851,27 @@ export default function Navbar() {
                     onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
                   >
                     <Calendar size={13} color="var(--text-secondary)" /> Film Diary
+                  </Link>
+
+                  <Link
+                    to={currentUser && isVerifiedPro && isVerifiedPro(currentUser.id) ? `/reviewer/${currentUser.id}` : "/apply-professional"}
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: 12,
+                      color: (currentUser && isVerifiedPro && isVerifiedPro(currentUser.id)) ? '#10b981' : 'var(--gold)',
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      borderTop: '1px solid var(--border-subtle)',
+                      transition: 'background var(--transition-fast)',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                  >
+                    <ShieldCheck size={13} color={(currentUser && isVerifiedPro && isVerifiedPro(currentUser.id)) ? '#10b981' : 'var(--gold)'} />
+                    {(currentUser && isVerifiedPro && isVerifiedPro(currentUser.id)) ? 'Critic Profile' : 'Apply for Critics'}
                   </Link>
 
                   {currentUser.role === 'ADMIN' && (

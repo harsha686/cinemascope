@@ -1757,6 +1757,36 @@ export default function MovieDetailPage() {
                 </div>
               </div>
 
+              {/* Callout to apply for critics when on professional tab */}
+              {reviewTab === 'professional' && !currentUserIsPro && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 16px',
+                  background: 'rgba(16,185,129,0.06)',
+                  border: '1px solid rgba(16,185,129,0.25)',
+                  borderRadius: 4,
+                  marginBottom: 16,
+                  flexWrap: 'wrap',
+                  gap: 10,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <ShieldCheck size={16} color="#10b981" />
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                      Are you a film critic or cinema journalist? Share verified professional reviews with multi-parameter evaluations.
+                    </span>
+                  </div>
+                  <Link
+                    to="/apply-professional"
+                    className="btn btn-outline btn-sm"
+                    style={{ fontSize: 11, borderColor: 'rgba(16,185,129,0.5)', color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                  >
+                    <ShieldCheck size={12} /> Apply for Critics →
+                  </Link>
+                </div>
+              )}
+
               {/* Reviews List */}
               {sortedReviews.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '48px 0', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-subtle)' }}>
@@ -1769,7 +1799,15 @@ export default function MovieDetailPage() {
                       ? `No verified critics have reviewed this ${movie.isTv ? 'series' : 'film'} yet.`
                       : `Be the first to share your thoughts on this ${movie.isTv ? 'series' : 'movie'}!`}
                   </p>
-                  {reviewTab !== 'professional' && (
+                  {reviewTab === 'professional' ? (
+                    <Link
+                      to="/apply-professional"
+                      className="btn btn-primary btn-sm"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    >
+                      <ShieldCheck size={14} /> Apply as a Critic
+                    </Link>
+                  ) : (
                     <button type="button" onClick={handleWriteClick} className="btn btn-primary btn-sm">Write a Review</button>
                   )}
                 </div>

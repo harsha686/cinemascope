@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
-import { User, LogOut, ShieldAlert, Star, Film, MessageSquare, ChevronRight, ChevronDown, ChevronUp, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2, Users, Bell, Search, Tv, X, Sparkles, SlidersHorizontal, Trash2, AlertTriangle, Clock, Send } from 'lucide-react';
+import { User, LogOut, ShieldAlert, ShieldCheck, Star, Film, MessageSquare, ChevronRight, ChevronDown, ChevronUp, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2, Users, Bell, Search, Tv, X, Sparkles, SlidersHorizontal, Trash2, AlertTriangle, Clock, Send } from 'lucide-react';
 import { useApp } from '../AppContext';
 import ReviewCard from '../components/reviews/ReviewCard';
 import ProfessionalRatingBadge from '../components/reviews/ProfessionalRatingBadge';
@@ -683,6 +683,20 @@ export default function ProfilePage() {
               <Link to="/library" className="btn btn-outline btn-sm">My Library</Link>
               <Link to="/diary" className="btn btn-outline btn-sm">Movie Diary</Link>
               <Link to="/watchlist" className="btn btn-outline btn-sm">Watchlist</Link>
+              <Link
+                to={isPro ? `/reviewer/${profileUser.id}` : "/apply-professional"}
+                className="btn btn-outline btn-sm"
+                style={{
+                  borderColor: isPro ? 'rgba(16,185,129,0.5)' : 'var(--gold-dim)',
+                  color: isPro ? '#10b981' : 'var(--gold)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontWeight: 600,
+                }}
+              >
+                <ShieldCheck size={14} /> {isPro ? 'Critic Profile' : 'Apply for Critics'}
+              </Link>
             </>
           )}
           {!isOwnProfile && (
@@ -715,6 +729,13 @@ export default function ProfilePage() {
             </button>
           )}
         </div>
+
+        {/* Professional Reviewer / Critic Status Banner (Own Profile) */}
+        {isOwnProfile && (
+          <div style={{ marginBottom: 32 }}>
+            <ApplicationStatusBanner application={proApplication} />
+          </div>
+        )}
 
         {/* Verified Professional Reviewer Callout */}
         {!isOwnProfile && isPro && (

@@ -49,22 +49,32 @@ export default function ApplicationStatusBanner({ application }) {
       <div style={{
         padding: "16px 20px", borderRadius: "var(--radius-sm)",
         background: "var(--gold-faint)", border: "1px solid var(--gold-dim)",
-        display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12,
+        display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14,
       }}>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--gold)", marginBottom: 3 }}>
-            Become a Verified Professional Reviewer
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: "50%",
+            background: "rgba(220,182,91,0.15)", border: "1px solid var(--gold-dim)",
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
+          }}>
+            <ShieldCheck size={20} color="var(--gold)" />
           </div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-            Share your expert insights and get a special badge on all your reviews.
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--gold)", marginBottom: 3 }}>
+              Apply for Critics &amp; Professional Reviewer Status
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              Share your verified film criticism, get published on movie pages with official badges, and showcase your critic portfolio.
+            </div>
           </div>
         </div>
         <button
+          type="button"
           onClick={() => navigate("/apply-professional")}
           className="btn btn-primary btn-sm"
-          style={{ whiteSpace: "nowrap" }}
+          style={{ whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}
         >
-          Apply Now
+          <ShieldCheck size={14} /> Apply for Critics
         </button>
       </div>
     );
