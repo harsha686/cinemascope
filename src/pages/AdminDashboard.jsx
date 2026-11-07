@@ -67,6 +67,7 @@ export default function AdminDashboard() {
       setUserDeleteSuccess(`User "${userToDelete.displayName}" has been permanently deleted.`);
       setTimeout(() => setUserDeleteSuccess(''), 4000);
       setUserToDelete(null);
+      if (typeof refreshData === 'function') refreshData().catch(() => {});
     } catch (err) {
       alert('Failed to delete user: ' + (err?.message || 'Unknown error'));
     } finally {
@@ -85,6 +86,7 @@ export default function AdminDashboard() {
       setUserDeleteSuccess(`Account for "${approveModalReq.userDisplayName}" was accepted and permanently deleted.`);
       setTimeout(() => setUserDeleteSuccess(''), 5000);
       setApproveModalReq(null);
+      if (typeof refreshData === 'function') refreshData().catch(() => {});
     } catch (err) {
       alert('Failed to process deletion: ' + (err?.message || 'Unknown error'));
     } finally {
@@ -101,6 +103,7 @@ export default function AdminDashboard() {
       setTimeout(() => setUserDeleteSuccess(''), 5000);
       setRejectModalReq(null);
       setRejectAdminNote('');
+      if (typeof refreshData === 'function') refreshData().catch(() => {});
     } catch (err) {
       alert('Failed to reject request: ' + (err?.message || 'Unknown error'));
     } finally {

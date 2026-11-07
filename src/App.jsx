@@ -30,6 +30,7 @@ import PublicReviewPage from './pages/PublicReviewPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import UserSearchPage from './pages/UserSearchPage';
 import OttReleasePopupModal from './components/movies/OttReleasePopupModal';
+import AccountDeletedNoticeModal from './components/shared/AccountDeletedNoticeModal';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 
 function ScrollToTop() {
@@ -91,6 +92,7 @@ export default function App() {
             <Footer />
             <MobileBottomNav />
             <OttReleasePopupModal />
+            <AccountDeletedNoticeModal />
           </div>
         </HashRouter>
       </AppProvider>

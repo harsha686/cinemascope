@@ -168,13 +168,40 @@ export function deduplicateUsers(usersList) {
   return result;
 }
 
-const rawUsers = loadStorage('cinemascope_users', initialUsers);
-const processedUsers = (Array.isArray(rawUsers) ? rawUsers : initialUsers).map(u => {
-  if (u.role === 'ADMIN' || u.id === 'admin-1' || u.email === 'admin@cinema.com') {
-    return { ...u, email: 'harshavardhanmellof41@gmail.com', displayName: 'Harshavardhan', role: 'ADMIN' };
+const rawDeletedUsers = loadStorage('cinemascope_deleted_users', []);
+export const deletedUserIdsSet = new Set(Array.isArray(rawDeletedUsers) ? rawDeletedUsers.map(u => u.id).filter(Boolean) : []);
+export const deletedUserEmailsSet = new Set(Array.isArray(rawDeletedUsers) ? rawDeletedUsers.map(u => (u.email || '').toLowerCase().trim()).filter(Boolean) : []);
+
+export function recordDeletedUserLocally({ id, email, displayName } = {}) {
+  if (id) deletedUserIdsSet.add(id);
+  const normEmail = (email && email !== '—') ? email.toLowerCase().trim() : null;
+  if (normEmail) deletedUserEmailsSet.add(normEmail);
+
+  const stored = loadStorage('cinemascope_deleted_users', []);
+  const exists = stored.some(u =>
+    (u.id && id && u.id === id) ||
+    (normEmail && u.email && u.email.toLowerCase().trim() === normEmail)
+  );
+  if (!exists) {
+    stored.push({ id, email: normEmail, displayName, deletedAt: new Date().toISOString() });
+    saveStorage('cinemascope_deleted_users', stored);
   }
-  return u;
-});
+}
+
+const rawUsers = loadStorage('cinemascope_users', initialUsers);
+const processedUsers = (Array.isArray(rawUsers) ? rawUsers : initialUsers)
+  .filter(u => {
+    if (!u) return false;
+    if (u.id && deletedUserIdsSet.has(u.id)) return false;
+    if (u.email && deletedUserEmailsSet.has(u.email.toLowerCase().trim())) return false;
+    return true;
+  })
+  .map(u => {
+    if (u.role === 'ADMIN' || u.id === 'admin-1' || u.email === 'admin@cinema.com') {
+      return { ...u, email: 'harshavardhanmellof41@gmail.com', displayName: 'Harshavardhan', role: 'ADMIN' };
+    }
+    return u;
+  });
 if (!processedUsers.some(u => u.email === 'harshavardhanmellof41@gmail.com')) {
   processedUsers.push({
     id: 'admin-1',
@@ -189,14 +216,21 @@ saveStorage('cinemascope_users', sanitizedUsers);
 
 const loadedCurrentUser = loadStorage('cinemascope_currentUser', null);
 let sanitizedCurrentUser = loadedCurrentUser;
-if (loadedCurrentUser && (loadedCurrentUser.role === 'ADMIN' || loadedCurrentUser.email === 'admin@cinema.com')) {
-  sanitizedCurrentUser = {
-    ...loadedCurrentUser,
-    email: 'harshavardhanmellof41@gmail.com',
-    displayName: 'Harshavardhan',
-    role: 'ADMIN'
-  };
-  saveStorage('cinemascope_currentUser', sanitizedCurrentUser);
+if (sanitizedCurrentUser) {
+  const isDeleted = (sanitizedCurrentUser.id && deletedUserIdsSet.has(sanitizedCurrentUser.id)) ||
+    (sanitizedCurrentUser.email && deletedUserEmailsSet.has(sanitizedCurrentUser.email.toLowerCase().trim()));
+  if (isDeleted) {
+    sanitizedCurrentUser = null;
+    saveStorage('cinemascope_currentUser', null);
+  } else if (sanitizedCurrentUser.role === 'ADMIN' || sanitizedCurrentUser.email === 'admin@cinema.com') {
+    sanitizedCurrentUser = {
+      ...sanitizedCurrentUser,
+      email: 'harshavardhanmellof41@gmail.com',
+      displayName: 'Harshavardhan',
+      role: 'ADMIN'
+    };
+    saveStorage('cinemascope_currentUser', sanitizedCurrentUser);
+  }
 }
 
 const rawReviews = loadStorage('cinemascope_reviews', initialReviews);
@@ -327,6 +361,8 @@ function reducer(state, action) {
       const normEmail = (target.email && target.email !== '—') ? target.email.toLowerCase().trim() : null;
       const normName = (target.displayName || '').trim().toLowerCase();
 
+      recordDeletedUserLocally({ id: targetId, email: normEmail, displayName: target.displayName });
+
       const isMatch = (uId, uEmail, uName) => {
         if (targetId && uId && uId === targetId) return true;
         if (normEmail && uEmail && uEmail !== '—' && uEmail.toLowerCase().trim() === normEmail) return true;
@@ -353,6 +389,10 @@ function reducer(state, action) {
       saveStorage('cinemascope_deletion_requests', remainingRequests);
       if (isCurrent) {
         saveStorage('cinemascope_currentUser', null);
+      }
+      if (isSupabaseConfigured()) {
+        supabaseService.saveUsersData(remainingUsers).catch(console.warn);
+        supabaseService.saveDeletionRequestsData(remainingRequests).catch(console.warn);
       }
       return newState;
     }
@@ -863,6 +903,7 @@ export function AppProvider({ children }) {
         supabaseService.getNotificationsData(),
         supabaseService.getDeletionRequestsData(),
         supabaseService.getDeletedMovieIds(),
+        supabaseService.getDeletedUsers(),
       ]);
 
       const remoteMovies = results[0].status === 'fulfilled' ? results[0].value : null;
@@ -874,10 +915,27 @@ export function AppProvider({ children }) {
       const remoteNotifs = results[7].status === 'fulfilled' ? results[7].value : null;
       const remoteDeletionReqs = results[8].status === 'fulfilled' ? results[8].value : null;
       const remoteDeletedIds = results[9].status === 'fulfilled' ? results[9].value : null;
+      const remoteDeletedUsers = results[10].status === 'fulfilled' ? results[10].value : null;
 
       if (Array.isArray(remoteDeletedIds) && remoteDeletedIds.length > 0) {
         remoteDeletedIds.forEach(id => deletedMovieIdsSet.add(id));
         saveStorage('cinemascope_deleted_movie_ids', Array.from(deletedMovieIdsSet));
+      }
+
+      if (Array.isArray(remoteDeletedUsers) && remoteDeletedUsers.length > 0) {
+        remoteDeletedUsers.forEach(u => {
+          if (u.id) deletedUserIdsSet.add(u.id);
+          if (u.email && u.email !== '—') deletedUserEmailsSet.add(u.email.toLowerCase().trim());
+        });
+        const currentStoredBlacklist = loadStorage('cinemascope_deleted_users', []);
+        const mergedBlacklist = [...currentStoredBlacklist];
+        remoteDeletedUsers.forEach(ru => {
+          const normEmail = (ru.email && ru.email !== '—') ? ru.email.toLowerCase().trim() : null;
+          if (!mergedBlacklist.some(b => (b.id && ru.id && b.id === ru.id) || (normEmail && b.email && b.email.toLowerCase().trim() === normEmail))) {
+            mergedBlacklist.push(ru);
+          }
+        });
+        saveStorage('cinemascope_deleted_users', mergedBlacklist);
       }
 
       let moviesCount = 0;
@@ -948,26 +1006,69 @@ export function AppProvider({ children }) {
       }
 
       if (remoteUsers && remoteUsers.length > 0) {
-        // Remote wins for matching users; keep local-only users for offline accounts
-        const currentLocalUsers = loadStorage('cinemascope_users', initialUsers);
+        // Remote wins for matching users; filter out blacklisted deleted users
+        const legitimateRemote = remoteUsers.filter(u => {
+          if (!u || !u.id) return false;
+          if (deletedUserIdsSet.has(u.id)) return false;
+          if (u.email && deletedUserEmailsSet.has(u.email.toLowerCase().trim())) return false;
+          return true;
+        });
+
+        const currentLocalUsers = (loadStorage('cinemascope_users', initialUsers) || []).filter(u => {
+          if (!u || !u.id) return false;
+          if (deletedUserIdsSet.has(u.id)) return false;
+          if (u.email && deletedUserEmailsSet.has(u.email.toLowerCase().trim())) return false;
+          return true;
+        });
+
         const mergedUsers = deduplicateUsers([
-          ...remoteUsers,
-          ...(Array.isArray(currentLocalUsers) ? currentLocalUsers : [])
+          ...legitimateRemote,
+          ...currentLocalUsers
         ]);
         dispatch({ type: 'SET_USERS', payload: mergedUsers });
-        // Only push back to cloud if there are local-only users not in cloud yet
-        const remoteIds = new Set(remoteUsers.map(u => String(u.id)));
-        const hasNewLocalUsers = (Array.isArray(currentLocalUsers) ? currentLocalUsers : []).some(
+        saveStorage('cinemascope_users', mergedUsers);
+
+        // Only push back to cloud if there are legitimate local-only users not in cloud yet
+        const remoteIds = new Set(legitimateRemote.map(u => String(u.id)));
+        const hasNewLocalUsers = currentLocalUsers.some(
           lu => lu?.id && !remoteIds.has(String(lu.id))
         );
         if (hasNewLocalUsers) {
           supabaseService.saveUsersData(mergedUsers).catch(console.warn);
         }
       } else if (currentState.users?.length > 0) {
-        // Cloud has no users yet — seed it with current deduplicated local users
-        const cleanUsers = deduplicateUsers(currentState.users);
+        // Cloud has no users yet — seed it with current deduplicated local users (excluding blacklisted)
+        const cleanUsers = deduplicateUsers(currentState.users.filter(u => {
+          if (!u || !u.id) return false;
+          if (deletedUserIdsSet.has(u.id)) return false;
+          if (u.email && deletedUserEmailsSet.has(u.email.toLowerCase().trim())) return false;
+          return true;
+        }));
         dispatch({ type: 'SET_USERS', payload: cleanUsers });
+        saveStorage('cinemascope_users', cleanUsers);
         supabaseService.saveUsersData(cleanUsers).catch(console.warn);
+      }
+
+      // Real-time check if currently logged-in user's account was deleted by admin
+      if (currentState.currentUser) {
+        const cId = currentState.currentUser.id;
+        const cEmail = currentState.currentUser.email ? currentState.currentUser.email.toLowerCase().trim() : null;
+        const isUserDeleted = (cId && deletedUserIdsSet.has(cId)) || (cEmail && deletedUserEmailsSet.has(cEmail));
+        if (isUserDeleted) {
+          saveStorage('cinemascope_currentUser', null);
+          dispatch({ type: 'LOGOUT' });
+          if (isSupabaseConfigured()) {
+            const sbClient = getSupabaseClient();
+            if (sbClient) sbClient.auth.signOut().catch(() => {});
+          }
+          try {
+            window.dispatchEvent(new CustomEvent('cinemascope_account_deleted_notice', {
+              detail: {
+                message: 'Your account deletion request has been accepted by the administrator. Your account and personal data have been permanently removed.'
+              }
+            }));
+          } catch (_) {}
+        }
       }
 
       if (remoteReviews && remoteReviews.length > 0) {
@@ -1103,25 +1204,16 @@ export function AppProvider({ children }) {
         supabaseService.saveNotificationsData(currentLocalNotifs).catch(console.warn);
       }
 
-      // Deletion Requests Synchronization
-      const currentLocalDeletionReqs = currentState.deletionRequests || loadStorage('cinemascope_deletion_requests', []);
-      if (remoteDeletionReqs && Array.isArray(remoteDeletionReqs) && remoteDeletionReqs.length > 0) {
-        const remoteReqMap = new Map(remoteDeletionReqs.map(r => [r.id || r.userId, r]));
-        let hasLocalReqChanges = false;
-        const mergedReqs = [...remoteDeletionReqs];
-        currentLocalDeletionReqs.forEach(loc => {
-          const key = loc.id || loc.userId;
-          if (!remoteReqMap.has(key)) {
-            mergedReqs.push(loc);
-            hasLocalReqChanges = true;
-          }
+      // Deletion Requests Synchronization across devices (Remote is source of truth)
+      if (Array.isArray(remoteDeletionReqs)) {
+        const cleanReqs = remoteDeletionReqs.filter(r => {
+          if (!r) return false;
+          if (r.userId && deletedUserIdsSet.has(r.userId)) return false;
+          if (r.userEmail && deletedUserEmailsSet.has(r.userEmail.toLowerCase().trim())) return false;
+          return true;
         });
-        dispatch({ type: 'SET_DELETION_REQUESTS', payload: mergedReqs });
-        if (hasLocalReqChanges) {
-          supabaseService.saveDeletionRequestsData(mergedReqs).catch(console.warn);
-        }
-      } else if (currentLocalDeletionReqs.length > 0) {
-        supabaseService.saveDeletionRequestsData(currentLocalDeletionReqs).catch(console.warn);
+        dispatch({ type: 'SET_DELETION_REQUESTS', payload: cleanReqs });
+        saveStorage('cinemascope_deletion_requests', cleanReqs);
       }
 
       // Sync personal movie library + community stats in parallel to reduce latency
@@ -1342,7 +1434,13 @@ export function AppProvider({ children }) {
             try {
               const updatedUsers = JSON.parse(payload.new.description);
               if (Array.isArray(updatedUsers) && updatedUsers.length > 0) {
-                dispatch({ type: 'SET_USERS', payload: updatedUsers });
+                const clean = updatedUsers.filter(u => {
+                  if (!u || !u.id) return false;
+                  if (deletedUserIdsSet.has(u.id)) return false;
+                  if (u.email && deletedUserEmailsSet.has(u.email.toLowerCase().trim())) return false;
+                  return true;
+                });
+                dispatch({ type: 'SET_USERS', payload: clean });
               }
             } catch (err) {
               console.warn('Realtime community stats parse error:', err);
@@ -1352,8 +1450,86 @@ export function AppProvider({ children }) {
       )
       .subscribe();
 
+    const delReqChannel = supabase
+      .channel('deletion_requests_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'collections',
+          filter: 'id=eq.system_deletion_requests',
+        },
+        (payload) => {
+          if (payload.new && payload.new.description) {
+            try {
+              const updatedReqs = JSON.parse(payload.new.description);
+              if (Array.isArray(updatedReqs)) {
+                const cleanReqs = updatedReqs.filter(r => {
+                  if (!r) return false;
+                  if (r.userId && deletedUserIdsSet.has(r.userId)) return false;
+                  if (r.userEmail && deletedUserEmailsSet.has(r.userEmail.toLowerCase().trim())) return false;
+                  return true;
+                });
+                dispatch({ type: 'SET_DELETION_REQUESTS', payload: cleanReqs });
+                saveStorage('cinemascope_deletion_requests', cleanReqs);
+              }
+            } catch (err) {
+              console.warn('Realtime deletion requests parse error:', err);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    const delUsersChannel = supabase
+      .channel('deleted_users_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'collections',
+          filter: 'id=eq.system_deleted_users',
+        },
+        (payload) => {
+          if (payload.new && payload.new.description) {
+            try {
+              const bl = JSON.parse(payload.new.description);
+              if (Array.isArray(bl)) {
+                bl.forEach(u => {
+                  if (u.id) deletedUserIdsSet.add(u.id);
+                  if (u.email && u.email !== '—') deletedUserEmailsSet.add(u.email.toLowerCase().trim());
+                });
+                saveStorage('cinemascope_deleted_users', bl);
+                const cur = stateRef.current?.currentUser;
+                if (cur) {
+                  const isDel = (cur.id && deletedUserIdsSet.has(cur.id)) ||
+                    (cur.email && deletedUserEmailsSet.has(cur.email.toLowerCase().trim()));
+                  if (isDel) {
+                    saveStorage('cinemascope_currentUser', null);
+                    dispatch({ type: 'LOGOUT' });
+                    supabase.auth.signOut().catch(() => {});
+                    try {
+                      window.dispatchEvent(new CustomEvent('cinemascope_account_deleted_notice', {
+                        detail: { message: 'Your account deletion request has been accepted by the administrator. Your account and personal data have been permanently removed.' }
+                      }));
+                    } catch (_) {}
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn('Realtime deleted users parse error:', err);
+            }
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(statsChannel);
+      supabase.removeChannel(delReqChannel);
+      supabase.removeChannel(delUsersChannel);
     };
   }, []);
 
@@ -1366,6 +1542,14 @@ export function AppProvider({ children }) {
       if (!sbUser || !sbUser.email) return;
 
       const email = sbUser.email;
+      const isBlacklisted = (sbUser.id && deletedUserIdsSet.has(sbUser.id)) ||
+        deletedUserEmailsSet.has(email.toLowerCase().trim());
+      if (isBlacklisted) {
+        supabase.auth.signOut().catch(() => {});
+        saveStorage('cinemascope_currentUser', null);
+        dispatch({ type: 'LOGOUT' });
+        return;
+      }
       const currentUsers = stateRef.current?.users || [];
       const existingUser = currentUsers.find(u => u.email?.toLowerCase() === email.toLowerCase());
 
@@ -1651,6 +1835,9 @@ export function AppProvider({ children }) {
     const targetEmail = target.email;
     const targetName = target.displayName;
 
+    // Record in local blacklist
+    recordDeletedUserLocally({ id: targetId, email: targetEmail, displayName: targetName });
+
     // 1. Dispatch local state wipe immediately
     dispatch({
       type: 'DELETE_USER',
@@ -1663,18 +1850,20 @@ export function AppProvider({ children }) {
       deleteUserVotes(targetId, targetEmail);
     }
 
-    // 3. Wipe remote Supabase data (users, reviews, library, diary, collections, votes)
+    // 3. Wipe remote Supabase data (users, reviews, library, diary, collections, votes, deletion requests, blacklist)
     if (isSupabaseConfigured()) {
       await supabaseService.deleteUserAccount(targetId, targetEmail, targetName).catch(console.warn);
     }
 
-    // 4. If current logged-in user, sign out
+    // 4. If current logged-in user, sign out and clear storage
     const isCurrent = stateRef.current?.currentUser && (
       (targetId && stateRef.current.currentUser.id === targetId) ||
       (targetEmail && stateRef.current.currentUser.email && stateRef.current.currentUser.email.toLowerCase() === targetEmail.toLowerCase())
     );
 
     if (isCurrent) {
+      saveStorage('cinemascope_currentUser', null);
+      dispatch({ type: 'LOGOUT' });
       try {
         const sbClient = getSupabaseClient();
         if (sbClient) await sbClient.auth.signOut().catch(() => {});

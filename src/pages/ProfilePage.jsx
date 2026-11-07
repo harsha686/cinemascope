@@ -16,7 +16,7 @@ import { SOCIAL_CONTENT_TYPES } from '../services/socialSharingService';
 export default function ProfilePage() {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { state, dispatch, getMovie, getTheater, isVerifiedPro, deleteUserAccount, submitDeletionRequest, cancelDeletionRequest, getUserDeletionRequest } = useApp();
+  const { state, dispatch, getMovie, getTheater, isVerifiedPro, deleteUserAccount, submitDeletionRequest, cancelDeletionRequest, getUserDeletionRequest, refreshData } = useApp();
 
   // The currently logged in visitor
   const viewerUser = state.currentUser;
@@ -41,9 +41,13 @@ export default function ProfilePage() {
     !userId || (viewerUser && profileUser && (viewerUser.id === profileUser.id || (viewerUser.email && profileUser.email && viewerUser.email.toLowerCase() === profileUser.email.toLowerCase())))
   );
 
-  // Account Deletion Request State
+  // Account Deletion State
   const userDeletionReq = getUserDeletionRequest ? getUserDeletionRequest(profileUser?.id) : null;
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showDirectDeleteModal, setShowDirectDeleteModal] = useState(false);
+  const [directDeleteConfirmText, setDirectDeleteConfirmText] = useState('');
+  const [isDirectDeleting, setIsDirectDeleting] = useState(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [deletionReason, setDeletionReason] = useState('');
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
   const [requestFeedback, setRequestFeedback] = useState('');
@@ -80,6 +84,37 @@ export default function ProfilePage() {
       await cancelDeletionRequest(profileUser.id);
       setRequestFeedback('Account deletion request has been withdrawn.');
       setTimeout(() => setRequestFeedback(''), 4000);
+    }
+  };
+
+  const handleDirectDeleteAccount = async () => {
+    if (directDeleteConfirmText.trim().toUpperCase() !== 'DELETE') return;
+    setIsDirectDeleting(true);
+    setRequestError('');
+    try {
+      await deleteUserAccount(profileUser);
+      setShowDirectDeleteModal(false);
+      navigate('/', { replace: true });
+      setTimeout(() => {
+        try {
+          window.dispatchEvent(new CustomEvent('cinemascope_account_deleted_notice', {
+            detail: { message: 'Your account and personal data have been permanently deleted.' }
+          }));
+        } catch (_) {}
+      }, 200);
+    } catch (err) {
+      setRequestError(err?.message || 'Failed to delete account.');
+      setIsDirectDeleting(false);
+    }
+  };
+
+  const handleCheckReviewStatus = async () => {
+    if (typeof refreshData === 'function') {
+      setIsCheckingStatus(true);
+      await refreshData().catch(() => {});
+      setIsCheckingStatus(false);
+      setRequestFeedback('Refreshed review status.');
+      setTimeout(() => setRequestFeedback(''), 3000);
     }
   };
 
@@ -1738,18 +1773,56 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleCancelRequest}
-                  className="btn btn-outline btn-sm"
-                  style={{
-                    borderColor: 'rgba(234, 179, 8, 0.4)',
-                    color: '#facc15',
-                    fontSize: 12,
-                  }}
-                >
-                  Withdraw Request
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleCheckReviewStatus}
+                    disabled={isCheckingStatus}
+                    className="btn btn-outline btn-sm"
+                    style={{
+                      borderColor: 'rgba(255, 255, 255, 0.2)',
+                      fontSize: 12,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                    }}
+                  >
+                    <RefreshCw size={12} style={{ animation: isCheckingStatus ? 'spin 1s linear infinite' : 'none' }} />
+                    <span>{isCheckingStatus ? 'Checking...' : 'Check Status'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelRequest}
+                    className="btn btn-outline btn-sm"
+                    style={{
+                      borderColor: 'rgba(234, 179, 8, 0.4)',
+                      color: '#facc15',
+                      fontSize: 12,
+                    }}
+                  >
+                    Withdraw Request
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDirectDeleteConfirmText('');
+                      setShowDirectDeleteModal(true);
+                    }}
+                    className="btn btn-sm"
+                    style={{
+                      background: '#dc2626',
+                      color: '#fff',
+                      border: '1px solid #ef4444',
+                      fontSize: 12,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <Trash2 size={13} />
+                    <span>Delete Account Immediately</span>
+                  </button>
+                </div>
               </div>
 
               <div style={{ marginTop: 16, background: 'rgba(0,0,0,0.4)', border: '1px solid var(--border-subtle)', padding: '12px 16px', borderRadius: 6, fontSize: 13, color: 'var(--text-secondary)' }}>
@@ -1762,7 +1835,7 @@ export default function ProfilePage() {
               </div>
 
               <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                Your account remains fully active while the admin evaluates your request. If approved, your account and library data will be wiped permanently.
+                Your account remains active while the admin evaluates your request. If you don't want to wait, you can delete your account immediately using the button above.
               </p>
             </div>
           ) : userDeletionReq && userDeletionReq.status === 'REJECTED' ? (
@@ -1788,22 +1861,44 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDeletionReason('');
-                    setRequestError('');
-                    setShowRequestModal(true);
-                  }}
-                  className="btn btn-outline btn-sm"
-                  style={{
-                    borderColor: 'rgba(239, 68, 68, 0.5)',
-                    color: '#f87171',
-                    fontSize: 12,
-                  }}
-                >
-                  Submit New Request
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeletionReason('');
+                      setRequestError('');
+                      setShowRequestModal(true);
+                    }}
+                    className="btn btn-outline btn-sm"
+                    style={{
+                      borderColor: 'rgba(239, 68, 68, 0.5)',
+                      color: '#f87171',
+                      fontSize: 12,
+                    }}
+                  >
+                    Submit New Request
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDirectDeleteConfirmText('');
+                      setShowDirectDeleteModal(true);
+                    }}
+                    className="btn btn-sm"
+                    style={{
+                      background: '#dc2626',
+                      color: '#fff',
+                      border: '1px solid #ef4444',
+                      fontSize: 12,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <Trash2 size={13} />
+                    <span>Delete Account Immediately</span>
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
@@ -1820,31 +1915,48 @@ export default function ProfilePage() {
                     <span>Danger Zone</span>
                   </div>
                   <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--text-muted)', maxWidth: 540, lineHeight: 1.5 }}>
-                    Submit an account deletion request to the administrator. If approved, all your reviews, ratings, watchlist, personal diary, collections, and voting records will be permanently removed.
+                    Permanently delete your account and wipe all your reviews, star ratings, personal diary, collections, and voting records.
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDeletionReason('');
-                    setRequestError('');
-                    setShowRequestModal(true);
-                  }}
-                  className="btn btn-outline btn-sm"
-                  style={{
-                    borderColor: 'rgba(239, 68, 68, 0.5)',
-                    color: '#f87171',
-                    background: 'rgba(239, 68, 68, 0.08)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    fontSize: 12,
-                  }}
-                >
-                  <Trash2 size={14} />
-                  <span>Request Account Deletion</span>
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeletionReason('');
+                      setRequestError('');
+                      setShowRequestModal(true);
+                    }}
+                    className="btn btn-outline btn-sm"
+                    style={{
+                      borderColor: 'rgba(255, 255, 255, 0.2)',
+                      fontSize: 12,
+                    }}
+                  >
+                    Request with Feedback
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDirectDeleteConfirmText('');
+                      setShowDirectDeleteModal(true);
+                    }}
+                    className="btn btn-sm"
+                    style={{
+                      background: '#dc2626',
+                      color: '#fff',
+                      border: '1px solid #ef4444',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  >
+                    <Trash2 size={14} />
+                    <span>Delete Account Permanently</span>
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -1985,6 +2097,140 @@ export default function ProfilePage() {
                   </button>
                 </div>
               </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Immediate Account Deletion Modal */}
+      {showDirectDeleteModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 1000,
+          background: 'rgba(0,0,0,0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 20,
+        }}>
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid rgba(239,68,68,0.5)',
+            borderRadius: 8,
+            maxWidth: 500,
+            width: '100%',
+            padding: 24,
+            boxShadow: '0 20px 40px rgba(0,0,0,0.7)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ padding: 8, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '50%', color: '#f87171', display: 'flex' }}>
+                  <Trash2 size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-primary)' }}>
+                    Permanently Delete Account
+                  </h3>
+                  <span style={{ fontSize: 11, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+                    Instant Self-Service Action
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDirectDeleteModal(false)}
+                className="btn btn-ghost btn-sm"
+                style={{ padding: 4, color: 'var(--text-muted)' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {profileUser?.email && profileUser.email.toLowerCase() === 'harshavardhanmellof41@gmail.com' ? (
+              <div style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: 6, padding: '14px 16px', color: 'var(--gold)', fontSize: 13, lineHeight: 1.5 }}>
+                <strong>Protected Master Account:</strong> The primary administrator account (<em>{profileUser.email}</em>) cannot be deleted.
+              </div>
+            ) : (
+              <div>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 16px' }}>
+                  Are you sure you want to permanently delete your account? This will immediately erase your profile, wipe all your personal data, and sign you out.
+                </p>
+
+                <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 6, padding: '12px 14px', marginBottom: 18, fontSize: 12, color: 'var(--text-secondary)' }}>
+                  <div style={{ color: '#f87171', fontWeight: 600, marginBottom: 4 }}>This action will permanently delete:</div>
+                  <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 3, color: 'var(--text-muted)' }}>
+                    <li>All your written reviews and parameter ratings</li>
+                    <li>Personal movie diary logs and watch dates</li>
+                    <li>Watchlist, favorites, and custom collections</li>
+                    <li>Community voting records and leaderboard stats</li>
+                    <li>Account profile data and cloud credentials</li>
+                  </ul>
+                </div>
+
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-primary)', fontWeight: 600, marginBottom: 6 }}>
+                    Type <strong style={{ color: '#ef4444' }}>DELETE</strong> to confirm permanent deletion:
+                  </label>
+                  <input
+                    type="text"
+                    value={directDeleteConfirmText}
+                    onChange={(e) => setDirectDeleteConfirmText(e.target.value)}
+                    placeholder="Type DELETE"
+                    className="input"
+                    style={{
+                      width: '100%',
+                      fontSize: 13,
+                      padding: '10px 12px',
+                      borderColor: directDeleteConfirmText.trim().toUpperCase() === 'DELETE' ? '#ef4444' : undefined,
+                    }}
+                    autoFocus
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() => setShowDirectDeleteModal(false)}
+                    disabled={isDirectDeleting}
+                    style={{ fontSize: 12 }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDirectDeleteAccount}
+                    disabled={directDeleteConfirmText.trim().toUpperCase() !== 'DELETE' || isDirectDeleting}
+                    className="btn btn-sm"
+                    style={{
+                      background: directDeleteConfirmText.trim().toUpperCase() === 'DELETE' ? '#dc2626' : 'rgba(239,68,68,0.3)',
+                      color: '#fff',
+                      border: '1px solid #ef4444',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: directDeleteConfirmText.trim().toUpperCase() === 'DELETE' ? 'pointer' : 'not-allowed',
+                      opacity: directDeleteConfirmText.trim().toUpperCase() === 'DELETE' ? 1 : 0.6,
+                    }}
+                  >
+                    {isDirectDeleting ? (
+                      <>
+                        <span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} />
+                        <span>Deleting Account...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 size={13} />
+                        <span>Permanently Delete Everything</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>
