@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Filter, Film, Star } from 'lucide-react';
+import { Search, Filter, Film, Star, ArrowUpDown } from 'lucide-react';
 import { useApp, getEffectiveMovieStatus } from '../AppContext';
 import MovieCard from '../components/movies/MovieCard';
 
@@ -12,11 +12,13 @@ export default function MoviesPage() {
   const [selectedCity, setSelectedCity] = useState(state.selectedCity?.id || 'all');
   const [selectedStatus, setSelectedStatus] = useState('CURRENTLY_SHOWING');
   const [selectedLang, setSelectedLang] = useState('all');
+  const [sortBy, setSortBy] = useState('top_rated'); // 'top_rated' | 'most_reviewed' | 'latest' | 'title'
 
   const languages = ['all', 'Telugu', 'Hindi', 'English', 'Tamil'];
 
-  const filteredMovies = useMemo(() => {
-    return state.movies.filter(m => {
+  // Filter and sort movies with Top Rated on top by default
+  const sortedMovies = useMemo(() => {
+    const list = state.movies.filter(m => {
       // Search
       const q = search.toLowerCase();
       const matchQuery = !q ||
@@ -38,14 +40,60 @@ export default function MoviesPage() {
 
       return matchQuery && matchStatus && matchCity && matchLang;
     });
-  }, [state.movies, search, selectedStatus, selectedCity, selectedLang]);
+
+    return [...list].sort((a, b) => {
+      const rA = getMovieRating ? getMovieRating(a.id) : { average: 0, count: 0 };
+      const rB = getMovieRating ? getMovieRating(b.id) : { average: 0, count: 0 };
+
+      if (sortBy === 'top_rated') {
+        const hasA = (rA?.count || 0) > 0;
+        const hasB = (rB?.count || 0) > 0;
+
+        // Movies with ratings always appear at the top
+        if (hasA && !hasB) return -1;
+        if (!hasA && hasB) return 1;
+
+        if (hasA && hasB) {
+          // Higher average rating first
+          const avgDiff = (rB.average || 0) - (rA.average || 0);
+          if (Math.abs(avgDiff) > 0.001) return avgDiff;
+
+          // More reviews as tie-breaker
+          if ((rB.count || 0) !== (rA.count || 0)) {
+            return (rB.count || 0) - (rA.count || 0);
+          }
+        }
+
+        // Alphabetical fallback
+        return (a.title || '').localeCompare(b.title || '');
+      }
+
+      if (sortBy === 'most_reviewed') {
+        const countDiff = (rB?.count || 0) - (rA?.count || 0);
+        if (countDiff !== 0) return countDiff;
+        return (rB?.average || 0) - (rA?.average || 0);
+      }
+
+      if (sortBy === 'latest') {
+        const dateA = a.releaseDate ? new Date(a.releaseDate).getTime() : 0;
+        const dateB = b.releaseDate ? new Date(b.releaseDate).getTime() : 0;
+        return dateB - dateA;
+      }
+
+      if (sortBy === 'title') {
+        return (a.title || '').localeCompare(b.title || '');
+      }
+
+      return 0;
+    });
+  }, [state.movies, search, selectedStatus, selectedCity, selectedLang, sortBy, getMovieRating, state.reviews]);
 
   // Compute top 3 rated movies (with reviews count > 0)
   const topMovieRanks = useMemo(() => {
     const ranks = {};
-    if (!filteredMovies || filteredMovies.length === 0) return ranks;
+    if (!sortedMovies || sortedMovies.length === 0) return ranks;
 
-    const rated = [...filteredMovies]
+    const rated = [...sortedMovies]
       .map(m => {
         const r = getMovieRating ? getMovieRating(m.id) : { average: 0, count: 0 };
         return { id: m.id, average: r?.average || 0, count: r?.count || 0 };
@@ -61,7 +109,7 @@ export default function MoviesPage() {
     });
 
     return ranks;
-  }, [filteredMovies, getMovieRating, state.reviews]);
+  }, [sortedMovies, getMovieRating, state.reviews]);
 
   return (
     <div className="page-enter">
@@ -125,6 +173,23 @@ export default function MoviesPage() {
                 <option key={l} value={l}>{l === 'all' ? 'All Languages' : l}</option>
               ))}
             </select>
+
+            {/* Sort Selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <ArrowUpDown size={14} color="var(--gold)" />
+              <select
+                className="input"
+                style={{ width: 'auto', minWidth: 165, fontSize: 13, borderColor: 'var(--gold-dim)' }}
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value)}
+                aria-label="Sort movies"
+              >
+                <option value="top_rated">★ Top Rated First</option>
+                <option value="most_reviewed">Most Reviewed</option>
+                <option value="latest">Latest Releases</option>
+                <option value="title">Title (A–Z)</option>
+              </select>
+            </div>
           </div>
 
           {/* Status Tabs */}
@@ -150,18 +215,19 @@ export default function MoviesPage() {
       <div className="container" style={{ padding: '32px 24px 80px' }}>
         <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            Showing {filteredMovies.length} movie{filteredMovies.length !== 1 ? 's' : ''}
+            Showing {sortedMovies.length} movie{sortedMovies.length !== 1 ? 's' : ''}
+            {sortBy === 'top_rated' && ' · Top rated first'}
           </span>
         </div>
 
-        {filteredMovies.length === 0 ? (
+        {sortedMovies.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 0' }}>
             <Film size={36} color="var(--text-muted)" style={{ marginBottom: 12, opacity: 0.6 }} />
             <h3 style={{ color: 'var(--text-secondary)', marginBottom: 8 }}>
               No movies found matching your filters
             </h3>
             <button
-              onClick={() => { setSearch(''); setSelectedCity('all'); setSelectedStatus('all'); setSelectedLang('all'); }}
+              onClick={() => { setSearch(''); setSelectedCity('all'); setSelectedStatus('all'); setSelectedLang('all'); setSortBy('top_rated'); }}
               className="btn btn-outline btn-sm"
               style={{ marginTop: 12 }}
             >
@@ -174,7 +240,7 @@ export default function MoviesPage() {
             gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 200px), 1fr))',
             gap: 20,
           }}>
-            {filteredMovies.map(movie => (
+            {sortedMovies.map(movie => (
               <MovieCard key={movie.id} movie={movie} topRank={topMovieRanks[movie.id]} />
             ))}
           </div>

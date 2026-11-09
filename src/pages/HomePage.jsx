@@ -31,7 +31,37 @@ export default function HomePage() {
 
   const activeCity = state.selectedCity || allCities[0];
 
-  const currentMovies = useMemo(() => getCityMovies(activeCity?.id, 'CURRENTLY_SHOWING'), [getCityMovies, activeCity]);
+  const currentMovies = useMemo(() => {
+    const list = getCityMovies(activeCity?.id, 'CURRENTLY_SHOWING');
+    return [...list].sort((a, b) => {
+      const rA = getMovieRating(a.id);
+      const rB = getMovieRating(b.id);
+      const hasA = (rA?.count || 0) > 0;
+      const hasB = (rB?.count || 0) > 0;
+      if (hasA && !hasB) return -1;
+      if (!hasA && hasB) return 1;
+      if (hasA && hasB) {
+        if (rB.average !== rA.average) return rB.average - rA.average;
+        return (rB.count || 0) - (rA.count || 0);
+      }
+      return (a.title || '').localeCompare(b.title || '');
+    });
+  }, [getCityMovies, activeCity, getMovieRating, state.reviews]);
+
+  const currentMovieRanks = useMemo(() => {
+    const ranks = {};
+    const rated = currentMovies
+      .map(m => {
+        const r = getMovieRating(m.id);
+        return { id: m.id, average: r?.average || 0, count: r?.count || 0 };
+      })
+      .filter(m => m.count > 0);
+    rated.slice(0, 3).forEach((item, index) => {
+      ranks[item.id] = index + 1;
+    });
+    return ranks;
+  }, [currentMovies, getMovieRating]);
+
   const comingSoonMovies = useMemo(() => getCityMovies(activeCity?.id, 'COMING_SOON'), [getCityMovies, activeCity]);
 
   const topRatedMovies = useMemo(() => {
@@ -41,7 +71,7 @@ export default function HomePage() {
         return { ...m, ratingAverage: rating.average, ratingCount: rating.count };
       })
       .filter(m => m.ratingCount > 0)
-      .sort((a, b) => b.ratingAverage - a.ratingAverage)
+      .sort((a, b) => b.ratingAverage - a.ratingAverage || b.ratingCount - a.ratingCount)
       .slice(0, 4);
   }, [state.movies, getMovieRating]);
 
@@ -270,7 +300,7 @@ export default function HomePage() {
               />
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 20 }}>
-                {currentMovies.map(movie => <MovieCard key={movie.id} movie={movie} />)}
+                {currentMovies.map(movie => <MovieCard key={movie.id} movie={movie} topRank={currentMovieRanks[movie.id]} />)}
               </div>
             )}
           </div>
@@ -294,7 +324,7 @@ export default function HomePage() {
             <div className="container">
               <SectionHeader eyebrow="Community Favorites" title="Top Rated by Moviegoers" />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 18 }}>
-                {topRatedMovies.map(movie => <MovieCard key={movie.id} movie={movie} />)}
+                {topRatedMovies.map((movie, idx) => <MovieCard key={movie.id} movie={movie} topRank={idx < 3 ? idx + 1 : null} />)}
               </div>
             </div>
           </section>
