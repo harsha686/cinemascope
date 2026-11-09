@@ -434,7 +434,33 @@ export async function syncUserPublicStats(userId) {
       }
     } catch (_) {}
 
-    const calculatedScore = (stats.totalWatched * 5) + (reviewCount * 15) + (voteCount * 10);
+    // Also count community contributions (+100 points each for added theaters & weekend candidates)
+    let addedTheatersCount = 0;
+    try {
+      const rawTheaters = localStorage.getItem('cinemascope_theaters');
+      if (rawTheaters) {
+        const thList = JSON.parse(rawTheaters);
+        addedTheatersCount = (Array.isArray(thList) ? thList : []).filter(t => t.addedByUserId === uid).length;
+      }
+    } catch (_) {}
+
+    let addedCandidatesCount = 0;
+    try {
+      const rawRounds = localStorage.getItem('cinemascope_weekend_rounds');
+      if (rawRounds) {
+        const rList = JSON.parse(rawRounds);
+        (Array.isArray(rList) ? rList : []).forEach(r => {
+          Object.values(r.genreRounds || {}).forEach(gr => {
+            (gr.candidates || []).forEach(c => {
+              if (c.addedByUserId === uid) addedCandidatesCount++;
+            });
+          });
+        });
+      }
+    } catch (_) {}
+
+    const contributionBonus = (addedTheatersCount * 100) + (addedCandidatesCount * 100);
+    const calculatedScore = (stats.totalWatched * 5) + (reviewCount * 15) + (voteCount * 10) + contributionBonus;
     const seed = SEED_USER_STATS[uid] || null;
 
     let idx = users.findIndex(u => u.id === uid);
@@ -455,7 +481,7 @@ export async function syncUserPublicStats(userId) {
       let finalWatched = stats.totalWatched > 0 ? stats.totalWatched : (seed?.watched || 0);
       let finalVotes = voteCount > 0 ? voteCount : (seed?.votes || existingStats.voteCount || 0);
       let finalRevs = reviewCount > 0 ? reviewCount : (seed?.reviews || existingStats.reviewCount || 0);
-      let calculated = (finalWatched * 5) + (finalRevs * 15) + (finalVotes * 10);
+      let calculated = (finalWatched * 5) + (finalRevs * 15) + (finalVotes * 10) + contributionBonus;
       let finalScore = seed?.points ? Math.max(calculated, seed.points) : calculated;
 
       const updatedUser = {
@@ -507,13 +533,14 @@ export async function syncAllCommunityUserStats() {
   if (!supabase) return null;
 
   try {
-    const [usersRes, moviesRes, reviewsRes, wpRes, colsRes, diaryRes] = await Promise.all([
+    const [usersRes, moviesRes, reviewsRes, wpRes, colsRes, diaryRes, theatersRes] = await Promise.all([
       supabase.from('collections').select('description').eq('id', 'system_users_data').maybeSingle(),
       supabase.from('user_movies').select('user_id, is_watched, in_watchlist, is_favorite'),
       supabase.from('reviews').select('user_id, status, likes_count'),
       supabase.from('collections').select('description').eq('id', 'system_weekend_pick_data').maybeSingle(),
       supabase.from('collections').select('id, user_id').neq('id', 'system_users_data').neq('id', 'system_weekend_pick_data').neq('id', 'system_cities_data').neq('id', 'system_theaters_data').neq('id', 'system_notifications_data').neq('id', 'system_pro_applications_data'),
       supabase.from('diary_entries').select('id, user_id'),
+      supabase.from('collections').select('description').eq('id', 'system_theaters_data').maybeSingle(),
     ]);
 
     let usersList = [];
@@ -558,6 +585,36 @@ export async function syncAllCommunityUserStats() {
         diaryMap[d.user_id] = (diaryMap[d.user_id] || 0) + 1;
       }
     });
+
+    // Aggregate added theaters per user (+100 points each)
+    const addedTheatersMap = {};
+    if (theatersRes?.data?.description) {
+      try {
+        const thList = JSON.parse(theatersRes.data.description);
+        (Array.isArray(thList) ? thList : []).forEach(t => {
+          if (t.addedByUserId) {
+            addedTheatersMap[t.addedByUserId] = (addedTheatersMap[t.addedByUserId] || 0) + 1;
+          }
+        });
+      } catch (_) {}
+    }
+
+    // Aggregate added weekend candidates per user (+100 points each)
+    const addedCandidatesMap = {};
+    if (wpRes.data?.description) {
+      try {
+        const wp = JSON.parse(wpRes.data.description);
+        (wp.rounds || []).forEach(r => {
+          Object.values(r.genreRounds || {}).forEach(gr => {
+            (gr.candidates || []).forEach(c => {
+              if (c.addedByUserId) {
+                addedCandidatesMap[c.addedByUserId] = (addedCandidatesMap[c.addedByUserId] || 0) + 1;
+              }
+            });
+          });
+        });
+      } catch (_) {}
+    }
 
     // Aggregate votes count
     const voteMap = {};
@@ -608,8 +665,12 @@ export async function syncAllCommunityUserStats() {
       let diary = diaryMap[uid] !== undefined ? sbDiary : (curDiary || 0);
       let likes = sbLikes > 0 ? sbLikes : (existingStats.likesCount || 0);
 
+      const userAddedTheaters = addedTheatersMap[uid] || 0;
+      const userAddedCandidates = addedCandidatesMap[uid] || 0;
+      const userContributionBonus = (userAddedTheaters * 100) + (userAddedCandidates * 100);
+
       // Calculate true cinema score based on verified numbers
-      let calculatedScore = (w * 5) + (r * 15) + (v * 10);
+      let calculatedScore = (w * 5) + (r * 15) + (v * 10) + userContributionBonus;
       let score = seed?.points ? Math.max(calculatedScore, seed.points) : calculatedScore;
 
       if (w !== curWatched || score !== curScore || v !== curVotes || r !== curRevs || cols !== curCols || diary !== curDiary || fav !== curFavorites || wl !== curWatchlist) {

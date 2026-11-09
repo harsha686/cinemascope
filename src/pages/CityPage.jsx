@@ -71,7 +71,7 @@ export default function CityPage() {
     setShowAddTheaterModal(false);
     setSearch('');
     setActiveFilter('all');
-    setNotificationMessage(`"${newTheater.name}" has been added to ${city?.name || 'the city'}!`);
+    setNotificationMessage(`"${newTheater.name}" has been added to ${city?.name || 'the city'}! +100 points earned!`);
     setTimeout(() => setNotificationMessage(''), 6000);
   };
 

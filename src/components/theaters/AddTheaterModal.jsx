@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Plus, Check, MapPin, Monitor, Film, Sparkles, Building2, Volume2, ShieldCheck } from 'lucide-react';
 import { getFeatureBadgeStyle } from '../city/TheaterCard';
+import { useApp } from '../../AppContext';
 
 const THEATER_TYPES = [
   { id: 'single-screen', label: 'Single Screen' },
@@ -41,6 +42,7 @@ export default function AddTheaterModal({
   defaultCityId = 'visakhapatnam',
   currentUser = null,
 }) {
+  const { dispatch } = useApp();
   const [formData, setFormData] = useState({
     name: '',
     cityId: defaultCityId,
@@ -175,9 +177,22 @@ export default function AddTheaterModal({
         sourceConfidence: currentUser?.role === 'ADMIN' ? 'verified' : 'reported',
         verified: currentUser?.role === 'ADMIN',
         addedBy: currentUser ? (currentUser.username || currentUser.name || currentUser.email) : 'Moviegoer',
+        addedByUserId: currentUser?.id || null,
         createdAt: new Date().toISOString(),
         screens,
       };
+
+      // Award 100 XP to the user for contributing a new theater to CinemaScope
+      if (currentUser?.id && dispatch) {
+        const currentScore = currentUser?.stats?.cinemaScore || 0;
+        dispatch({
+          type: 'UPDATE_USER_STATS',
+          payload: {
+            userId: currentUser.id,
+            stats: { cinemaScore: currentScore + 100 },
+          },
+        });
+      }
 
       onSave(finalTheater);
       onClose();
@@ -247,7 +262,7 @@ export default function AddTheaterModal({
               }}
             >
               <Sparkles size={13} />
-              <span>Community Theater Addition</span>
+              <span>Community Theater Addition · +100 XP</span>
             </div>
             <h3
               style={{
@@ -771,7 +786,7 @@ export default function AddTheaterModal({
               <strong style={{ color: 'var(--gold)' }}>
                 {currentUser?.name || currentUser?.username || 'Community Moviegoer'}
               </strong>
-              . This theater will be instantly available in the city directory for all users.
+              . This theater will be instantly available in the city directory for all users and you'll earn +100 points!
             </span>
           </div>
 
