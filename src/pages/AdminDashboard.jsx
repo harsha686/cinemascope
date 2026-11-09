@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShieldAlert, Film, MessageSquare, Users, MapPin, Plus, Search, Edit3, Trash2, CheckCircle2, EyeOff, Sparkles, AlertCircle, ArrowLeft, ExternalLink, Check, Image as ImageIcon, Database, RefreshCw, ShieldCheck, Building2, Trophy, Clock, X, AlertTriangle } from 'lucide-react';
+import { Flag, ShieldAlert, Film, MessageSquare, Users, MapPin, Plus, Search, Edit3, Trash2, CheckCircle2, EyeOff, Sparkles, AlertCircle, ArrowLeft, ExternalLink, Check, Image as ImageIcon, Database, RefreshCw, ShieldCheck, Building2, Trophy, Clock, X, AlertTriangle } from 'lucide-react';
 import { useApp, getEffectiveMovieStatus } from '../AppContext';
 import TMDBImportHelper from '../components/admin/TMDBImportHelper';
 import XPosterDiscoveryModal from '../components/admin/XPosterDiscoveryModal';
@@ -47,6 +47,7 @@ export default function AdminDashboard() {
   const [reviewStatusFilter, setReviewStatusFilter] = useState('all');
   const [reviewPageSize, setReviewPageSize] = useState(20);
   const [reviewPage, setReviewPage] = useState(1);
+  const [inspectingReportReview, setInspectingReportReview] = useState(null);
 
   // Delete User State (Direct Admin Deletion)
   const [userToDelete, setUserToDelete] = useState(null);
@@ -245,9 +246,19 @@ export default function AdminDashboard() {
   });
 
   // Filtered & Paginated Reviews for Admin Moderation
+  const reportedReviews = useMemo(() => {
+    const reportsList = state.reports || [];
+    return (state.reviews || []).filter(r =>
+      (r.reportCount && r.reportCount > 0) || reportsList.some(rep => rep.reviewId === r.id)
+    );
+  }, [state.reviews, state.reports]);
+
   const filteredReviews = useMemo(() => {
     let list = state.reviews || [];
-    if (reviewStatusFilter !== 'all') {
+    if (reviewStatusFilter === 'REPORTED') {
+      const reportsList = state.reports || [];
+      list = list.filter(r => (r.reportCount && r.reportCount > 0) || reportsList.some(rep => rep.reviewId === r.id));
+    } else if (reviewStatusFilter !== 'all') {
       list = list.filter(r => (r.status || 'PUBLISHED') === reviewStatusFilter);
     }
     if (reviewSearch.trim()) {
@@ -261,7 +272,7 @@ export default function AdminDashboard() {
       );
     }
     return list;
-  }, [state.reviews, reviewStatusFilter, reviewSearch]);
+  }, [state.reviews, state.reports, reviewStatusFilter, reviewSearch]);
 
   const totalReviewPages = reviewPageSize > 0 ? Math.max(1, Math.ceil(filteredReviews.length / reviewPageSize)) : 1;
   const paginatedReviews = useMemo(() => {
@@ -578,7 +589,7 @@ export default function AdminDashboard() {
               { id: 'movies', label: 'Movies Catalog', icon: Film, count: state.movies.length },
               { id: 'weekend-picks', label: 'Weekend Picks', icon: Trophy, count: 'Live' },
               { id: 'theaters', label: 'Theaters', icon: Building2, count: allTheaters.length },
-              { id: 'reviews', label: 'Review Moderation', icon: MessageSquare, count: state.reviews.length },
+              { id: 'reviews', label: 'Review Moderation', icon: MessageSquare, count: reportedReviews.length > 0 ? `${state.reviews.length} (${reportedReviews.length} Flagged)` : state.reviews.length, isFlagged: reportedReviews.length > 0 },
               { id: 'users', label: 'Users', icon: Users, count: pendingDeletionRequests.length > 0 ? `${allDisplayUsers.length} (${pendingDeletionRequests.length} Req)` : allDisplayUsers.length },
               { id: 'cities', label: 'Cities', icon: MapPin, count: allCities.length },
               { id: 'pro-reviewers', label: 'Pro Reviewers', icon: ShieldCheck, count: (state.professionalApplications?.length || getApplications().length) },
@@ -613,7 +624,15 @@ export default function AdminDashboard() {
                     <Icon size={16} />
                     <span>{tab.label}</span>
                   </div>
-                  <span style={{ fontSize: 10, padding: '2px 6px', background: 'rgba(255,255,255,0.06)', borderRadius: 2 }}>
+                  <span style={{
+                    fontSize: 10,
+                    padding: '2px 6px',
+                    background: tab.isFlagged ? 'rgba(239, 68, 68, 0.22)' : 'rgba(255,255,255,0.06)',
+                    color: tab.isFlagged ? '#f87171' : 'inherit',
+                    border: tab.isFlagged ? '1px solid rgba(239, 68, 68, 0.45)' : 'none',
+                    borderRadius: 2,
+                    fontWeight: tab.isFlagged ? 700 : 400
+                  }}>
                     {tab.count}
                   </span>
                 </button>
@@ -973,11 +992,111 @@ export default function AdminDashboard() {
             {/* REVIEWS MODERATION TAB */}
             {activeTab === 'reviews' && (
               <div>
+                {/* Active Flagged Reports Alert Banner */}
+                {reportedReviews.length > 0 && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    marginBottom: 16,
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    borderRadius: 'var(--radius-sm)',
+                    color: '#fca5a5',
+                    fontSize: 13,
+                    flexWrap: 'wrap',
+                    gap: 12
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <AlertTriangle size={18} color="#ef4444" style={{ flexShrink: 0 }} />
+                      <span>
+                        <strong style={{ color: '#fff' }}>{reportedReviews.length} Review{reportedReviews.length === 1 ? '' : 's'} Flagged for Moderation.</strong>
+                        {' '}Users reported these reviews for policy violations.
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {reviewStatusFilter !== 'REPORTED' && (
+                        <button
+                          type="button"
+                          onClick={() => { setReviewStatusFilter('REPORTED'); setReviewPage(1); }}
+                          className="btn btn-sm"
+                          style={{ background: '#ef4444', color: '#fff', fontSize: 11, padding: '4px 10px', border: 'none' }}
+                        >
+                          View Flagged Reviews ({reportedReviews.length})
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Filter Pills */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => { setReviewStatusFilter('all'); setReviewPage(1); }}
+                    className="btn btn-sm"
+                    style={{
+                      fontSize: 11,
+                      padding: '4px 10px',
+                      background: reviewStatusFilter === 'all' ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
+                      borderColor: reviewStatusFilter === 'all' ? 'var(--gold)' : 'var(--border-subtle)',
+                      color: reviewStatusFilter === 'all' ? 'var(--gold)' : 'var(--text-secondary)',
+                    }}
+                  >
+                    All Reviews ({state.reviews.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setReviewStatusFilter('REPORTED'); setReviewPage(1); }}
+                    className="btn btn-sm"
+                    style={{
+                      fontSize: 11,
+                      padding: '4px 10px',
+                      background: reviewStatusFilter === 'REPORTED' ? 'rgba(239, 68, 68, 0.22)' : 'rgba(255,255,255,0.03)',
+                      borderColor: reviewStatusFilter === 'REPORTED' ? '#ef4444' : (reportedReviews.length > 0 ? 'rgba(239, 68, 68, 0.5)' : 'var(--border-subtle)'),
+                      color: reviewStatusFilter === 'REPORTED' || reportedReviews.length > 0 ? '#f87171' : 'var(--text-secondary)',
+                      fontWeight: reportedReviews.length > 0 ? 700 : 400,
+                    }}
+                  >
+                    🚩 Flagged Reports ({reportedReviews.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setReviewStatusFilter('PUBLISHED'); setReviewPage(1); }}
+                    className="btn btn-sm"
+                    style={{
+                      fontSize: 11,
+                      padding: '4px 10px',
+                      background: reviewStatusFilter === 'PUBLISHED' ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
+                      borderColor: reviewStatusFilter === 'PUBLISHED' ? 'var(--gold)' : 'var(--border-subtle)',
+                      color: reviewStatusFilter === 'PUBLISHED' ? 'var(--gold)' : 'var(--text-secondary)',
+                    }}
+                  >
+                    Published ({state.reviews.filter(r => (r.status || 'PUBLISHED') === 'PUBLISHED').length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setReviewStatusFilter('HIDDEN'); setReviewPage(1); }}
+                    className="btn btn-sm"
+                    style={{
+                      fontSize: 11,
+                      padding: '4px 10px',
+                      background: reviewStatusFilter === 'HIDDEN' ? 'var(--gold-faint)' : 'rgba(255,255,255,0.03)',
+                      borderColor: reviewStatusFilter === 'HIDDEN' ? 'var(--gold)' : 'var(--border-subtle)',
+                      color: reviewStatusFilter === 'HIDDEN' ? 'var(--gold)' : 'var(--text-secondary)',
+                    }}
+                  >
+                    Hidden ({state.reviews.filter(r => r.status === 'HIDDEN').length})
+                  </button>
+                </div>
+
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
                   <div>
                     <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', margin: 0 }}>Review Moderation</h3>
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>
                       Showing {paginatedReviews.length} of {filteredReviews.length} reviews{reviewPageSize > 0 ? ` (Page ${reviewPage} of ${totalReviewPages})` : ' (All loaded)'}
+                      {reviewStatusFilter === 'REPORTED' && ' · Filtered by Flagged Reports'}
                     </p>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -998,7 +1117,8 @@ export default function AdminDashboard() {
                       onChange={e => { setReviewStatusFilter(e.target.value); setReviewPage(1); }}
                       style={{ width: 'auto', height: 32, fontSize: 12 }}
                     >
-                      <option value="all">All Statuses</option>
+                      <option value="all">All Statuses ({state.reviews.length})</option>
+                      <option value="REPORTED" style={{ color: '#f87171', fontWeight: 600 }}>🚩 Flagged / Reported ({reportedReviews.length})</option>
                       <option value="PUBLISHED">Published</option>
                       <option value="HIDDEN">Hidden</option>
                     </select>
@@ -1024,21 +1144,32 @@ export default function AdminDashboard() {
                         <th style={{ padding: '12px 16px' }}>Rating</th>
                         <th style={{ padding: '12px 16px' }}>Review Snippet</th>
                         <th style={{ padding: '12px 16px' }}>Status</th>
+                        <th style={{ padding: '12px 16px' }}>Reports / Flags</th>
                         <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedReviews.length === 0 ? (
                         <tr>
-                          <td colSpan={6} style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          <td colSpan={7} style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
                             No reviews found matching current filter criteria.
                           </td>
                         </tr>
                       ) : (
                         paginatedReviews.map(rev => {
                         const isTheater = !!rev.theaterId;
+                        const revReports = (state.reports || []).filter(rep => rep.reviewId === rev.id);
+                        const isReported = (rev.reportCount && rev.reportCount > 0) || revReports.length > 0;
+                        const reportCount = Math.max(rev.reportCount || 0, revReports.length);
                         return (
-                        <tr key={rev.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                        <tr
+                          key={rev.id}
+                          style={{
+                            borderBottom: '1px solid var(--border-subtle)',
+                            background: isReported ? 'rgba(239, 68, 68, 0.05)' : 'transparent',
+                            borderLeft: isReported ? '3px solid #ef4444' : 'none'
+                          }}
+                        >
                           <td style={{ padding: '10px 16px', fontWeight: 500, color: 'var(--text-primary)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <span>{rev.userDisplayName}</span>
@@ -1069,11 +1200,59 @@ export default function AdminDashboard() {
                           </td>
                           <td style={{ padding: '10px 16px' }}>
                             <span className={`badge ${rev.status === 'PUBLISHED' ? 'badge-verified' : 'badge-dim'}`} style={{ fontSize: 9 }}>
-                              {rev.status}
+                              {rev.status || 'PUBLISHED'}
                             </span>
                           </td>
+                          <td style={{ padding: '10px 16px' }}>
+                            {isReported ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                <span
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    padding: '2px 8px',
+                                    borderRadius: 4,
+                                    background: 'rgba(239, 68, 68, 0.18)',
+                                    border: '1px solid rgba(239, 68, 68, 0.45)',
+                                    color: '#f87171',
+                                    fontSize: 11,
+                                    fontWeight: 700
+                                  }}
+                                >
+                                  <Flag size={11} /> {reportCount} Flag{reportCount === 1 ? '' : 's'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setInspectingReportReview(rev)}
+                                  className="btn btn-ghost btn-sm"
+                                  style={{ padding: '2px 6px', fontSize: 10, color: 'var(--text-primary)', textDecoration: 'underline' }}
+                                  title="View report reasons and details"
+                                >
+                                  View Reasons
+                                </button>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>✓ Clean</span>
+                            )}
+                          </td>
                           <td style={{ padding: '10px 16px', textAlign: 'right' }}>
-                            <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                            <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                              {isReported && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (window.confirm('Dismiss flags for this review and mark as safe?')) {
+                                      dispatch({ type: 'DISMISS_REPORTS', payload: rev.id });
+                                    }
+                                  }}
+                                  className="btn btn-ghost btn-sm"
+                                  style={{ padding: '2px 6px', fontSize: 10, color: '#38bdf8' }}
+                                  title="Dismiss reports and reset flag count"
+                                >
+                                  Dismiss Flag
+                                </button>
+                              )}
                               {rev.status !== 'PUBLISHED' && (
                                 <button
                                   type="button"
@@ -1096,7 +1275,11 @@ export default function AdminDashboard() {
                               )}
                               <button
                                 type="button"
-                                onClick={() => dispatch({ type: 'DELETE_REVIEW', payload: rev.id })}
+                                onClick={() => {
+                                  if (window.confirm('Are you sure you want to permanently remove this review?')) {
+                                    dispatch({ type: 'DELETE_REVIEW', payload: rev.id });
+                                  }
+                                }}
                                 className="btn btn-ghost btn-sm"
                                 style={{ padding: '2px 6px', fontSize: 10, color: '#f87171' }}
                               >
@@ -1575,6 +1758,170 @@ export default function AdminDashboard() {
                               <span>Accept &amp; Permanently Delete</span>
                             </>
                           )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Report Details / Reasons Modal */}
+                {inspectingReportReview && (
+                  <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 1000,
+                    background: 'rgba(0,0,0,0.85)',
+                    backdropFilter: 'blur(4px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 20
+                  }}>
+                    <div style={{
+                      background: 'var(--bg-card)',
+                      border: '1px solid rgba(239, 68, 68, 0.4)',
+                      borderRadius: 'var(--radius-sm)',
+                      maxWidth: 580,
+                      width: '100%',
+                      padding: 24,
+                      maxHeight: '90vh',
+                      overflowY: 'auto'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Flag size={18} color="#ef4444" />
+                            <h3 style={{ fontSize: 18, color: 'var(--text-primary)', margin: 0, fontWeight: 700 }}>
+                              Reported Review Details
+                            </h3>
+                          </div>
+                          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>
+                            Review by <strong style={{ color: 'var(--text-primary)' }}>{inspectingReportReview.userDisplayName || 'Anonymous'}</strong>
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setInspectingReportReview(null)}
+                          className="btn btn-ghost btn-sm"
+                          style={{ padding: 4 }}
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+
+                      {/* Review Card Summary */}
+                      <div style={{
+                        background: 'rgba(0,0,0,0.3)',
+                        border: '1px solid var(--border-subtle)',
+                        padding: 14,
+                        borderRadius: 4,
+                        marginBottom: 18
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 12 }}>
+                          <span style={{ color: 'var(--gold)', fontWeight: 600 }}>★ {inspectingReportReview.rating} / 5</span>
+                          <span className={`badge ${inspectingReportReview.status === 'PUBLISHED' ? 'badge-verified' : 'badge-dim'}`} style={{ fontSize: 9 }}>
+                            {inspectingReportReview.status || 'PUBLISHED'}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0, lineHeight: 1.5 }}>
+                          "{inspectingReportReview.reviewText || <em style={{ color: 'var(--text-muted)' }}>No text written</em>}"
+                        </p>
+                      </div>
+
+                      {/* Reports Submitted Breakdown */}
+                      <h4 style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 10 }}>
+                        Submitted Reports ({(() => {
+                          const reps = (state.reports || []).filter(rep => rep.reviewId === inspectingReportReview.id);
+                          return reps.length || inspectingReportReview.reportCount || 1;
+                        })()})
+                      </h4>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+                        {(() => {
+                          const matchingReports = (state.reports || []).filter(rep => rep.reviewId === inspectingReportReview.id);
+                          if (matchingReports.length === 0) {
+                            return (
+                              <div style={{ padding: 12, background: 'rgba(239, 68, 68, 0.08)', borderRadius: 4, fontSize: 12, color: '#fca5a5' }}>
+                                Flagged by user report counter ({inspectingReportReview.reportCount || 1} report recorded).
+                              </div>
+                            );
+                          }
+                          return matchingReports.map((rep, idx) => {
+                            const reporter = (state.users || []).find(u => u.id === rep.userId);
+                            return (
+                              <div
+                                key={rep.id || idx}
+                                style={{
+                                  padding: 12,
+                                  background: 'rgba(255,255,255,0.03)',
+                                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                                  borderRadius: 4,
+                                  fontSize: 12
+                                }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                  <span style={{ fontWeight: 600, color: '#f87171' }}>
+                                    Reason: {rep.reason || 'Not specified'}
+                                  </span>
+                                  <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+                                    {rep.createdAt ? new Date(rep.createdAt).toLocaleString() : 'Recent'}
+                                  </span>
+                                </div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: 11 }}>
+                                  Reported by: <span style={{ color: 'var(--text-primary)' }}>{reporter?.displayName || rep.userId || 'Anonymous'}</span>
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+
+                      {/* Moderation Actions */}
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap', borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            dispatch({ type: 'DISMISS_REPORTS', payload: inspectingReportReview.id });
+                            setInspectingReportReview(null);
+                          }}
+                          className="btn btn-outline btn-sm"
+                          style={{ fontSize: 11, color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.4)' }}
+                        >
+                          ✓ Dismiss Reports (Keep Review)
+                        </button>
+                        {inspectingReportReview.status !== 'HIDDEN' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              dispatch({ type: 'MODERATE_REVIEW', payload: { id: inspectingReportReview.id, status: 'HIDDEN' } });
+                              setInspectingReportReview(null);
+                            }}
+                            className="btn btn-outline btn-sm"
+                            style={{ fontSize: 11, color: '#fbbf24', borderColor: 'rgba(251, 191, 36, 0.4)' }}
+                          >
+                            Hide Review
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm('Permanently remove this reported review?')) {
+                              dispatch({ type: 'DELETE_REVIEW', payload: inspectingReportReview.id });
+                              setInspectingReportReview(null);
+                            }
+                          }}
+                          className="btn btn-sm"
+                          style={{ fontSize: 11, background: '#ef4444', color: '#fff', border: 'none' }}
+                        >
+                          Delete Review
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setInspectingReportReview(null)}
+                          className="btn btn-ghost btn-sm"
+                          style={{ fontSize: 11 }}
+                        >
+                          Close
                         </button>
                       </div>
                     </div>

@@ -554,9 +554,14 @@ function reducer(state, action) {
     case 'DELETE_REVIEW':
       const targetToDelete = state.reviews.find(r => r.id === action.payload);
       const remainingRev = state.reviews.filter(r => r.id !== action.payload);
-      newState = { ...state, reviews: remainingRev };
+      const remainingReportsAfterDel = (state.reports || []).filter(rep => rep.reviewId !== action.payload);
+      newState = { ...state, reviews: remainingRev, reports: remainingReportsAfterDel };
       saveStorage('cinemascope_reviews', remainingRev);
-      if (isSupabaseConfigured()) supabaseService.deleteReview(action.payload);
+      saveStorage('cinemascope_reports', remainingReportsAfterDel);
+      if (isSupabaseConfigured()) {
+        supabaseService.deleteReview(action.payload);
+        supabaseService.saveReportsData(remainingReportsAfterDel).catch(() => {});
+      }
       if (targetToDelete?.userId) syncUserPublicStats(targetToDelete.userId).catch(() => {});
       return newState;
 
@@ -564,17 +569,52 @@ function reducer(state, action) {
       const modRev = state.reviews.map(r => r.id === action.payload.id ? { ...r, status: action.payload.status } : r);
       newState = { ...state, reviews: modRev };
       saveStorage('cinemascope_reviews', modRev);
+      if (isSupabaseConfigured()) {
+        supabaseService.updateReviewStatus(action.payload.id, action.payload.status).catch(() => {});
+      }
       return newState;
 
-    case 'REPORT_REVIEW':
-      const newReports = [...state.reports, action.payload];
+    case 'REPORT_REVIEW': {
+      const newReports = [action.payload, ...(state.reports || [])];
       // Increment report count on review
-      const revWithReport = state.reviews.map(r => r.id === action.payload.reviewId ? { ...r, reportCount: (r.reportCount || 0) + 1 } : r);
+      const revWithReport = state.reviews.map(r => {
+        if (r.id === action.payload.reviewId) {
+          const updatedCount = (r.reportCount || 0) + 1;
+          if (isSupabaseConfigured()) {
+            supabaseService.updateReviewReportCount(r.id, updatedCount).catch(() => {});
+          }
+          return { ...r, reportCount: updatedCount };
+        }
+        return r;
+      });
       newState = { ...state, reports: newReports, reviews: revWithReport };
       saveStorage('cinemascope_reports', newReports);
       saveStorage('cinemascope_reviews', revWithReport);
+      if (isSupabaseConfigured()) {
+        supabaseService.saveReportsData(newReports).catch(() => {});
+      }
       return newState;
+    }
 
+    case 'DISMISS_REPORTS': {
+      const reviewIdToClear = action.payload?.reviewId || action.payload;
+      const filteredReports = (state.reports || []).filter(rep => rep.reviewId !== reviewIdToClear);
+      const revsCleared = (state.reviews || []).map(r => r.id === reviewIdToClear ? { ...r, reportCount: 0 } : r);
+      newState = { ...state, reports: filteredReports, reviews: revsCleared };
+      saveStorage('cinemascope_reports', filteredReports);
+      saveStorage('cinemascope_reviews', revsCleared);
+      if (isSupabaseConfigured()) {
+        supabaseService.updateReviewReportCount(reviewIdToClear, 0).catch(() => {});
+        supabaseService.saveReportsData(filteredReports).catch(() => {});
+      }
+      return newState;
+    }
+
+    case 'SET_REPORTS': {
+      newState = { ...state, reports: action.payload || [] };
+      saveStorage('cinemascope_reports', action.payload || []);
+      return newState;
+    }
     case 'TOGGLE_HELPFUL_VOTE': {
       const { userId, reviewId } = action.payload;
       const existing = state.helpfulVotes.find(v => v.userId === userId && v.reviewId === reviewId);
@@ -904,6 +944,7 @@ export function AppProvider({ children }) {
         supabaseService.getDeletionRequestsData(),
         supabaseService.getDeletedMovieIds(),
         supabaseService.getDeletedUsers(),
+        supabaseService.getReportsData(),
       ]);
 
       const remoteMovies = results[0].status === 'fulfilled' ? results[0].value : null;
@@ -1214,6 +1255,29 @@ export function AppProvider({ children }) {
         });
         dispatch({ type: 'SET_DELETION_REQUESTS', payload: cleanReqs });
         saveStorage('cinemascope_deletion_requests', cleanReqs);
+      }
+
+      // Reports Synchronization across devices (Cloud is source of truth for moderation)
+      const remoteReports = results[11]?.status === 'fulfilled' ? results[11].value : null;
+      const currentLocalReports = currentState.reports || loadStorage('cinemascope_reports', []);
+      if (Array.isArray(remoteReports) && remoteReports.length > 0) {
+        const remoteReportIds = new Set(remoteReports.map(r => r.id || (r.reviewId + '-' + r.userId)));
+        let hasLocalReportChanges = false;
+        const mergedReports = [...remoteReports];
+        currentLocalReports.forEach(loc => {
+          const locKey = loc.id || (loc.reviewId + '-' + loc.userId);
+          if (!remoteReportIds.has(locKey)) {
+            mergedReports.push(loc);
+            hasLocalReportChanges = true;
+          }
+        });
+        dispatch({ type: 'SET_REPORTS', payload: mergedReports });
+        saveStorage('cinemascope_reports', mergedReports);
+        if (hasLocalReportChanges) {
+          supabaseService.saveReportsData(mergedReports).catch(console.warn);
+        }
+      } else if (currentLocalReports.length > 0) {
+        supabaseService.saveReportsData(currentLocalReports).catch(console.warn);
       }
 
       // Sync personal movie library + community stats in parallel to reduce latency
