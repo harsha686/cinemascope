@@ -49,6 +49,7 @@ export default function PublicReviewPage() {
   };
 
   const starCount = Math.floor(review.rating || 5);
+  const isFlaggedNonGen = !!review.isFlaggedNonGenuine || review.status === 'FLAGGED_NON_GENUINE';
 
   return (
     <div className="page-enter" style={{ minHeight: '85vh', padding: '50px 24px 80px' }}>
@@ -81,11 +82,11 @@ export default function PublicReviewPage() {
 
         {/* Main Review Presentation Card */}
         <div style={{
-          background: 'var(--bg-card, #121218)',
-          border: '1px solid var(--border-subtle, rgba(255,255,255,0.1))',
+          background: isFlaggedNonGen ? 'rgba(239, 68, 68, 0.05)' : 'var(--bg-card, #121218)',
+          border: isFlaggedNonGen ? '2px solid #ef4444' : '1px solid var(--border-subtle, rgba(255,255,255,0.1))',
           borderRadius: 8,
           overflow: 'hidden',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+          boxShadow: isFlaggedNonGen ? '0 0 30px rgba(239, 68, 68, 0.25)' : '0 10px 40px rgba(0,0,0,0.5)',
         }}>
           {/* Header with Movie Context */}
           <div style={{
@@ -248,6 +249,31 @@ export default function PublicReviewPage() {
             }}>
               {review.reviewText || review.review || review.content || 'Great experience watching this title.'}
             </div>
+
+            {/* Non-Genuine Notice Banner */}
+            {(review.isFlaggedNonGenuine || review.status === 'FLAGGED_NON_GENUINE') && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 12,
+                padding: '14px 18px',
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1.5px solid #ef4444',
+                borderRadius: 6,
+                marginBottom: 20,
+                color: '#fca5a5',
+              }}>
+                <AlertTriangle size={22} color="#ef4444" style={{ flexShrink: 0, marginTop: 2 }} />
+                <div>
+                  <div style={{ color: '#fff', fontWeight: 800, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    ⚠️ Official Policy Notice: Review Flagged as Not Genuine
+                  </div>
+                  <p style={{ margin: '4px 0 0', fontSize: 13, color: '#fca5a5', lineHeight: 1.5 }}>
+                    {review.moderationNotice || 'This review has received an official administration notice for violating authenticity guidelines.'}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Parameter Ratings if present */}
             {review.parameterRatings && Object.keys(review.parameterRatings).length > 0 && (

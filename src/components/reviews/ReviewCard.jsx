@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Flag, Edit3, Trash2, Check, Monitor, Building2 } from 'lucide-react';
+import { Heart, Flag, Edit3, Trash2, Check, Monitor, Building2, AlertTriangle } from 'lucide-react';
 import { useApp } from '../../AppContext';
 import ShareButton from '../social/ShareButton';
 import { SOCIAL_CONTENT_TYPES } from '../../services/socialSharingService';
@@ -86,16 +86,43 @@ export default function ReviewCard({ review, onEdit, onDelete }) {
     setShowReportModal(false);
   };
 
+  const isFlaggedNonGen = !!review.isFlaggedNonGenuine || review.status === 'FLAGGED_NON_GENUINE';
+
   return (
     <div style={{
       padding: 18,
-      background: 'var(--bg-card)',
-      border: '1px solid var(--border-subtle)',
+      background: isFlaggedNonGen ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-card)',
+      border: isFlaggedNonGen ? '1.5px solid #ef4444' : '1px solid var(--border-subtle)',
+      boxShadow: isFlaggedNonGen ? '0 0 20px rgba(239, 68, 68, 0.18)' : 'none',
       borderRadius: 'var(--radius-sm)',
       display: 'flex',
       flexDirection: 'column',
       gap: 12,
     }}>
+      {/* Official Non-Genuine Warning Banner */}
+      {isFlaggedNonGen && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 10,
+          padding: '10px 14px',
+          background: 'rgba(239, 68, 68, 0.18)',
+          border: '1px solid #ef4444',
+          borderRadius: 4,
+          color: '#fca5a5',
+          fontSize: 12,
+        }}>
+          <AlertTriangle size={18} color="#ef4444" style={{ flexShrink: 0, marginTop: 1 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ color: '#ffffff', fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', fontSize: 11 }}>
+              ⚠️ Official Notice: Review Flagged as Not Genuine
+            </div>
+            <div style={{ fontSize: 12, color: '#fca5a5', marginTop: 2, lineHeight: 1.4 }}>
+              {review.moderationNotice || 'This review has received an official administration notice for violating authenticity guidelines.'}
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header: avatar + name + overall score */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         {(() => {

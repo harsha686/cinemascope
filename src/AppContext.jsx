@@ -615,6 +615,79 @@ function reducer(state, action) {
       saveStorage('cinemascope_reports', action.payload || []);
       return newState;
     }
+
+    case 'FLAG_REVIEW_NON_GENUINE': {
+      const { reviewId, notice, reviewerUserId } = action.payload;
+      const noticeText = notice || 'This review has been officially verified as non-genuine following verified community reports.';
+      let updatedReviewObj = null;
+      const updatedReviews = (state.reviews || []).map(r => {
+        if (String(r.id) === String(reviewId)) {
+          updatedReviewObj = {
+            ...r,
+            isFlaggedNonGenuine: true,
+            moderationNotice: noticeText,
+            noticeCreatedAt: new Date().toISOString(),
+          };
+          return updatedReviewObj;
+        }
+        return r;
+      });
+
+      const targetUserId = reviewerUserId || updatedReviewObj?.userId;
+      let updatedNotifs = Array.isArray(state.notifications) ? [...state.notifications] : [];
+      if (targetUserId) {
+        const warningNotif = {
+          id: `notif-warn-${Date.now()}`,
+          recipientId: targetUserId,
+          type: 'ADMIN_NOTICE',
+          title: 'Official Notice: Review Flagged as Non-Genuine',
+          message: noticeText,
+          reviewId: reviewId,
+          targetTitle: updatedReviewObj?.movieTitle || updatedReviewObj?.theaterName || 'your review',
+          targetId: updatedReviewObj?.movieId || updatedReviewObj?.theaterId || '',
+          targetType: updatedReviewObj?.theaterId ? 'THEATER' : 'MOVIE',
+          reviewSnippet: updatedReviewObj?.reviewText || '',
+          actorId: 'admin',
+          actorName: 'CinemaScope Moderation',
+          createdAt: new Date().toISOString(),
+          isRead: false,
+        };
+        updatedNotifs = [warningNotif, ...updatedNotifs];
+      }
+
+      newState = { ...state, reviews: updatedReviews, notifications: updatedNotifs };
+      saveStorage('cinemascope_reviews', updatedReviews);
+      saveStorage('cinemascope_notifications', updatedNotifs);
+
+      if (isSupabaseConfigured()) {
+        if (updatedReviewObj) supabaseService.saveReview(updatedReviewObj).catch(() => {});
+        supabaseService.saveNotificationsData(updatedNotifs).catch(() => {});
+      }
+      return newState;
+    }
+
+    case 'CLEAR_NON_GENUINE_FLAG': {
+      const reviewId = action.payload?.reviewId || action.payload;
+      let updatedReviewObj = null;
+      const updatedReviews = (state.reviews || []).map(r => {
+        if (String(r.id) === String(reviewId)) {
+          updatedReviewObj = {
+            ...r,
+            isFlaggedNonGenuine: false,
+            moderationNotice: null,
+            noticeCreatedAt: null,
+          };
+          return updatedReviewObj;
+        }
+        return r;
+      });
+      newState = { ...state, reviews: updatedReviews };
+      saveStorage('cinemascope_reviews', updatedReviews);
+      if (isSupabaseConfigured() && updatedReviewObj) {
+        supabaseService.saveReview(updatedReviewObj).catch(() => {});
+      }
+      return newState;
+    }
     case 'TOGGLE_HELPFUL_VOTE': {
       const { userId, reviewId } = action.payload;
       const existing = state.helpfulVotes.find(v => v.userId === userId && v.reviewId === reviewId);

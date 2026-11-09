@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Film, Menu, X, ChevronRight, ChevronDown, User, LogOut, ShieldAlert, ShieldCheck, MapPin, Bookmark, Calendar, Tv, Bell, Heart, Trash2 } from 'lucide-react';
+import { Film, Menu, X, ChevronRight, ChevronDown, User, LogOut, ShieldAlert, ShieldCheck, MapPin, Bookmark, Calendar, Tv, Bell, Heart, Trash2, AlertTriangle } from 'lucide-react';
 import { useApp } from '../../AppContext';
 
 function formatTimeAgo(isoString) {
@@ -612,17 +612,35 @@ export default function Navbar() {
                                   border: '1.5px solid var(--bg-card)',
                                 }}
                               >
-                                <Heart size={8} color="#fff" fill="#fff" />
+                                {notif.type === 'ADMIN_NOTICE' ? (
+                                  <AlertTriangle size={8} color="#fff" />
+                                ) : (
+                                  <Heart size={8} color="#fff" fill="#fff" />
+                                )}
                               </span>
                             </div>
 
                             {/* Text content */}
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.4, marginBottom: 3 }}>
-                                <strong style={{ color: 'var(--gold)', fontWeight: 600 }}>{notif.actorName}</strong>
-                                {' '}liked your review on{' '}
-                                <strong style={{ color: 'var(--text-primary)' }}>{notif.targetTitle}</strong>
-                              </div>
+                              {notif.type === 'ADMIN_NOTICE' ? (
+                                <div style={{ fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.4, marginBottom: 3 }}>
+                                  <strong style={{ color: '#ef4444', fontWeight: 700 }}>{notif.title || 'Official Moderation Notice'}</strong>
+                                  <div style={{ fontSize: 11, color: '#fca5a5', marginTop: 2, lineHeight: 1.35 }}>
+                                    {notif.message}
+                                  </div>
+                                  {notif.targetTitle && (
+                                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                                      Target: <span style={{ color: 'var(--text-secondary)' }}>{notif.targetTitle}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.4, marginBottom: 3 }}>
+                                  <strong style={{ color: 'var(--gold)', fontWeight: 600 }}>{notif.actorName}</strong>
+                                  {' '}liked your review on{' '}
+                                  <strong style={{ color: 'var(--text-primary)' }}>{notif.targetTitle}</strong>
+                                </div>
+                              )}
 
                               {notif.reviewSnippet && (
                                 <div

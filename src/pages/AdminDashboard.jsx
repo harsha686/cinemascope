@@ -48,6 +48,8 @@ export default function AdminDashboard() {
   const [reviewPageSize, setReviewPageSize] = useState(20);
   const [reviewPage, setReviewPage] = useState(1);
   const [inspectingReportReview, setInspectingReportReview] = useState(null);
+  const [showNoticeForm, setShowNoticeForm] = useState(false);
+  const [noticeInputText, setNoticeInputText] = useState('');
 
   // Delete User State (Direct Admin Deletion)
   const [userToDelete, setUserToDelete] = useState(null);
@@ -1158,16 +1160,17 @@ export default function AdminDashboard() {
                       ) : (
                         paginatedReviews.map(rev => {
                         const isTheater = !!rev.theaterId;
-                        const revReports = (state.reports || []).filter(rep => rep.reviewId === rev.id);
-                        const isReported = (rev.reportCount && rev.reportCount > 0) || revReports.length > 0;
+                        const revReports = (state.reports || []).filter(rep => String(rep.reviewId) === String(rev.id));
+                        const isNonGen = !!rev.isFlaggedNonGenuine;
+                        const isReported = isNonGen || (rev.reportCount && rev.reportCount > 0) || revReports.length > 0;
                         const reportCount = Math.max(rev.reportCount || 0, revReports.length);
                         return (
                         <tr
                           key={rev.id}
                           style={{
                             borderBottom: '1px solid var(--border-subtle)',
-                            background: isReported ? 'rgba(239, 68, 68, 0.05)' : 'transparent',
-                            borderLeft: isReported ? '3px solid #ef4444' : 'none'
+                            background: isNonGen ? 'rgba(239, 68, 68, 0.12)' : isReported ? 'rgba(239, 68, 68, 0.05)' : 'transparent',
+                            borderLeft: isNonGen ? '4px solid #ef4444' : isReported ? '3px solid #ef4444' : 'none'
                           }}
                         >
                           <td style={{ padding: '10px 16px', fontWeight: 500, color: 'var(--text-primary)' }}>
@@ -1204,11 +1207,43 @@ export default function AdminDashboard() {
                             </span>
                           </td>
                           <td style={{ padding: '10px 16px' }}>
-                            {isReported ? (
+                            {isNonGen ? (
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                                 <button
                                   type="button"
-                                  onClick={() => setInspectingReportReview(rev)}
+                                  onClick={() => { setInspectingReportReview(rev); setShowNoticeForm(false); }}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    padding: '2px 8px',
+                                    borderRadius: 4,
+                                    background: '#ef4444',
+                                    color: '#fff',
+                                    fontSize: 10,
+                                    fontWeight: 800,
+                                    letterSpacing: '0.04em',
+                                    cursor: 'pointer',
+                                    border: 'none'
+                                  }}
+                                  title="Flagged by administration as not genuine. Click for details."
+                                >
+                                  <AlertTriangle size={11} /> NOT GENUINE
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setInspectingReportReview(rev); setShowNoticeForm(false); }}
+                                  className="btn btn-ghost btn-sm"
+                                  style={{ padding: '2px 6px', fontSize: 10, color: '#fca5a5', textDecoration: 'underline' }}
+                                >
+                                  Details
+                                </button>
+                              </div>
+                            ) : isReported ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => { setInspectingReportReview(rev); setShowNoticeForm(false); }}
                                   style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',
@@ -1228,7 +1263,7 @@ export default function AdminDashboard() {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => setInspectingReportReview(rev)}
+                                  onClick={() => { setInspectingReportReview(rev); setShowNoticeForm(false); }}
                                   className="btn btn-ghost btn-sm"
                                   style={{ padding: '2px 6px', fontSize: 10, color: 'var(--text-primary)', textDecoration: 'underline' }}
                                   title="View report reasons and details"
@@ -1242,21 +1277,50 @@ export default function AdminDashboard() {
                           </td>
                           <td style={{ padding: '10px 16px', textAlign: 'right' }}>
                             <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                              {isReported && (
+                              {isNonGen ? (
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    if (window.confirm('Dismiss flags for this review and mark as safe?')) {
-                                      dispatch({ type: 'DISMISS_REPORTS', payload: rev.id });
+                                    if (window.confirm('Clear non-genuine red flag from this review?')) {
+                                      dispatch({ type: 'CLEAR_NON_GENUINE_FLAG', payload: rev.id });
                                     }
                                   }}
                                   className="btn btn-ghost btn-sm"
                                   style={{ padding: '2px 6px', fontSize: 10, color: '#38bdf8' }}
-                                  title="Dismiss reports and reset flag count"
+                                  title="Clear non-genuine penalty"
                                 >
-                                  Dismiss Flag
+                                  Clear Red Flag
                                 </button>
-                              )}
+                              ) : isReported ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setInspectingReportReview(rev);
+                                      setNoticeInputText('Your review has been verified as misleading or non-genuine following verified community reports. Please adhere to review guidelines.');
+                                      setShowNoticeForm(true);
+                                    }}
+                                    className="btn btn-ghost btn-sm"
+                                    style={{ padding: '2px 6px', fontSize: 10, color: '#f87171', fontWeight: 700 }}
+                                    title="Issue official policy notice and mark review as not genuine"
+                                  >
+                                    Give Notice
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (window.confirm('Dismiss flags for this review and mark as safe?')) {
+                                        dispatch({ type: 'DISMISS_REPORTS', payload: rev.id });
+                                      }
+                                    }}
+                                    className="btn btn-ghost btn-sm"
+                                    style={{ padding: '2px 6px', fontSize: 10, color: '#38bdf8' }}
+                                    title="Dismiss reports and reset flag count"
+                                  >
+                                    Dismiss Flag
+                                  </button>
+                                </>
+                              ) : null}
                               {rev.status !== 'PUBLISHED' && (
                                 <button
                                   type="button"
@@ -2797,67 +2861,148 @@ CREATE POLICY "Public all collections" ON public.collections FOR ALL USING (true
               })()}
             </div>
 
-            {/* Moderation Actions */}
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap', borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
-              <button
-                type="button"
-                onClick={() => {
-                  dispatch({ type: 'DISMISS_REPORTS', payload: inspectingReportReview.id });
-                  setInspectingReportReview(null);
-                }}
-                className="btn btn-outline btn-sm"
-                style={{ fontSize: 11, color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.4)' }}
-              >
-                ✓ Dismiss Reports (Keep Review)
-              </button>
-              {inspectingReportReview.status !== 'HIDDEN' && (
+            {/* Moderation Actions / Notice Form */}
+            {showNoticeForm ? (
+              <div style={{
+                marginTop: 16,
+                padding: 16,
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid #ef4444',
+                borderRadius: 6
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#f87171', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertTriangle size={16} />
+                  <span>Issue Official Policy Notice to {inspectingReportReview.userDisplayName || 'Reviewer'}</span>
+                </div>
+                <p style={{ fontSize: 11, color: '#fca5a5', margin: '0 0 10px', lineHeight: 1.4 }}>
+                  This will immediately send an official notice to the user and mark their review across the entire site in <strong>RED</strong> with an official warning banner that the review is not genuine.
+                </p>
+                <textarea
+                  className="input"
+                  rows={3}
+                  value={noticeInputText}
+                  onChange={e => setNoticeInputText(e.target.value)}
+                  placeholder="Enter policy notice reason..."
+                  style={{ width: '100%', fontSize: 12, marginBottom: 12, background: 'rgba(0,0,0,0.5)', color: '#fff', border: '1px solid rgba(239, 68, 68, 0.5)', resize: 'vertical' }}
+                />
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowNoticeForm(false)}
+                    className="btn btn-ghost btn-sm"
+                    style={{ fontSize: 11 }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dispatch({
+                        type: 'FLAG_REVIEW_NON_GENUINE',
+                        payload: {
+                          reviewId: inspectingReportReview.id,
+                          reviewerUserId: inspectingReportReview.userId,
+                          notice: noticeInputText.trim() || 'Your review has been verified as misleading or non-genuine following verified community reports. Please adhere to review guidelines.'
+                        }
+                      });
+                      setShowNoticeForm(false);
+                      setInspectingReportReview(null);
+                    }}
+                    className="btn btn-sm"
+                    style={{ background: '#ef4444', color: '#fff', fontSize: 11, fontWeight: 700, border: 'none', display: 'flex', alignItems: 'center', gap: 5 }}
+                  >
+                    <AlertTriangle size={13} />
+                    <span>Send Notice &amp; Mark as Not Genuine</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap', borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
+                {inspectingReportReview.isFlaggedNonGenuine ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dispatch({ type: 'CLEAR_NON_GENUINE_FLAG', payload: inspectingReportReview.id });
+                      setInspectingReportReview(null);
+                    }}
+                    className="btn btn-outline btn-sm"
+                    style={{ fontSize: 11, color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.4)' }}
+                  >
+                    Clear Non-Genuine Flag
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNoticeInputText('Your review has been verified as misleading or non-genuine following verified community reports. Please adhere to review guidelines.');
+                      setShowNoticeForm(true);
+                    }}
+                    className="btn btn-sm"
+                    style={{ fontSize: 11, background: '#dc2626', color: '#fff', border: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700 }}
+                  >
+                    <AlertTriangle size={13} /> Give Notice (Mark as Not Genuine)
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
-                    dispatch({ type: 'MODERATE_REVIEW', payload: { id: inspectingReportReview.id, status: 'HIDDEN' } });
-                    setInspectingReportReview(null);
-                  }}
-                  className="btn btn-outline btn-sm"
-                  style={{ fontSize: 11, color: '#fbbf24', borderColor: 'rgba(251, 191, 36, 0.4)' }}
-                >
-                  Hide Review
-                </button>
-              )}
-              {inspectingReportReview.status === 'HIDDEN' && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    dispatch({ type: 'MODERATE_REVIEW', payload: { id: inspectingReportReview.id, status: 'PUBLISHED' } });
+                    dispatch({ type: 'DISMISS_REPORTS', payload: inspectingReportReview.id });
                     setInspectingReportReview(null);
                   }}
                   className="btn btn-outline btn-sm"
                   style={{ fontSize: 11, color: '#4ade80', borderColor: 'rgba(74, 222, 128, 0.4)' }}
                 >
-                  Publish Review
+                  ✓ Dismiss Reports (Keep Review)
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm('Permanently remove this reported review?')) {
-                    dispatch({ type: 'DELETE_REVIEW', payload: inspectingReportReview.id });
-                    setInspectingReportReview(null);
-                  }
-                }}
-                className="btn btn-sm"
-                style={{ fontSize: 11, background: '#ef4444', color: '#fff', border: 'none' }}
-              >
-                Delete Review
-              </button>
-              <button
-                type="button"
-                onClick={() => setInspectingReportReview(null)}
-                className="btn btn-ghost btn-sm"
-                style={{ fontSize: 11 }}
-              >
-                Close
-              </button>
-            </div>
+                {inspectingReportReview.status !== 'HIDDEN' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dispatch({ type: 'MODERATE_REVIEW', payload: { id: inspectingReportReview.id, status: 'HIDDEN' } });
+                      setInspectingReportReview(null);
+                    }}
+                    className="btn btn-outline btn-sm"
+                    style={{ fontSize: 11, color: '#fbbf24', borderColor: 'rgba(251, 191, 36, 0.4)' }}
+                  >
+                    Hide Review
+                  </button>
+                )}
+                {inspectingReportReview.status === 'HIDDEN' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dispatch({ type: 'MODERATE_REVIEW', payload: { id: inspectingReportReview.id, status: 'PUBLISHED' } });
+                      setInspectingReportReview(null);
+                    }}
+                    className="btn btn-outline btn-sm"
+                    style={{ fontSize: 11, color: '#4ade80', borderColor: 'rgba(74, 222, 128, 0.4)' }}
+                  >
+                    Publish Review
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Permanently remove this reported review?')) {
+                      dispatch({ type: 'DELETE_REVIEW', payload: inspectingReportReview.id });
+                      setInspectingReportReview(null);
+                    }
+                  }}
+                  className="btn btn-sm"
+                  style={{ fontSize: 11, background: '#ef4444', color: '#fff', border: 'none' }}
+                >
+                  Delete Review
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setInspectingReportReview(null); setShowNoticeForm(false); }}
+                  className="btn btn-ghost btn-sm"
+                  style={{ fontSize: 11 }}
+                >
+                  Close
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

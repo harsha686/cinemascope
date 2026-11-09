@@ -288,6 +288,9 @@ export const supabaseService = {
         updatedAt: r.updated_at,
         likesCount: r.likes_count || 0,
         reportCount: r.report_count || 0,
+        isFlaggedNonGenuine: !!(paramRatings.isFlaggedNonGenuine || r.is_flagged_non_genuine),
+        moderationNotice: paramRatings.moderationNotice || r.moderation_notice || null,
+        noticeCreatedAt: paramRatings.noticeCreatedAt || r.notice_created_at || null,
       };
     });
   },
@@ -300,6 +303,9 @@ export const supabaseService = {
     const paramRatings = {
       ...(review.parameterRatings || {}),
       reviewType: review.reviewType || 'USER',
+      isFlaggedNonGenuine: !!review.isFlaggedNonGenuine,
+      moderationNotice: review.moderationNotice || null,
+      noticeCreatedAt: review.noticeCreatedAt || null,
       ...(review.theaterId ? {
         theaterId: review.theaterId,
         theaterName: review.theaterName || null,
