@@ -363,7 +363,10 @@ export default function Navbar() {
                 value={activeCity?.id || 'visakhapatnam'}
                 onChange={(e) => {
                   const selected = allCities.find(c => c.id === e.target.value);
-                  if (selected) dispatch({ type: 'SET_CITY', payload: selected });
+                  if (selected) {
+                    dispatch({ type: 'SET_CITY', payload: selected });
+                    navigate(`/city/${selected.id}`);
+                  }
                 }}
                 style={{
                   position: 'absolute',
@@ -372,7 +375,6 @@ export default function Navbar() {
                   height: '100%',
                   opacity: 0,
                   cursor: 'pointer',
-                  appearance: 'none',
                 }}
               >
                 {allCities.map(c => (
@@ -1013,6 +1015,7 @@ export default function Navbar() {
                 const selected = allCities.find((c) => c.id === e.target.value);
                 if (selected) {
                   dispatch({ type: 'SET_CITY', payload: selected });
+                  navigate(`/city/${selected.id}`);
                   setMenuOpen(false);
                 }
               }}

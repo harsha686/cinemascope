@@ -26,7 +26,7 @@ export default function UserAddCandidateModal({
   existingCandidates = [],
   onCandidateAdded
 }) {
-  const { currentUser } = useApp();
+  const { currentUser, dispatch } = useApp();
   const [activeTab, setActiveTab] = useState('tmdb'); // 'tmdb' | 'manual'
   const [mediaFilter, setMediaFilter] = useState('all'); // 'all' | 'movie' | 'tv'
   const [query, setQuery] = useState('');
@@ -47,6 +47,19 @@ export default function UserAddCandidateModal({
   const [manualOverview, setManualOverview] = useState('');
 
   const searchTimeoutRef = useRef(null);
+
+  // Award 100 XP to the user for contributing a candidate to the weekend list
+  const awardWeekendContributionXP = () => {
+    if (!currentUser?.id) return;
+    const currentScore = currentUser?.stats?.cinemaScore || 0;
+    dispatch({
+      type: 'UPDATE_USER_STATS',
+      payload: {
+        userId: currentUser.id,
+        stats: { cinemaScore: currentScore + 100 },
+      },
+    });
+  };
 
   // Pre-fetch suggestions when modal opens
   useEffect(() => {
@@ -166,7 +179,8 @@ export default function UserAddCandidateModal({
       };
 
       const res = addCandidateToRound(roundId, genreId, movieData, currentUser);
-      setSuccessMessage(`"${movieData.title}" added to ${genreName} contenders!`);
+      setSuccessMessage(`"${movieData.title}" added to ${genreName} contenders! +100 XP earned!`);
+      awardWeekendContributionXP();
       if (onCandidateAdded) onCandidateAdded(res.newCandidate);
 
       setTimeout(() => {
@@ -204,7 +218,8 @@ export default function UserAddCandidateModal({
       };
 
       const res = addCandidateToRound(roundId, genreId, movieData, currentUser);
-      setSuccessMessage(`"${movieData.title}" added to ${genreName} contenders!`);
+      setSuccessMessage(`"${movieData.title}" added to ${genreName} contenders! +100 XP earned!`);
+      awardWeekendContributionXP();
       if (onCandidateAdded) onCandidateAdded(res.newCandidate);
 
       setTimeout(() => {
