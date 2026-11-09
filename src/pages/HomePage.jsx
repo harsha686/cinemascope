@@ -349,7 +349,26 @@ export default function HomePage() {
                         {rev.reviewText ? `"${rev.reviewText}"` : (isTheater ? 'Rated theater presentation & audio-visual experience.' : 'Rated overall film quality & cinematic experience.')}
                       </p>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span>— {rev.userDisplayName || 'Cinema Enthusiast'}</span>
+                        <Link
+                          to={`/profile/${rev.userId || encodeURIComponent(rev.userDisplayName || 'user')}?tab=reviews`}
+                          title={`View ${rev.userDisplayName || 'user'}'s profile`}
+                          style={{
+                            color: 'var(--text-muted)',
+                            textDecoration: 'none',
+                            cursor: 'pointer',
+                            transition: 'color 0.15s ease',
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.color = 'var(--gold)';
+                            e.currentTarget.style.textDecoration = 'underline';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.color = 'var(--text-muted)';
+                            e.currentTarget.style.textDecoration = 'none';
+                          }}
+                        >
+                          — {rev.userDisplayName || 'Cinema Enthusiast'}
+                        </Link>
                         <Link to={reviewLink} style={{ color: 'var(--gold)', transition: 'opacity var(--transition-fast)' }}
                           onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
                           onMouseLeave={e => e.currentTarget.style.opacity = '1'}

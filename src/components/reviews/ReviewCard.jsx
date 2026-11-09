@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Heart, Flag, Edit3, Trash2, Check, Monitor, Building2 } from 'lucide-react';
 import { useApp } from '../../AppContext';
 import ShareButton from '../social/ShareButton';
@@ -97,31 +98,78 @@ export default function ReviewCard({ review, onEdit, onDelete }) {
     }}>
       {/* Header: avatar + name + overall score */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: '50%',
-            background: 'var(--gold-faint)', border: '1px solid var(--gold-dim)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--gold)', fontWeight: 700, fontSize: 14,
-          }}>
-            {(review.userDisplayName || 'A').charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-                {review.userDisplayName || 'Anonymous'}
-              </span>
-              {review.screenName && (
-                <span className="badge badge-dim" style={{ fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  <Monitor size={10} /> {review.screenName}
-                </span>
-              )}
+        {(() => {
+          const reviewerTarget = review.userId || encodeURIComponent(review.userDisplayName || 'user');
+          const reviewerProfileUrl = `/profile/${reviewerTarget}?tab=reviews`;
+          const displayName = review.userDisplayName || 'Anonymous';
+
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Link
+                to={reviewerProfileUrl}
+                title={`View ${displayName}'s profile & reviews`}
+                style={{ textDecoration: 'none', display: 'inline-flex' }}
+              >
+                <div
+                  style={{
+                    width: 36, height: 36, borderRadius: '50%',
+                    background: 'var(--gold-faint)', border: '1px solid var(--gold-dim)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: 'var(--gold)', fontWeight: 700, fontSize: 14,
+                    cursor: 'pointer',
+                    transition: 'transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = 'scale(1.1)';
+                    e.currentTarget.style.borderColor = 'var(--gold)';
+                    e.currentTarget.style.boxShadow = '0 0 10px rgba(230, 180, 80, 0.4)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.borderColor = 'var(--gold-dim)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  {(review.userDisplayName || 'A').charAt(0).toUpperCase()}
+                </div>
+              </Link>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <Link
+                    to={reviewerProfileUrl}
+                    title={`View ${displayName}'s profile & reviews`}
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      textDecoration: 'none',
+                      cursor: 'pointer',
+                      transition: 'color 0.15s ease, text-decoration 0.15s ease',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.color = 'var(--gold)';
+                      e.currentTarget.style.textDecoration = 'underline';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.color = 'var(--text-primary)';
+                      e.currentTarget.style.textDecoration = 'none';
+                    }}
+                  >
+                    {displayName}
+                  </Link>
+                  {review.screenName && (
+                    <span className="badge badge-dim" style={{ fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Monitor size={10} /> {review.screenName}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  {formatDate(review.createdAt)}{review.updatedAt !== review.createdAt ? ' · Edited' : ''}
+                </div>
+              </div>
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              {formatDate(review.createdAt)}{review.updatedAt !== review.createdAt ? ' · Edited' : ''}
-            </div>
-          </div>
-        </div>
+          );
+        })()}
 
         {/* Overall score pill */}
         {review.rating > 0 && (

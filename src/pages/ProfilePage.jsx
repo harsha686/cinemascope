@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { useNavigate, Link, useParams } from 'react-router-dom';
+import { useNavigate, Link, useParams, useSearchParams } from 'react-router-dom';
 import { User, LogOut, ShieldAlert, ShieldCheck, Star, Film, MessageSquare, ChevronRight, ChevronDown, ChevronUp, Bookmark, Heart, BookOpen, Folder, Trophy, CheckCircle2, Building2, Users, Bell, Search, Tv, X, Sparkles, SlidersHorizontal, Trash2, AlertTriangle, Clock, Send } from 'lucide-react';
 import { useApp } from '../AppContext';
 import ReviewCard from '../components/reviews/ReviewCard';
@@ -15,6 +15,8 @@ import { SOCIAL_CONTENT_TYPES } from '../services/socialSharingService';
 
 export default function ProfilePage() {
   const { userId } = useParams();
+  const [searchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
   const navigate = useNavigate();
   const { state, dispatch, getMovie, getTheater, isVerifiedPro, deleteUserAccount, submitDeletionRequest, cancelDeletionRequest, getUserDeletionRequest, refreshData } = useApp();
 
@@ -24,21 +26,58 @@ export default function ProfilePage() {
   // The user whose profile is being displayed
   const profileUser = useMemo(() => {
     if (userId) {
+      const rawParam = decodeURIComponent(userId).trim();
+      const lowerParam = rawParam.toLowerCase();
+
+      // 1. Check state.users by id, email, or displayName
       const found = state.users?.find(
-        u => u.id === userId || (u.email && u.email.toLowerCase() === userId.toLowerCase())
+        u => (u.id && u.id === rawParam) ||
+             (u.email && u.email.toLowerCase() === lowerParam) ||
+             (u.displayName && u.displayName.trim().toLowerCase() === lowerParam)
       );
       if (found) return found;
-      if (viewerUser && (viewerUser.id === userId || (viewerUser.email && viewerUser.email.toLowerCase() === userId.toLowerCase()))) {
+
+      // 2. Check current viewerUser
+      if (viewerUser && (
+        (viewerUser.id && viewerUser.id === rawParam) ||
+        (viewerUser.email && viewerUser.email.toLowerCase() === lowerParam) ||
+        (viewerUser.displayName && viewerUser.displayName.trim().toLowerCase() === lowerParam)
+      )) {
         return viewerUser;
       }
-      return { id: userId, displayName: 'Cinema Member', email: '', role: 'USER' };
+
+      // 3. Search state.reviews for reviewer with this id, name or email
+      const sampleReview = (state.reviews || []).find(r =>
+        (r.userId && r.userId === rawParam) ||
+        (r.userDisplayName && r.userDisplayName.trim().toLowerCase() === lowerParam) ||
+        (r.userEmail && r.userEmail.toLowerCase() === lowerParam)
+      );
+      if (sampleReview) {
+        return {
+          id: sampleReview.userId || rawParam,
+          displayName: sampleReview.userDisplayName || rawParam,
+          email: sampleReview.userEmail || '',
+          role: sampleReview.reviewType === 'PROFESSIONAL' ? 'CRITIC' : 'USER',
+          avatarUrl: sampleReview.userAvatarUrl || null,
+          stats: {
+            reviewsCount: 0,
+            helpfulVotesCount: 0,
+          }
+        };
+      }
+
+      return { id: rawParam, displayName: rawParam || 'Cinema Member', email: '', role: 'USER' };
     }
     return viewerUser;
-  }, [userId, state.users, viewerUser]);
+  }, [userId, state.users, viewerUser, state.reviews]);
 
   // Is the logged in user viewing their own profile?
   const isOwnProfile = Boolean(
-    !userId || (viewerUser && profileUser && (viewerUser.id === profileUser.id || (viewerUser.email && profileUser.email && viewerUser.email.toLowerCase() === profileUser.email.toLowerCase())))
+    !userId || (viewerUser && profileUser && (
+      (viewerUser.id && profileUser.id && viewerUser.id === profileUser.id) ||
+      (viewerUser.email && profileUser.email && viewerUser.email.toLowerCase() === profileUser.email.toLowerCase()) ||
+      (viewerUser.displayName && profileUser.displayName && viewerUser.displayName.trim().toLowerCase() === profileUser.displayName.trim().toLowerCase())
+    ))
   );
 
   // Account Deletion State
@@ -126,7 +165,7 @@ export default function ProfilePage() {
   const [showNotifications, setShowNotifications] = useState(false);
 
   // Movie Archive Explorer State
-  const [activeArchiveTab, setActiveArchiveTab] = useState('watched'); // 'watched' | 'favorites' | 'watchlist' | 'diary' | 'collections' | 'reviews' | 'votes'
+  const [activeArchiveTab, setActiveArchiveTab] = useState(requestedTab || 'watched'); // 'watched' | 'favorites' | 'watchlist' | 'diary' | 'collections' | 'reviews' | 'votes'
   const [mediaTypeFilter, setMediaTypeFilter] = useState('all'); // 'all' | 'movie' | 'tv'
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('recent'); // 'recent' | 'rating' | 'year' | 'title'
@@ -134,6 +173,13 @@ export default function ProfilePage() {
   const [diaryEntries, setDiaryEntries] = useState([]);
   const [collectionsList, setCollectionsList] = useState([]);
   const [loadingArchive, setLoadingArchive] = useState(true);
+
+  // Sync tab if query parameter changes
+  useEffect(() => {
+    if (requestedTab && ['watched', 'favorites', 'watchlist', 'diary', 'collections', 'reviews', 'votes'].includes(requestedTab)) {
+      setActiveArchiveTab(requestedTab);
+    }
+  }, [requestedTab]);
 
   // Pagination state for each tab list
   const GRID_PAGE = 12;   // watched / favorites / watchlist grid
@@ -340,8 +386,24 @@ export default function ProfilePage() {
   // Published reviews by this profile user
   const userReviews = useMemo(() => {
     if (!profileUser) return [];
-    return (state.reviews || []).filter(r => r.userId === profileUser.id && (r.status === 'PUBLISHED' || !r.status));
+    const profId = profileUser.id;
+    const profName = profileUser.displayName?.trim().toLowerCase();
+    const profEmail = profileUser.email?.trim().toLowerCase();
+
+    return (state.reviews || []).filter(r => {
+      const matchId = profId && r.userId === profId;
+      const matchName = profName && r.userDisplayName && r.userDisplayName.trim().toLowerCase() === profName;
+      const matchEmail = profEmail && r.userEmail && r.userEmail.trim().toLowerCase() === profEmail;
+      return (matchId || matchName || matchEmail) && (r.status === 'PUBLISHED' || !r.status);
+    });
   }, [state.reviews, profileUser]);
+
+  // If viewing another reviewer directly and they haven't synced a watched archive, show their reviews tab first
+  useEffect(() => {
+    if (!requestedTab && !isOwnProfile && (!archiveData?.watched || archiveData.watched.length === 0) && userReviews.length > 0 && activeArchiveTab === 'watched') {
+      setActiveArchiveTab('reviews');
+    }
+  }, [requestedTab, isOwnProfile, archiveData?.watched?.length, userReviews.length, activeArchiveTab]);
 
   // Calculate composite Cinema Points matching leaderboard
   // Score = (watched * 5) + (reviews * 15) + (votes * 10)

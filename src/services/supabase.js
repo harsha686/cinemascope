@@ -381,6 +381,51 @@ export const supabaseService = {
     }
   },
 
+  async updateReviewReportCount(reviewId, reportCount) {
+    const supabase = getSupabaseClient();
+    if (!supabase || !reviewId) return false;
+    try {
+      const { error } = await supabase
+        .from('reviews')
+        .update({
+          report_count: Math.max(0, Number(reportCount) || 0),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', reviewId);
+      if (error) {
+        console.warn('Supabase updateReviewReportCount error:', error);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.warn('Supabase updateReviewReportCount error:', e);
+      return false;
+    }
+  },
+
+  async updateReviewStatus(reviewId, status) {
+    const supabase = getSupabaseClient();
+    if (!supabase || !reviewId) return false;
+    try {
+      const { error } = await supabase
+        .from('reviews')
+        .update({
+          status: status || 'PUBLISHED',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', reviewId);
+      if (error) {
+        console.warn('Supabase updateReviewStatus error:', error);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.warn('Supabase updateReviewStatus error:', e);
+      return false;
+    }
+  },
+
+
   // Users — reads from system_users_data collection (cross-device sync layer)
   // Falls back to public.users table if it exists (created via SQL editor)
   async getUsers() {
@@ -1046,6 +1091,63 @@ export const supabaseService = {
       return true;
     } catch (e) {
       console.warn('Supabase saveDeletionRequestsData error:', e);
+      return false;
+    }
+  },
+
+  // System Reports Data Cloud Sync across all devices
+  async getReportsData() {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('collections')
+        .select('*')
+        .eq('id', 'system_reports_data')
+        .maybeSingle();
+
+      if (error || !data || !data.description) return null;
+      const parsed = JSON.parse(data.description);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.warn('Supabase getReportsData error:', e);
+      return null;
+    }
+  },
+
+  async saveReportsData(reportsList) {
+    const supabase = getSupabaseClient();
+    if (!supabase || !reportsList) return false;
+    try {
+      const { error } = await supabase.from('collections').upsert({
+        id: 'system_reports_data',
+        user_id: 'system',
+        name: 'reports_state',
+        description: JSON.stringify(reportsList),
+        visibility: 'public',
+        movie_ids: [],
+        updated_at: new Date().toISOString(),
+      });
+      if (error) {
+        console.warn('Supabase saveReportsData error:', error);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.warn('Supabase saveReportsData error:', e);
+      return false;
+    }
+  },
+
+  async appendReportToCloud(report) {
+    const supabase = getSupabaseClient();
+    if (!supabase || !report) return false;
+    try {
+      const currentList = (await this.getReportsData()) || [];
+      const updated = [report, ...currentList.filter(r => r.id !== report.id)];
+      return await this.saveReportsData(updated);
+    } catch (e) {
+      console.warn('Supabase appendReportToCloud error:', e);
       return false;
     }
   },

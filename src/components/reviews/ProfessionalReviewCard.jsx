@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { Heart, Flag, Edit3, Trash2, Check, ShieldCheck, ChevronDown, ChevronUp, ExternalLink, Info, Monitor } from "lucide-react";
 import { useApp } from "../../AppContext";
 import ProfessionalRatingBadge from "./ProfessionalRatingBadge";
@@ -102,73 +103,111 @@ export default function ProfessionalReviewCard({ review, onEdit, onDelete }) {
     }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {/* Avatar */}
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => setShowDetailsModal(true)}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowDetailsModal(true); } }}
-            title="Click to view verified professional details & credentials"
-            style={{
-              width: 40, height: 40, borderRadius: "50%",
-              background: "linear-gradient(135deg, rgba(16,185,129,0.22), rgba(5,150,105,0.12))",
-              border: "2px solid rgba(16,185,129,0.45)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#10b981", fontWeight: 700, fontSize: 16, flexShrink: 0,
-              cursor: "pointer", transition: "all 0.15s ease",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.05)"; e.currentTarget.style.borderColor = "#10b981"; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.borderColor = "rgba(16,185,129,0.45)"; }}
-          >
-            {(review.userDisplayName || "A").charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={() => setShowDetailsModal(true)}
-                title="Click to view verified professional details & credentials"
-                style={{
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "var(--text-primary)",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  transition: "color 0.15s ease",
-                }}
-                onMouseEnter={e => e.currentTarget.style.color = "#10b981"}
-                onMouseLeave={e => e.currentTarget.style.color = "var(--text-primary)"}
+        {(() => {
+          const reviewerTarget = review.userId || encodeURIComponent(review.userDisplayName || "critic");
+          const reviewerProfileUrl = `/profile/${reviewerTarget}?tab=reviews`;
+          const displayName = review.userDisplayName || "Anonymous";
+
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {/* Avatar */}
+              <Link
+                to={reviewerProfileUrl}
+                title={`View ${displayName}'s profile & reviews`}
+                style={{ textDecoration: "none", display: "inline-flex", flexShrink: 0 }}
               >
-                {review.userDisplayName || "Anonymous"}
-              </button>
-              <ProfessionalRatingBadge
-                size="sm"
-                interactive
-                onClick={() => setShowDetailsModal(true)}
-                title="Click to view verified professional details & credentials"
-              />
-              {review.screenName && (
-                <span className="badge badge-dim" style={{ fontSize: 10, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  <Monitor size={10} /> {review.screenName}
-                </span>
-              )}
+                <div
+                  style={{
+                    width: 40, height: 40, borderRadius: "50%",
+                    background: "linear-gradient(135deg, rgba(16,185,129,0.22), rgba(5,150,105,0.12))",
+                    border: "2px solid rgba(16,185,129,0.45)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    color: "#10b981", fontWeight: 700, fontSize: 16,
+                    cursor: "pointer", transition: "transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = "scale(1.08)";
+                    e.currentTarget.style.borderColor = "#10b981";
+                    e.currentTarget.style.boxShadow = "0 0 10px rgba(16,185,129,0.4)";
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = "none";
+                    e.currentTarget.style.borderColor = "rgba(16,185,129,0.45)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                >
+                  {(review.userDisplayName || "A").charAt(0).toUpperCase()}
+                </div>
+              </Link>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                  <Link
+                    to={reviewerProfileUrl}
+                    title={`View ${displayName}'s profile & reviews`}
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "var(--text-primary)",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      textDecoration: "none",
+                      transition: "color 0.15s ease, text-decoration 0.15s ease",
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.color = "#10b981";
+                      e.currentTarget.style.textDecoration = "underline";
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.color = "var(--text-primary)";
+                      e.currentTarget.style.textDecoration = "none";
+                    }}
+                  >
+                    {displayName}
+                  </Link>
+                  <ProfessionalRatingBadge
+                    size="sm"
+                    interactive
+                    onClick={() => setShowDetailsModal(true)}
+                    title="Click to view verified professional details & credentials"
+                  />
+                  {review.screenName && (
+                    <span className="badge badge-dim" style={{ fontSize: 10, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <Monitor size={10} /> {review.screenName}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                    {formatDate(review.createdAt)}{review.updatedAt !== review.createdAt ? " · Edited" : ""}
+                  </span>
+                  {effectiveApp && (effectiveApp.professionalTitle || effectiveApp.organization) && (
+                    <span style={{ fontSize: 11, color: "#10b981", opacity: 0.9 }}>
+                      {[effectiveApp.professionalTitle, effectiveApp.organization].filter(Boolean).join(" · ")}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowDetailsModal(true)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      fontSize: 11,
+                      color: "#10b981",
+                      cursor: "pointer",
+                      textDecoration: "underline",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 3,
+                    }}
+                  >
+                    <Info size={11} /> Credentials
+                  </button>
+                </div>
+              </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
-              {effectiveApp && (effectiveApp.professionalTitle || effectiveApp.organization) && (
-                <span style={{ fontSize: 11, color: "#10b981", opacity: 0.9 }}>
-                  {[effectiveApp.professionalTitle, effectiveApp.organization].filter(Boolean).join(" · ")}
-                </span>
-              )}
-            </div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
-              {formatDate(review.createdAt)}{review.updatedAt !== review.createdAt ? " · Edited" : ""}
-            </div>
-          </div>
-        </div>
+          );
+        })()}
 
         {/* Rating pill */}
         {review.rating > 0 && (

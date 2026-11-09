@@ -139,37 +139,84 @@ export default function PublicReviewPage() {
           <div style={{ padding: '28px 32px' }}>
             {/* Reviewer Meta Row */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: '50%',
-                  background: 'var(--gold-faint)',
-                  border: '1px solid var(--gold-dim)',
-                  color: 'var(--gold)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 800,
-                  fontSize: 16,
-                }}>
-                  {(review.userDisplayName || 'A').charAt(0).toUpperCase()}
-                </div>
+              {(() => {
+                const reviewerTarget = review.userId || encodeURIComponent(review.userDisplayName || 'user');
+                const reviewerProfileUrl = `/profile/${reviewerTarget}?tab=reviews`;
+                const displayName = review.userDisplayName || 'Anonymous Critic';
 
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>{review.userDisplayName || 'Anonymous Critic'}</span>
-                    {isPro && (
-                      <span className="badge badge-verified" style={{ fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                        <ShieldCheck size={11} /> Verified Critic
-                      </span>
-                    )}
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <Link
+                      to={reviewerProfileUrl}
+                      title={`View ${displayName}'s profile & reviews`}
+                      style={{ textDecoration: 'none', display: 'inline-flex' }}
+                    >
+                      <div
+                        style={{
+                          width: 42,
+                          height: 42,
+                          borderRadius: '50%',
+                          background: 'var(--gold-faint)',
+                          border: '1px solid var(--gold-dim)',
+                          color: 'var(--gold)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 800,
+                          fontSize: 16,
+                          cursor: 'pointer',
+                          transition: 'transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.transform = 'scale(1.08)';
+                          e.currentTarget.style.borderColor = 'var(--gold)';
+                          e.currentTarget.style.boxShadow = '0 0 10px rgba(230, 180, 80, 0.4)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.transform = 'scale(1)';
+                          e.currentTarget.style.borderColor = 'var(--gold-dim)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        {(review.userDisplayName || 'A').charAt(0).toUpperCase()}
+                      </div>
+                    </Link>
+
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Link
+                          to={reviewerProfileUrl}
+                          title={`View ${displayName}'s profile & reviews`}
+                          style={{
+                            color: 'var(--text-primary)',
+                            textDecoration: 'none',
+                            cursor: 'pointer',
+                            transition: 'color 0.15s ease, text-decoration 0.15s ease',
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.color = 'var(--gold)';
+                            e.currentTarget.style.textDecoration = 'underline';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.color = 'var(--text-primary)';
+                            e.currentTarget.style.textDecoration = 'none';
+                          }}
+                        >
+                          {displayName}
+                        </Link>
+                        {isPro && (
+                          <span className="badge badge-verified" style={{ fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                            <ShieldCheck size={11} /> Verified Critic
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        {review.createdAt ? new Date(review.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'Recent'}
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    {review.createdAt ? new Date(review.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'Recent'}
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Star Score */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
