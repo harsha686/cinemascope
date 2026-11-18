@@ -8,6 +8,7 @@ import {
   deleteGenreOption,
   getRandomTitleFromAll,
   getRandomTitleFromAllAsync,
+  isTitleReleased,
 } from '../../services/weekendPickService';
 import { toggleWatchlist, toggleFavorite, getMovieStatusSync } from '../../services/movieLibraryService';
 import { useApp } from '../../AppContext';
@@ -243,6 +244,10 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
         excludeIds: seenTitleIds,
       });
 
+      if (pick && !isTitleReleased(pick)) {
+        pick = null;
+      }
+
       // If pool was exhausted with current seenTitleIds, reset seen list and retry fresh
       if (!pick && seenTitleIds.length > 0) {
         pick = await getRandomTitleFromAllAsync({
@@ -252,6 +257,9 @@ export default function PickMyWeekendModal({ isOpen, onClose }) {
           type: selectedType,
           excludeIds: [],
         });
+        if (pick && !isTitleReleased(pick)) {
+          pick = null;
+        }
         if (pick) {
           const pickedId = String(pick.titleId || pick.id);
           setSeenTitleIds([pickedId]);

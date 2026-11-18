@@ -1,4 +1,4 @@
-﻿/**
+/**
  * TMDB (The Movie Database) Official API Integration Service
  * Real-time HTTP integration for /3/search/movie, /3/discover/movie, /3/movie/{id}, /3/movie/{id}/images, /3/movie/{id}/credits
  */
@@ -619,7 +619,9 @@ export async function discoverMovies({
   with_genres, 
   with_original_language,
   with_keywords,
-  region
+  region,
+  primary_release_date_lte,
+  primary_release_date_gte,
 } = {}) {
   let endpoint = `/discover/movie?sort_by=${sortBy}&page=${page}&include_adult=false`;
   const genres = with_genres || genreId;
@@ -631,6 +633,8 @@ export async function discoverMovies({
   if (with_keywords) endpoint += `&with_keywords=${with_keywords}`;
   if (with_origin_country) endpoint += `&with_origin_country=${with_origin_country}`;
   if (region) endpoint += `&region=${region}`;
+  if (primary_release_date_lte) endpoint += `&primary_release_date.lte=${primary_release_date_lte}`;
+  if (primary_release_date_gte) endpoint += `&primary_release_date.gte=${primary_release_date_gte}`;
 
   const data = await tmdbFetch(endpoint);
   return normalizeResults(data);
@@ -640,7 +644,8 @@ export async function discoverMovies({
  * Fetch Telugu Cinema Movies (Tollywood)
  */
 export async function fetchTeluguMovies(page = 1) {
-  const data = await tmdbFetch(`/discover/movie?with_original_language=te&sort_by=popularity.desc&page=${page}&include_adult=false`);
+  const today = new Date().toISOString().split('T')[0];
+  const data = await tmdbFetch(`/discover/movie?with_original_language=te&sort_by=popularity.desc&primary_release_date.lte=${today}&page=${page}&include_adult=false`);
   return normalizeResults(data);
 }
 
@@ -1043,7 +1048,8 @@ export async function discoverRecentIndianTv(page = 1) {
  * Telugu Web Series & TV
  */
 export async function fetchTeluguTv(page = 1) {
-  const data = await tmdbFetch(`/discover/tv?with_original_language=te&sort_by=popularity.desc&page=${page}&include_adult=false`);
+  const today = new Date().toISOString().split('T')[0];
+  const data = await tmdbFetch(`/discover/tv?with_original_language=te&sort_by=popularity.desc&first_air_date.lte=${today}&page=${page}&include_adult=false`);
   return normalizeTvResults(data);
 }
 
@@ -1076,6 +1082,8 @@ export async function discoverTv({
   with_genres,
   with_original_language,
   with_keywords,
+  first_air_date_lte,
+  first_air_date_gte,
 } = {}) {
   let endpoint = `/discover/tv?sort_by=${sortBy}&page=${page}&include_adult=false`;
   const genres = with_genres || genreId;
@@ -1086,6 +1094,8 @@ export async function discoverTv({
   if (lang) endpoint += `&with_original_language=${lang}`;
   if (with_keywords) endpoint += `&with_keywords=${with_keywords}`;
   if (with_origin_country) endpoint += `&with_origin_country=${with_origin_country}`;
+  if (first_air_date_lte) endpoint += `&first_air_date.lte=${first_air_date_lte}`;
+  if (first_air_date_gte) endpoint += `&first_air_date.gte=${first_air_date_gte}`;
 
   const data = await tmdbFetch(endpoint);
   return normalizeTvResults(data);

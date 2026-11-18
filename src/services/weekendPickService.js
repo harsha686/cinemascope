@@ -2459,6 +2459,41 @@ export function matchesLanguageHelper(item, language) {
 }
 
 /**
+ * Checks whether a movie/series candidate has officially released.
+ * Strictly filters out unreleased / future-dated / announced / in-production titles.
+ */
+export function isTitleReleased(item) {
+  if (!item) return false;
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const todayStr = today.toISOString().split('T')[0];
+
+  // 1. Status check: unreleased / upcoming / planned statuses
+  const status = String(item.status || '').toUpperCase().trim();
+  if (['COMING_SOON', 'ANNOUNCED', 'IN_PRODUCTION', 'PLANNED', 'POST_PRODUCTION', 'RUMORED'].includes(status)) {
+    return false;
+  }
+
+  // 2. Exact release date string check (YYYY-MM-DD)
+  const rawDate = item.releaseDate || item.firstAirDate || item.release_date || item.first_air_date || '';
+  if (rawDate && typeof rawDate === 'string') {
+    const match = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      if (rawDate.slice(0, 10) > todayStr) return false;
+    }
+  }
+
+  // 3. Year check: any future year (> currentYear) is unreleased
+  const rawYear = item.releaseYear || item.year || (rawDate && typeof rawDate === 'string' && rawDate.match(/^\d{4}/) ? parseInt(rawDate.slice(0, 4), 10) : null);
+  const year = parseInt(rawYear, 10);
+  if (!isNaN(year) && year > currentYear) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Pick a random title from ALL movies & series according to user specifications (Synchronous)
  */
 export function getRandomTitleFromAll({
@@ -2473,7 +2508,7 @@ export function getRandomTitleFromAll({
     (Array.isArray(excludeIds) ? excludeIds : []).map(id => String(id).toLowerCase().replace(/^tmdb-/, ''))
   );
 
-  let pool = [...UNIVERSAL_TITLES];
+  let pool = [...UNIVERSAL_TITLES].filter(isTitleReleased);
   const existingIds = new Set(pool.map(p => String(p.titleId || p.id).toLowerCase()));
 
   // Incorporate candidates from all active and archived rounds
@@ -2485,6 +2520,7 @@ export function getRandomTitleFromAll({
           Object.entries(r.genreRounds).forEach(([gKey, gr]) => {
             if (gr.candidates && Array.isArray(gr.candidates)) {
               gr.candidates.forEach(c => {
+                if (!isTitleReleased(c)) return;
                 const cId = String(c.titleId || c.id || '').toLowerCase();
                 if (cId && !existingIds.has(cId)) {
                   existingIds.add(cId);
@@ -2495,6 +2531,7 @@ export function getRandomTitleFromAll({
                     type: String(c.type || 'MOVIE').toUpperCase() === 'SERIES' ? 'SERIES' : 'MOVIE',
                     genreId: gKey,
                     genreName: gr.genreName || gKey,
+                    releaseDate: c.releaseDate || c.release_date || '',
                     releaseYear: c.releaseYear || 2024,
                     rating: c.rating || 4.8,
                     language: c.language || '',
@@ -2517,6 +2554,7 @@ export function getRandomTitleFromAll({
   // Merge in app movies
   if (Array.isArray(appMovies) && appMovies.length > 0) {
     appMovies.forEach(m => {
+      if (!isTitleReleased(m)) return;
       const idKey = String(m.id || m.tmdbId || '').toLowerCase();
       if (idKey && !existingIds.has(idKey)) {
         existingIds.add(idKey);
@@ -2538,7 +2576,8 @@ export function getRandomTitleFromAll({
           type: m.isTv || m.type === 'SERIES' ? 'SERIES' : 'MOVIE',
           genreId: gId,
           genreName: rawGenre,
-          releaseYear: m.releaseDate ? parseInt(m.releaseDate.split('-')[0], 10) : 2024,
+          releaseDate: m.releaseDate || '',
+          releaseYear: m.releaseDate ? parseInt(m.releaseDate.split('-')[0], 10) : (m.releaseYear || 2024),
           rating: 4.8,
           language: m.language || (m.original_language ? m.original_language.toUpperCase() : ''),
           posterUrl: m.posterUrl,
@@ -2549,6 +2588,9 @@ export function getRandomTitleFromAll({
       }
     });
   }
+
+  // Ensure all pool items are strictly released
+  pool = pool.filter(isTitleReleased);
 
   // 4. Strict Type Filtering
   if (type && type !== 'ANY') {
@@ -2625,10 +2667,12 @@ export async function getRandomTitleFromAllAsync({
   const localCandidates = [];
   try {
     const localMatch = getRandomTitleFromAll({ appMovies, language, genreId, type, mood, excludeIds });
-    if (localMatch) {
+    if (localMatch && isTitleReleased(localMatch)) {
       localCandidates.push(localMatch);
     }
   } catch (e) {}
+
+  const todayStr = new Date().toISOString().split('T')[0];
 
   // 2. Query live TMDB Discover with randomized pages for vast catalog & deep variety
   try {
@@ -2673,6 +2717,7 @@ export async function getRandomTitleFromAllAsync({
           with_keywords: tmdbKeyword,
           sortBy: 'popularity.desc',
           page: randomPage,
+          first_air_date_lte: todayStr,
         });
       }
 
@@ -2683,6 +2728,7 @@ export async function getRandomTitleFromAllAsync({
           with_keywords: tmdbKeyword,
           sortBy: 'popularity.desc',
           page: 1,
+          first_air_date_lte: todayStr,
         });
       }
 
@@ -2692,25 +2738,29 @@ export async function getRandomTitleFromAllAsync({
           with_original_language: tmdbLang,
           sortBy: 'popularity.desc',
           page: 1,
+          first_air_date_lte: todayStr,
         });
       }
 
       if (tvData?.results?.length) {
-        items = tvData.results.map(r => ({
-          id: `tv-${r.tmdbId || r.id}`,
-          titleId: `tv-${r.tmdbId || r.id}`,
-          title: r.title,
-          type: 'SERIES',
-          genreId: Array.isArray(genreId) ? genreId[0] : String(genreId || 'series').toLowerCase(),
-          genreName: getGenreLabel(genreId),
-          releaseYear: r.releaseYear || (r.firstAirDate ? parseInt(r.firstAirDate.split('-')[0], 10) : 2024),
-          rating: r.voteAverage ? Math.round(r.voteAverage * 10) / 10 : 4.8,
-          language: getLanguageLabel(r.language),
-          posterUrl: r.posterUrl,
-          backdropUrl: r.backdropUrl,
-          overview: r.overview || 'Recommended TV series discovered matching your format and genre preferences.',
-          tags: ['series', String(r.language || '').toLowerCase()],
-        }));
+        items = tvData.results
+          .map(r => ({
+            id: `tv-${r.tmdbId || r.id}`,
+            titleId: `tv-${r.tmdbId || r.id}`,
+            title: r.title,
+            type: 'SERIES',
+            genreId: Array.isArray(genreId) ? genreId[0] : String(genreId || 'series').toLowerCase(),
+            genreName: getGenreLabel(genreId),
+            releaseDate: r.firstAirDate || r.releaseDate || '',
+            releaseYear: r.releaseYear || (r.firstAirDate ? parseInt(r.firstAirDate.split('-')[0], 10) : 2024),
+            rating: r.voteAverage ? Math.round(r.voteAverage * 10) / 10 : 4.8,
+            language: getLanguageLabel(r.language),
+            posterUrl: r.posterUrl,
+            backdropUrl: r.backdropUrl,
+            overview: r.overview || 'Recommended TV series discovered matching your format and genre preferences.',
+            tags: ['series', String(r.language || '').toLowerCase()],
+          }))
+          .filter(isTitleReleased);
       }
     } else {
       // MOVIE
@@ -2720,6 +2770,7 @@ export async function getRandomTitleFromAllAsync({
         with_keywords: tmdbKeyword,
         sortBy: 'popularity.desc',
         page: randomPage,
+        primary_release_date_lte: todayStr,
       });
 
       if (!movieData?.results?.length && randomPage > 1) {
@@ -2729,6 +2780,7 @@ export async function getRandomTitleFromAllAsync({
           with_keywords: tmdbKeyword,
           sortBy: 'popularity.desc',
           page: 1,
+          primary_release_date_lte: todayStr,
         });
       }
 
@@ -2738,69 +2790,79 @@ export async function getRandomTitleFromAllAsync({
           with_original_language: tmdbLang,
           sortBy: 'popularity.desc',
           page: 1,
+          primary_release_date_lte: todayStr,
         });
       }
 
       if (movieData?.results?.length) {
-        items = movieData.results.map(r => ({
-          id: `tmdb-${r.tmdbId || r.id}`,
-          titleId: `tmdb-${r.tmdbId || r.id}`,
-          title: r.title,
-          type: 'MOVIE',
-          genreId: Array.isArray(genreId) ? genreId[0] : String(genreId || 'movie').toLowerCase(),
-          genreName: getGenreLabel(genreId),
-          releaseYear: r.releaseYear || (r.releaseDate ? parseInt(r.releaseDate.split('-')[0], 10) : 2024),
-          rating: r.voteAverage ? Math.round(r.voteAverage * 10) / 10 : 4.8,
-          language: getLanguageLabel(r.language),
-          posterUrl: r.posterUrl,
-          backdropUrl: r.backdropUrl,
-          overview: r.overview || 'Recommended movie discovered matching your format and genre preferences.',
-          tags: ['movie', String(r.language || '').toLowerCase()],
-        }));
+        items = movieData.results
+          .map(r => ({
+            id: `tmdb-${r.tmdbId || r.id}`,
+            titleId: `tmdb-${r.tmdbId || r.id}`,
+            title: r.title,
+            type: 'MOVIE',
+            genreId: Array.isArray(genreId) ? genreId[0] : String(genreId || 'movie').toLowerCase(),
+            genreName: getGenreLabel(genreId),
+            releaseDate: r.releaseDate || '',
+            releaseYear: r.releaseYear || (r.releaseDate ? parseInt(r.releaseDate.split('-')[0], 10) : 2024),
+            rating: r.voteAverage ? Math.round(r.voteAverage * 10) / 10 : 4.8,
+            language: getLanguageLabel(r.language),
+            posterUrl: r.posterUrl,
+            backdropUrl: r.backdropUrl,
+            overview: r.overview || 'Recommended movie discovered matching your format and genre preferences.',
+            tags: ['movie', String(r.language || '').toLowerCase()],
+          }))
+          .filter(isTitleReleased);
       }
     }
 
-    // Strictly filter out any title that was already seen in this session
+    // Strictly filter out any title that was already seen in this session or unreleased
     const unseenTmdb = items.filter(item => {
+      if (!isTitleReleased(item)) return false;
       const rawId = String(item.titleId || item.id).toLowerCase().replace(/^(tmdb-)?(tv-)?/, '');
       return !excludeSet.has(rawId) && !excludeSet.has(String(item.id).toLowerCase()) && !excludeSet.has(String(item.titleId).toLowerCase());
     });
 
-    const allCandidates = [...unseenTmdb, ...localCandidates];
+    const allCandidates = [...unseenTmdb, ...localCandidates].filter(isTitleReleased);
 
     if (allCandidates.length > 0) {
       const pick = allCandidates[Math.floor(Math.random() * allCandidates.length)];
-      return pick;
+      if (isTitleReleased(pick)) return pick;
     }
 
     // If all items on randomPage were seen, try page 1 for unseen items
     if (items.length > 0 && randomPage > 1) {
       const page1Data = isTv
-        ? await discoverTv({ with_original_language: tmdbLang, with_genres: tmdbGenre, page: 1 })
-        : await discoverMovies({ with_original_language: tmdbLang, with_genres: tmdbGenre, page: 1 });
-      const p1Items = (page1Data?.results || []).map(r => ({
-        id: isTv ? `tv-${r.tmdbId || r.id}` : `tmdb-${r.tmdbId || r.id}`,
-        titleId: isTv ? `tv-${r.tmdbId || r.id}` : `tmdb-${r.tmdbId || r.id}`,
-        title: r.title,
-        type: isTv ? 'SERIES' : 'MOVIE',
-        genreId: String(genreId || 'all').toLowerCase(),
-        genreName: genreId !== 'all' ? (genreOptions.find(g => g.id === genreId)?.name || genreId) : (isTv ? 'TV Series' : 'Movie'),
-        releaseYear: r.releaseYear || 2024,
-        rating: r.voteAverage ? Math.round(r.voteAverage * 10) / 10 : 4.8,
-        language: getLanguageLabel(r.language),
-        posterUrl: r.posterUrl,
-        backdropUrl: r.backdropUrl,
-        overview: r.overview || '',
-        tags: [isTv ? 'series' : 'movie'],
-      }));
+        ? await discoverTv({ with_original_language: tmdbLang, with_genres: tmdbGenre, page: 1, first_air_date_lte: todayStr })
+        : await discoverMovies({ with_original_language: tmdbLang, with_genres: tmdbGenre, page: 1, primary_release_date_lte: todayStr });
+      const p1Items = (page1Data?.results || [])
+        .map(r => ({
+          id: isTv ? `tv-${r.tmdbId || r.id}` : `tmdb-${r.tmdbId || r.id}`,
+          titleId: isTv ? `tv-${r.tmdbId || r.id}` : `tmdb-${r.tmdbId || r.id}`,
+          title: r.title,
+          type: isTv ? 'SERIES' : 'MOVIE',
+          genreId: String(genreId || 'all').toLowerCase(),
+          genreName: genreId !== 'all' ? (genreOptions.find(g => g.id === genreId)?.name || genreId) : (isTv ? 'TV Series' : 'Movie'),
+          releaseDate: isTv ? (r.firstAirDate || r.releaseDate || '') : (r.releaseDate || ''),
+          releaseYear: r.releaseYear || 2024,
+          rating: r.voteAverage ? Math.round(r.voteAverage * 10) / 10 : 4.8,
+          language: getLanguageLabel(r.language),
+          posterUrl: r.posterUrl,
+          backdropUrl: r.backdropUrl,
+          overview: r.overview || '',
+          tags: [isTv ? 'series' : 'movie'],
+        }))
+        .filter(isTitleReleased);
 
       const unseenP1 = p1Items.filter(item => {
+        if (!isTitleReleased(item)) return false;
         const rawId = String(item.titleId || item.id).toLowerCase().replace(/^(tmdb-)?(tv-)?/, '');
         return !excludeSet.has(rawId) && !excludeSet.has(String(item.id).toLowerCase());
       });
 
       if (unseenP1.length > 0) {
-        return unseenP1[Math.floor(Math.random() * unseenP1.length)];
+        const pick = unseenP1[Math.floor(Math.random() * unseenP1.length)];
+        if (isTitleReleased(pick)) return pick;
       }
     }
   } catch (err) {
@@ -2808,12 +2870,13 @@ export async function getRandomTitleFromAllAsync({
   }
 
   // 3. Fallback to local pool if TMDB had no network or failed
-  if (localCandidates.length > 0) {
-    return localCandidates[Math.floor(Math.random() * localCandidates.length)];
+  const releasedLocal = localCandidates.filter(isTitleReleased);
+  if (releasedLocal.length > 0) {
+    return releasedLocal[Math.floor(Math.random() * releasedLocal.length)];
   }
 
   const finalLocal = getRandomTitleFromAll({ appMovies, language, genreId, type, mood, excludeIds });
-  if (finalLocal) return finalLocal;
+  if (finalLocal && isTitleReleased(finalLocal)) return finalLocal;
 
   return null;
 }
