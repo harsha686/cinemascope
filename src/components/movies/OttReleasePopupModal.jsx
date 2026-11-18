@@ -3,13 +3,30 @@ import { useNavigate } from 'react-router-dom';
 import { X, Tv, ExternalLink, Film, Calendar, ChevronLeft, ChevronRight, Sparkles, Play, Loader2 } from 'lucide-react';
 import { useApp } from '../../AppContext';
 
-// Instant cache loader for live OTT releases
+// Immediate module-level sanitization: wipe any stale cache containing legacy/mock titles
+if (typeof window !== 'undefined') {
+  try {
+    const stale = localStorage.getItem('cinemascope_cached_ott_releases');
+    if (stale && (stale.toLowerCase().includes('devara') || stale.includes('lucky-baskhar') || stale.includes('saripodhaa'))) {
+      localStorage.removeItem('cinemascope_cached_ott_releases');
+    }
+  } catch (_) {}
+}
+
+// Instant cache loader for verified live OTT releases only
 export function loadCachedOttMovies() {
   try {
-    const raw = typeof window !== 'undefined' ? localStorage.getItem('cinemascope_cached_ott_releases') : null;
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    if (typeof window === 'undefined') return [];
+    const raw = localStorage.getItem('cinemascope_cached_ott_releases');
+    if (!raw) return [];
+    if (raw.toLowerCase().includes('devara') || raw.includes('lucky-baskhar')) {
+      localStorage.removeItem('cinemascope_cached_ott_releases');
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const clean = parsed.filter(m => m && m.id && !m.id.toLowerCase().includes('devara') && !m.title?.toLowerCase().includes('devara'));
+      return clean;
     }
   } catch (_) {}
   return [];
@@ -62,8 +79,9 @@ export default function OttReleasePopupModal() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [dontShowToday, setDontShowToday] = useState(false);
   const [ottMovies, setOttMovies] = useState(loadCachedOttMovies);
-  const [isLoading, setIsLoading] = useState(() => loadCachedOttMovies().length === 0);
-  const [isLiveData, setIsLiveData] = useState(() => loadCachedOttMovies().length > 0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLiveData, setIsLiveData] = useState(false);
+  const [hasLiveFetched, setHasLiveFetched] = useState(false);
   const filmstripRef = useRef(null);
   const isTouchingFilmstrip = useRef(false);
 
@@ -105,7 +123,10 @@ export default function OttReleasePopupModal() {
           console.warn('OTT popup: live fetch failed', err);
         }
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+          setHasLiveFetched(true);
+        }
       }
     }
     loadLiveOttReleases();
@@ -116,8 +137,9 @@ export default function OttReleasePopupModal() {
 
   // Auto-pop logic when user visits the site
   useEffect(() => {
-    // NEVER auto-open while loading with zero movies, or if no real movies are available
-    if (isLoading || !ottMovies || ottMovies.length === 0) {
+    // STRICT GATE: ONLY auto-open once live TMDB data has been confirmed & fetched!
+    // This guarantees that no cached, mock, or intermediate card is ever displayed even for milliseconds.
+    if (!hasLiveFetched || isLoading || !ottMovies || ottMovies.length === 0) {
       return;
     }
 
@@ -144,7 +166,7 @@ export default function OttReleasePopupModal() {
     }, 600);
 
     return () => clearTimeout(timer);
-  }, [isLoading, ottMovies]);
+  }, [hasLiveFetched, isLoading, ottMovies]);
 
   // Support manual trigger from Navbar or any button via custom event
   useEffect(() => {
