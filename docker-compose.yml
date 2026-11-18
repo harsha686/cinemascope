@@ -1,0 +1,58 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CinemaScope — Docker Compose
+# Local development + self-hosted production setup
+#
+# Usage:
+#   Development:  docker compose up
+#   Production:   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: '3.9'
+
+services:
+
+  # ── CinemaScope Web App ────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+        VITE_TMDB_API_KEY: ${VITE_TMDB_API_KEY}
+        VITE_ADMIN_EMAIL: ${VITE_ADMIN_EMAIL}
+        VITE_APP_URL: ${VITE_APP_URL:-http://localhost:8080}
+    image: cinemascope:latest
+    container_name: cinemascope-app
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - TZ=Asia/Kolkata
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "com.cinemascope.service=web"
+      - "com.cinemascope.version=1.0"
+
+  # ── Uptime Kuma — Self-hosted monitoring dashboard ────────────────────────
+  # Open-source, MIT license: https://github.com/louislam/uptime-kuma
+  # Access at: http://localhost:3001 (first run sets admin password)
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: cinemascope-monitor
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - uptime-kuma-data:/app/data
+    labels:
+      - "com.cinemascope.service=monitoring"
+
+volumes:
+  uptime-kuma-data:
+    driver: local

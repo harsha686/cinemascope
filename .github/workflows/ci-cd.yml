@@ -1,0 +1,166 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CinemaScope — CI/CD Pipeline (GitHub Actions)
+#
+# Triggers:
+#   - Push to main branch        → lint + build (verify nothing is broken)
+#   - Pull requests to main      → lint + build (gate merges)
+#   - Push tags (v*)             → full build + Docker image + Cloudflare Pages deploy
+#
+# Required GitHub Secrets (Settings → Secrets and variables → Actions):
+#   VITE_SUPABASE_URL          — Supabase project URL
+#   VITE_SUPABASE_ANON_KEY     — Supabase anon (public) key
+#   VITE_TMDB_API_KEY          — TMDB API key
+#   VITE_ADMIN_EMAIL           — Admin email address
+#   CLOUDFLARE_API_TOKEN       — Cloudflare API token with Pages:Edit permission
+#   CLOUDFLARE_ACCOUNT_ID      — Cloudflare account ID
+#
+# Tools used:
+#   - GitHub Actions (free for public repos; 2000 min/month for private repos)
+#     https://docs.github.com/en/actions/writing-workflows/about-workflows
+#   - Node.js 20 (MIT license)
+#   - Vite (MIT license)
+#   - ESLint (MIT license)
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ── Job 1: Lint ─────────────────────────────────────────────────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --frozen-lockfile
+
+      - name: Run ESLint
+        run: npm run lint
+
+  # ── Job 2: Build ────────────────────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --frozen-lockfile
+
+      - name: Build application
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_TMDB_API_KEY: ${{ secrets.VITE_TMDB_API_KEY }}
+          VITE_ADMIN_EMAIL: ${{ secrets.VITE_ADMIN_EMAIL }}
+          VITE_APP_URL: https://cinemascope.pages.dev
+        run: npm run build
+
+      - name: Check build output
+        run: |
+          echo "Build artifacts:"
+          ls -lh dist/
+          echo "Total size:"
+          du -sh dist/
+          echo "JS chunks:"
+          ls -lh dist/assets/*.js 2>/dev/null || echo "No JS chunks found"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  # ── Job 3: Security Audit ───────────────────────────────────────────────────
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --frozen-lockfile
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+        continue-on-error: true  # Report but do not block until all vulnerabilities are triaged
+
+      - name: Check for hardcoded secrets (basic grep scan)
+        run: |
+          echo "Scanning for potential hardcoded secrets..."
+          # Fail if any TMDB-style 32-char hex keys found in source (not in node_modules or .git)
+          if grep -r --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" \
+             --exclude-dir=node_modules --exclude-dir=.git \
+             -E "[a-f0-9]{32}" src/ 2>/dev/null | grep -v "//.*[a-f0-9]{32}"; then
+            echo "⚠️  Potential hardcoded API keys found in source. Review above lines."
+            exit 1
+          else
+            echo "✅ No obvious hardcoded API keys detected."
+          fi
+
+  # ── Job 4: Deploy to Cloudflare Pages (tags only) ──────────────────────────
+  deploy:
+    name: Deploy to Cloudflare Pages
+    runs-on: ubuntu-latest
+    needs: [lint, build, security-audit]
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: production
+      url: https://cinemascope.pages.dev
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist/ --project-name=cinemascope --commit-dirty=true
+
+      - name: Deployment summary
+        run: |
+          echo "🚀 CinemaScope deployed to Cloudflare Pages"
+          echo "Tag: ${{ github.ref_name }}"
+          echo "URL: https://cinemascope.pages.dev"

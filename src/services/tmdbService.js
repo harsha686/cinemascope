@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TMDB (The Movie Database) Official API Integration Service
  * Real-time HTTP integration for /3/search/movie, /3/discover/movie, /3/movie/{id}, /3/movie/{id}/images, /3/movie/{id}/credits
  */
@@ -226,7 +226,7 @@ export async function discoverRecentIndianMovies(page = 1) {
 
 /**
  * Fetch Indian movies that received a digital/OTT release in the last 30 days.
- * Primary: with_release_type=4 (Digital) for Indian languages — accurate OTT dates.
+ * Primary: with_release_type=4 (Digital) for Indian languages â€” accurate OTT dates.
  * Secondary: flatrate watch_region=IN to supplement and get streaming platforms.
  * Returns verified streaming releases enriched with real OTT platform names and URLs.
  */
@@ -290,13 +290,13 @@ export async function fetchRecentOttReleasesIndia() {
     console.warn('Flatrate supplement query failed:', e2);
   }
 
-  // Language code → readable name map
+  // Language code â†’ readable name map
   const LANG_MAP = {
     te: 'Telugu', ta: 'Tamil', hi: 'Hindi', ml: 'Malayalam',
     kn: 'Kannada', bn: 'Bengali', mr: 'Marathi', en: 'English', pa: 'Punjabi',
   };
 
-  // Provider ID → readable name map
+  // Provider ID â†’ readable name map
   const PROVIDER_NAME_MAP = {
     8: 'Netflix', 9: 'Amazon Prime Video', 10: 'Amazon Prime Video', 119: 'Amazon Prime Video',
     337: 'Disney+ Hotstar', 122: 'Hotstar', 110: 'Zee5', 237: 'SonyLIV',
@@ -593,14 +593,14 @@ export async function testTmdbConnection() {
       configured: true,
       searchWorking: res.results.length > 0,
       detailsWorking: true,
-      message: '✓ TMDB API connection verified and active'
+      message: 'âœ“ TMDB API connection verified and active'
     };
   } catch (err) {
     return {
       configured: false,
       searchWorking: false,
       detailsWorking: false,
-      message: `✕ TMDB API Error: ${err.message}`
+      message: `âœ• TMDB API Error: ${err.message}`
     };
   }
 }
@@ -902,7 +902,7 @@ export async function fetchFullTmdbTvDetails(tmdbId) {
   // Format seasons & episodes
   const seasonsCount = data.number_of_seasons || 1;
   const episodesCount = data.number_of_episodes || 0;
-  const seasonsText = `${seasonsCount} Season${seasonsCount > 1 ? 's' : ''}${episodesCount > 0 ? ` · ${episodesCount} Episodes` : ''}`;
+  const seasonsText = `${seasonsCount} Season${seasonsCount > 1 ? 's' : ''}${episodesCount > 0 ? ` Â· ${episodesCount} Episodes` : ''}`;
 
   // Language mapping
   const langMap = {
@@ -1098,5 +1098,6 @@ export async function fetchTvGenres() {
   const data = await tmdbFetch(`/genre/tv/list`);
   return data.genres || [];
 }
+
 
 

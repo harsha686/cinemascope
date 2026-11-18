@@ -3,89 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { X, Tv, ExternalLink, Film, Calendar, ChevronLeft, ChevronRight, Sparkles, Play, Loader2 } from 'lucide-react';
 import { useApp } from '../../AppContext';
 
-// High-confidence, verified latest OTT releases fallback
-// This ensures that even before Supabase syncs or if remote database lacks OTT fields,
-// the popup ALWAYS has real, beautiful content with working TMDB poster images & links!
-export const DEFAULT_OTT_RELEASES = [
-  {
-    id: 'devara-part-1',
-    title: 'Devara: Part 1',
-    posterUrl: 'https://image.tmdb.org/t/p/w500/lQfuaXjANoTsdx5iS0gCXlK9D2L.jpg',
-    backdropUrl: 'https://image.tmdb.org/t/p/original/hAQnXxOwCjgYcKRgTdYPRC8neqL.jpg',
-    language: 'Telugu',
-    runtime: '2h 58m',
-    genres: ['Action', 'Drama', 'Thriller'],
-    overview: 'An epic coastal action saga following Devara, a fearless sea commander who fiercely protects his homeland and clan against maritime smuggling and treacherous betrayal.',
-    ottPlatform: 'Netflix',
-    ottReleaseDate: '2024-11-08',
-    ottUrl: 'https://www.netflix.com/title/81729606',
-  },
-  {
-    id: 'lucky-baskhar',
-    title: 'Lucky Baskhar',
-    posterUrl: 'https://image.tmdb.org/t/p/w500/a47JQFl9L7VDa79tEvnTOJe0rPa.jpg',
-    backdropUrl: 'https://image.tmdb.org/t/p/original/q8UyN4XhpmChtneZXdZ8fktQka6.jpg',
-    language: 'Telugu',
-    runtime: '2h 30m',
-    genres: ['Drama', 'Thriller', 'Crime'],
-    overview: 'A frustrated middle-class bank cashier in 1980s Bombay pulls off audacious financial scams to achieve immense wealth, risking everything in the process.',
-    ottPlatform: 'Netflix',
-    ottReleaseDate: '2024-11-28',
-    ottUrl: 'https://www.netflix.com',
-  },
-  {
-    id: 'amaran',
-    title: 'Amaran',
-    posterUrl: 'https://image.tmdb.org/t/p/w500/eCB06m1KUGilEOlIzb40nkQhVY0.jpg',
-    backdropUrl: 'https://image.tmdb.org/t/p/original/7cNE2qydew1c8fqnlhWjkE3DHc2.jpg',
-    language: 'Tamil',
-    runtime: '2h 47m',
-    genres: ['Action', 'Biography', 'War'],
-    overview: 'The real-life heroic story of Major Mukund Varadarajan, an Indian Army officer awarded the Ashoka Chakra for courage during anti-terrorist operations in Kashmir.',
-    ottPlatform: 'Netflix',
-    ottReleaseDate: '2024-12-05',
-    ottUrl: 'https://www.netflix.com',
-  },
-  {
-    id: 'saripodhaa-sanivaram',
-    title: 'Saripodhaa Sanivaram',
-    posterUrl: 'https://image.tmdb.org/t/p/w500/e2yVhbMkpi4JvvdIhvRpS0Muge7.jpg',
-    backdropUrl: 'https://image.tmdb.org/t/p/original/yxQACC8pPE5RpRU8nFVU830LL6u.jpg',
-    language: 'Telugu',
-    runtime: '2h 54m',
-    genres: ['Action', 'Thriller'],
-    overview: 'Surya, a man who unleashes his pent-up rage strictly on Saturdays, confronts a tyrannical police inspector Daya to protect an oppressed town.',
-    ottPlatform: 'Netflix',
-    ottReleaseDate: '2024-09-26',
-    ottUrl: 'https://www.netflix.com',
-  },
-  {
-    id: 'stree-2',
-    title: 'Stree 2: Sarkate Ka Aatank',
-    posterUrl: 'https://image.tmdb.org/t/p/w500/nfnhwfUEFuSOxxf4jDdBlY6Lccw.jpg',
-    backdropUrl: 'https://image.tmdb.org/t/p/original/fVV0A67kDjTTQ4CvUn8LoletRmI.jpg',
-    language: 'Hindi',
-    runtime: '2h 27m',
-    genres: ['Horror', 'Comedy'],
-    overview: 'The town of Chanderi is terrorized once again by a headless phantom named Sarkata. Vicky and his loyal friends team up with Stree to defend their town.',
-    ottPlatform: 'Amazon Prime Video',
-    ottReleaseDate: '2024-10-10',
-    ottUrl: 'https://www.primevideo.com',
-  },
-  {
-    id: 'kalki-2898-ad',
-    title: 'Kalki 2898 AD',
-    posterUrl: 'https://image.tmdb.org/t/p/w500/rstcAnBeCkxNQjNp3YXrF6IP1tW.jpg',
-    backdropUrl: 'https://image.tmdb.org/t/p/original/o8XSR1SONnjcsv84NRu6Mwsl5io.jpg',
-    language: 'Telugu',
-    runtime: '3h 01m',
-    genres: ['Sci-Fi', 'Action', 'Epic'],
-    overview: 'In a dystopian 2898 AD Kasi ruled by Supreme Yaskin, ancient Mahabharata warriors awaken as the prophecy of Lord Kalki unfolds.',
-    ottPlatform: 'Netflix, Amazon Prime Video',
-    ottReleaseDate: '2024-08-22',
-    ottUrl: 'https://www.netflix.com/title/81732650',
-  },
-];
+// Instant cache loader for live OTT releases
+export function loadCachedOttMovies() {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem('cinemascope_cached_ott_releases') : null;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (_) {}
+  return [];
+}
 
 // Branded styling for major OTT platforms
 const BRAND_COLORS = {
@@ -133,9 +61,9 @@ export default function OttReleasePopupModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [dontShowToday, setDontShowToday] = useState(false);
-  const [ottMovies, setOttMovies] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLiveData, setIsLiveData] = useState(false);
+  const [ottMovies, setOttMovies] = useState(loadCachedOttMovies);
+  const [isLoading, setIsLoading] = useState(() => loadCachedOttMovies().length === 0);
+  const [isLiveData, setIsLiveData] = useState(() => loadCachedOttMovies().length > 0);
   const filmstripRef = useRef(null);
   const isTouchingFilmstrip = useRef(false);
 
@@ -167,16 +95,14 @@ export default function OttReleasePopupModal() {
           });
           setOttMovies(sorted);
           setIsLiveData(true);
-        } else {
-          // No live results within 30 days — use fallback
-          setOttMovies(DEFAULT_OTT_RELEASES);
-          setIsLiveData(false);
+          try {
+            localStorage.setItem('cinemascope_cached_ott_releases', JSON.stringify(sorted));
+            localStorage.setItem('cinemascope_cached_ott_releases_ts', String(Date.now()));
+          } catch (_) {}
         }
       } catch (err) {
         if (!cancelled) {
-          console.warn('OTT popup: live fetch failed, using fallback', err);
-          setOttMovies(DEFAULT_OTT_RELEASES);
-          setIsLiveData(false);
+          console.warn('OTT popup: live fetch failed', err);
         }
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -186,10 +112,15 @@ export default function OttReleasePopupModal() {
     return () => { cancelled = true; };
   }, []);
 
-  const activeMovie = ottMovies[currentIndex] || ottMovies[0] || DEFAULT_OTT_RELEASES[0];
+  const activeMovie = ottMovies[currentIndex] || ottMovies[0] || null;
 
   // Auto-pop logic when user visits the site
   useEffect(() => {
+    // NEVER auto-open while loading with zero movies, or if no real movies are available
+    if (isLoading || !ottMovies || ottMovies.length === 0) {
+      return;
+    }
+
     // Check if dismissed for today via localStorage
     const dismissedUntil = localStorage.getItem('cinemascope_ott_popup_dismissed_until');
     if (dismissedUntil && Number(dismissedUntil) > Date.now()) {
@@ -202,17 +133,18 @@ export default function OttReleasePopupModal() {
       return;
     }
 
-    // Auto-pop cleanly after brief 500ms delay for smooth page entry
     // On small mobile viewports (< 768px), avoid aggressive auto-takeover that mimics a black screen
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      return;
+    }
+
+    // Auto-pop cleanly after a short delay once REAL verified data is ready
     const timer = setTimeout(() => {
-      if (typeof window !== 'undefined' && window.innerWidth < 768) {
-        return;
-      }
       setIsOpen(true);
-    }, 800);
+    }, 600);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [isLoading, ottMovies]);
 
   // Support manual trigger from Navbar or any button via custom event
   useEffect(() => {
@@ -284,8 +216,64 @@ export default function OttReleasePopupModal() {
 
   if (!isOpen) return null;
 
-  const currentMovie = activeMovie || DEFAULT_OTT_RELEASES[0];
-  if (!currentMovie) return null;
+  // If opened manually while initial live data is still fetching
+  if (isLoading && (!ottMovies || ottMovies.length === 0)) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9999,
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 16,
+        }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) handleClose();
+        }}
+      >
+        <div
+          style={{
+            background: 'linear-gradient(180deg, #181410 0%, #0d0a08 100%)',
+            border: '1px solid rgba(220, 182, 91, 0.4)',
+            borderRadius: 14,
+            padding: '36px 32px',
+            textAlign: 'center',
+            maxWidth: 420,
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          <button
+            type="button"
+            onClick={handleClose}
+            aria-label="Close"
+            style={{
+              position: 'absolute',
+              top: 12,
+              right: 12,
+              background: 'transparent',
+              border: 'none',
+              color: '#888',
+              cursor: 'pointer',
+            }}
+          >
+            <X size={20} />
+          </button>
+          <Loader2 size={32} color="var(--gold)" className="animate-spin" style={{ margin: '0 auto 16px', display: 'block' }} />
+          <h3 style={{ margin: '0 0 6px', fontSize: 18, color: '#fff' }}>Loading Latest OTT Releases</h3>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>Fetching live digital releases in India...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!activeMovie) return null;
+  const currentMovie = activeMovie;
 
   const fallbackPlatformUrl = () => {
     const p = (currentMovie.ottPlatform || '').toLowerCase();
@@ -643,12 +631,15 @@ export default function OttReleasePopupModal() {
               onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
               onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
             >
-              <img
-                src={activeMovie.posterUrl}
-                alt={activeMovie.title}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                onError={e => { e.target.src = '/demo-frame.jpg'; }}
-              />
+              {activeMovie.posterUrl ? (
+                <img
+                  src={activeMovie.posterUrl}
+                  alt={activeMovie.title}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={e => { e.currentTarget.style.display = 'none'; }}
+                />
+              ) : null}
+              <Film size={26} color="rgba(220, 182, 91, 0.35)" style={{ position: 'absolute', pointerEvents: 'none' }} />
             </div>
 
             {/* Title & Streaming Platform Badge */}
@@ -884,7 +875,7 @@ export default function OttReleasePopupModal() {
                       src={m.posterUrl}
                       alt={m.title}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      onError={(e) => { e.target.src = '/demo-frame.jpg'; }}
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
                   </button>
                 ))}

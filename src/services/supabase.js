@@ -1,8 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
+﻿import { createClient } from '@supabase/supabase-js';
 
-// Default connected Supabase Project
-const DEFAULT_SUPABASE_URL = 'https://ioudwvkvtxlzmcqnrqlq.supabase.co';
-const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvdWR3dmt2dHhsem1jcW5ycWxxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxODA0MjYsImV4cCI6MjEwMzc1NjQyNn0.7EnHtyNOFbQ8iyBTk6OGLB4yEbNhRC-qmc_P1rNc5vs';
+// SECURITY: Credentials loaded from environment variables.
+// Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file (see .env.example).
+// The fallback strings below maintain backward compatibility for existing deployments.
+// ACTION REQUIRED: After setting env vars, remove the fallback strings and rotate your anon key.
+const DEFAULT_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+const DEFAULT_SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 // Read from env vars, localStorage custom config, or defaults
 const getSupabaseConfig = () => {
@@ -126,7 +129,7 @@ export const supabaseService = {
     if (!supabase) return false;
     try {
       const current = await this.getDeletedUsers();
-      const normEmail = (email && email !== '—') ? email.toLowerCase().trim() : null;
+      const normEmail = (email && email !== 'â€”') ? email.toLowerCase().trim() : null;
       const exists = current.some(u =>
         (u.id && id && u.id === id) ||
         (normEmail && u.email && u.email.toLowerCase().trim() === normEmail)
@@ -432,7 +435,7 @@ export const supabaseService = {
   },
 
 
-  // Users — reads from system_users_data collection (cross-device sync layer)
+  // Users â€” reads from system_users_data collection (cross-device sync layer)
   // Falls back to public.users table if it exists (created via SQL editor)
   async getUsers() {
     const supabase = getSupabaseClient();
@@ -535,13 +538,13 @@ export const supabaseService = {
       }
       if (!Array.isArray(currentList)) currentList = [];
 
-      const normUserEmail = (user.email && user.email !== '—') ? user.email.toLowerCase().trim() : null;
+      const normUserEmail = (user.email && user.email !== 'â€”') ? user.email.toLowerCase().trim() : null;
       const normUserName = (user.displayName || '').trim().toLowerCase();
 
       // Deduplicate by id, email, and display name
       const existsIndex = currentList.findIndex(u =>
         u.id === user.id ||
-        (normUserEmail && u.email && u.email !== '—' && u.email.toLowerCase().trim() === normUserEmail) ||
+        (normUserEmail && u.email && u.email !== 'â€”' && u.email.toLowerCase().trim() === normUserEmail) ||
         (normUserName && u.displayName && u.displayName.trim().toLowerCase() === normUserName)
       );
 
@@ -590,12 +593,12 @@ export const supabaseService = {
         try {
           const currentList = JSON.parse(colData.description);
           if (Array.isArray(currentList)) {
-            const normEmail = (userEmail && userEmail !== '—') ? userEmail.toLowerCase().trim() : null;
+            const normEmail = (userEmail && userEmail !== 'â€”') ? userEmail.toLowerCase().trim() : null;
             const normName = (displayName || '').trim().toLowerCase();
 
             const filteredList = currentList.filter(u => {
               if (u.id && userId && u.id === userId) return false;
-              if (normEmail && u.email && u.email !== '—' && u.email.toLowerCase().trim() === normEmail) return false;
+              if (normEmail && u.email && u.email !== 'â€”' && u.email.toLowerCase().trim() === normEmail) return false;
               if (normName && u.displayName && u.displayName.trim().toLowerCase() === normName) return false;
               return true;
             });
@@ -618,7 +621,7 @@ export const supabaseService = {
         if (delData && delData.description) {
           const currentDelList = JSON.parse(delData.description);
           if (Array.isArray(currentDelList)) {
-            const normEmail = (userEmail && userEmail !== '—') ? userEmail.toLowerCase().trim() : null;
+            const normEmail = (userEmail && userEmail !== 'â€”') ? userEmail.toLowerCase().trim() : null;
             const normName = (displayName || '').trim().toLowerCase();
 
             const filteredDelList = currentDelList.filter(r => {
@@ -639,7 +642,7 @@ export const supabaseService = {
       if (userId) {
         await supabase.from('reviews').delete().eq('user_id', userId).catch(() => {});
       }
-      if (userEmail && userEmail !== '—') {
+      if (userEmail && userEmail !== 'â€”') {
         await supabase.from('reviews').delete().eq('user_email', userEmail).catch(() => {});
       }
       if (displayName) {
@@ -665,7 +668,7 @@ export const supabaseService = {
       if (userId) {
         await supabase.from('weekend_votes').delete().eq('user_id', userId).catch(() => {});
       }
-      if (userEmail && userEmail !== '—') {
+      if (userEmail && userEmail !== 'â€”') {
         await supabase.from('weekend_votes').delete().eq('user_email', userEmail).catch(() => {});
       }
 
@@ -1158,3 +1161,4 @@ export const supabaseService = {
     }
   },
 };
+

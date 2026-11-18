@@ -83,3 +83,11 @@ export function MovieShelfSkeleton({ count = 6 }) {
     </div>
   );
 }
+
+export default function SkeletonLoader() {
+  return (
+    <div style={{ width: '100%', maxWidth: '1200px', margin: '0 auto', padding: '2rem 1rem' }}>
+      <MovieShelfSkeleton count={5} />
+    </div>
+  );
+}

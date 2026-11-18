@@ -18,6 +18,10 @@ import {
 
 export { getTodayDateString, getEffectiveMovieStatus };
 
+// SECURITY: Admin email from env var. Set VITE_ADMIN_EMAIL in your .env file.
+// This avoids hardcoding the admin email in source code.
+export const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || '';
+
 const AppContext = createContext(null);
 
 // LocalStorage helpers
@@ -53,7 +57,7 @@ saveStorage('cinemascope_theaters', sanitizedTheaters);
 export function sanitizeReviews(reviewsList) {
   if (!Array.isArray(reviewsList)) return [];
   return reviewsList.map(r => {
-    if (r && r.userDisplayName && r.userDisplayName.includes('(Admin)')) {
+    if (r && r.userDisplayName && /\(admin\)/i.test(r.userDisplayName)) {
       return {
         ...r,
         userDisplayName: r.userDisplayName.replace(/\s*\(Admin\)/gi, '').trim()
@@ -106,7 +110,7 @@ export function deduplicateUsers(usersList) {
       user.displayName = 'Harshavardhan';
     }
     const id = String(user.id).trim();
-    const email = user.email && user.email !== '—' ? user.email.trim().toLowerCase() : null;
+    const email = user.email && user.email !== 'â€”' ? user.email.trim().toLowerCase() : null;
     const name = (user.displayName || '').trim().toLowerCase();
 
     if (seenIds.has(id)) {
@@ -174,7 +178,7 @@ export const deletedUserEmailsSet = new Set(Array.isArray(rawDeletedUsers) ? raw
 
 export function recordDeletedUserLocally({ id, email, displayName } = {}) {
   if (id) deletedUserIdsSet.add(id);
-  const normEmail = (email && email !== '—') ? email.toLowerCase().trim() : null;
+  const normEmail = (email && email !== 'â€”') ? email.toLowerCase().trim() : null;
   if (normEmail) deletedUserEmailsSet.add(normEmail);
 
   const stored = loadStorage('cinemascope_deleted_users', []);
@@ -358,14 +362,14 @@ function reducer(state, action) {
         ? action.payload
         : { id: action.payload };
       const targetId = target.id;
-      const normEmail = (target.email && target.email !== '—') ? target.email.toLowerCase().trim() : null;
+      const normEmail = (target.email && target.email !== 'â€”') ? target.email.toLowerCase().trim() : null;
       const normName = (target.displayName || '').trim().toLowerCase();
 
       recordDeletedUserLocally({ id: targetId, email: normEmail, displayName: target.displayName });
 
       const isMatch = (uId, uEmail, uName) => {
         if (targetId && uId && uId === targetId) return true;
-        if (normEmail && uEmail && uEmail !== '—' && uEmail.toLowerCase().trim() === normEmail) return true;
+        if (normEmail && uEmail && uEmail !== 'â€”' && uEmail.toLowerCase().trim() === normEmail) return true;
         if (normName && uName && uName.trim().toLowerCase() === normName) return true;
         return false;
       };
@@ -417,7 +421,7 @@ function reducer(state, action) {
       const normName = (action.payload?.displayName || '').trim().toLowerCase();
       const existingUser = state.users.find(u =>
         u.id === action.payload?.id ||
-        (action.payload?.email && action.payload.email !== '—' && u.email?.toLowerCase() === action.payload.email?.toLowerCase()) ||
+        (action.payload?.email && action.payload.email !== 'â€”' && u.email?.toLowerCase() === action.payload.email?.toLowerCase()) ||
         (normName && (u.displayName || '').trim().toLowerCase() === normName)
       );
 
@@ -433,7 +437,7 @@ function reducer(state, action) {
 
       const filtered = state.users.filter(u =>
         u.id !== userToRegister.id &&
-        (!userToRegister.email || userToRegister.email === '—' || u.email?.toLowerCase() !== userToRegister.email?.toLowerCase()) &&
+        (!userToRegister.email || userToRegister.email === 'â€”' || u.email?.toLowerCase() !== userToRegister.email?.toLowerCase()) &&
         (!normName || (u.displayName || '').trim().toLowerCase() !== normName)
       );
       const updatedUsers = deduplicateUsers([...filtered, userToRegister]);
@@ -1039,12 +1043,12 @@ export function AppProvider({ children }) {
       if (Array.isArray(remoteDeletedUsers) && remoteDeletedUsers.length > 0) {
         remoteDeletedUsers.forEach(u => {
           if (u.id) deletedUserIdsSet.add(u.id);
-          if (u.email && u.email !== '—') deletedUserEmailsSet.add(u.email.toLowerCase().trim());
+          if (u.email && u.email !== 'â€”') deletedUserEmailsSet.add(u.email.toLowerCase().trim());
         });
         const currentStoredBlacklist = loadStorage('cinemascope_deleted_users', []);
         const mergedBlacklist = [...currentStoredBlacklist];
         remoteDeletedUsers.forEach(ru => {
-          const normEmail = (ru.email && ru.email !== '—') ? ru.email.toLowerCase().trim() : null;
+          const normEmail = (ru.email && ru.email !== 'â€”') ? ru.email.toLowerCase().trim() : null;
           if (!mergedBlacklist.some(b => (b.id && ru.id && b.id === ru.id) || (normEmail && b.email && b.email.toLowerCase().trim() === normEmail))) {
             mergedBlacklist.push(ru);
           }
@@ -1151,7 +1155,7 @@ export function AppProvider({ children }) {
           supabaseService.saveUsersData(mergedUsers).catch(console.warn);
         }
       } else if (currentState.users?.length > 0) {
-        // Cloud has no users yet — seed it with current deduplicated local users (excluding blacklisted)
+        // Cloud has no users yet â€” seed it with current deduplicated local users (excluding blacklisted)
         const cleanUsers = deduplicateUsers(currentState.users.filter(u => {
           if (!u || !u.id) return false;
           if (deletedUserIdsSet.has(u.id)) return false;
@@ -1527,7 +1531,7 @@ export function AppProvider({ children }) {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'reviews' },
         async () => {
-          // A review was inserted/updated/deleted — re-fetch all reviews
+          // A review was inserted/updated/deleted â€” re-fetch all reviews
           try {
             const remoteReviews = await supabaseService.getReviews();
             if (remoteReviews && remoteReviews.length > 0) {
@@ -1636,7 +1640,7 @@ export function AppProvider({ children }) {
               if (Array.isArray(bl)) {
                 bl.forEach(u => {
                   if (u.id) deletedUserIdsSet.add(u.id);
-                  if (u.email && u.email !== '—') deletedUserEmailsSet.add(u.email.toLowerCase().trim());
+                  if (u.email && u.email !== 'â€”') deletedUserEmailsSet.add(u.email.toLowerCase().trim());
                 });
                 saveStorage('cinemascope_deleted_users', bl);
                 const cur = stateRef.current?.currentUser;
@@ -2022,7 +2026,7 @@ export function AppProvider({ children }) {
     const req = {
       id: `del-req-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       userId,
-      userEmail: userEmail || '—',
+      userEmail: userEmail || 'â€”',
       userDisplayName: userDisplayName || 'Cinema User',
       reason: (reason || '').trim(),
       status: 'PENDING',
@@ -2188,3 +2192,4 @@ export function useApp() {
   if (!ctx) throw new Error('useApp must be used within AppProvider');
   return ctx;
 }
+
