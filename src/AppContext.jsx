@@ -18,9 +18,8 @@ import {
 
 export { getTodayDateString, getEffectiveMovieStatus };
 
-// SECURITY: Admin email from env var. Set VITE_ADMIN_EMAIL in your .env file.
-// This avoids hardcoding the admin email in source code.
-export const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || '';
+// Admin email: reads from VITE_ADMIN_EMAIL with fallback to the primary project admin account
+export const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'harshavardhanmellof41@gmail.com';
 
 const AppContext = createContext(null);
 

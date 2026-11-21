@@ -1,11 +1,10 @@
 ﻿import { createClient } from '@supabase/supabase-js';
 
-// SECURITY: Credentials loaded from environment variables.
-// Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file (see .env.example).
-// The fallback strings below maintain backward compatibility for existing deployments.
-// ACTION REQUIRED: After setting env vars, remove the fallback strings and rotate your anon key.
-const DEFAULT_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const DEFAULT_SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// SECURITY: Credentials can be loaded from environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY).
+// If env vars are not set during build (e.g. static Cloudflare Pages build without build vars),
+// the production Supabase project defaults are used so authentication and database sync work out of the box.
+const DEFAULT_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://ioudwvkvtxlzmcqnrqlq.supabase.co';
+const DEFAULT_SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvdWR3dmt2dHhsem1jcW5ycWxxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxODA0MjYsImV4cCI6MjEwMzc1NjQyNn0.7EnHtyNOFbQ8iyBTk6OGLB4yEbNhRC-qmc_P1rNc5vs';
 
 // Read from env vars, localStorage custom config, or defaults
 const getSupabaseConfig = () => {
